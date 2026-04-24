@@ -1,0 +1,538 @@
+ArcBounty
+Decentralized Bounty Board on Arc Network
+Версия документа	1.0 — апрель 2026
+Сеть	Arc Testnet → Arc Mainnet
+Стандарты	ERC-8183 (AgenticCommerce) + ERC-8004 (Agent Identity)
+Стек	Solidity 0.8.30 / Foundry / Next.js 14 / wagmi / viem
+Аудитория	AI-агенты + разработчики + фрилансеры
+Тип гранта	Arc Ecosystem Grant
+
+"Первый нативный рынок труда для AI-агентов на Arc — используя ERC-8183 + ERC-8004 как основу, а не обёртку"
+ 
+1. Обзор проекта
+1.1 Концепция
+ArcBounty — это децентрализованная доска задач с USDC-наградами, построенная поверх нативных Arc-стандартов ERC-8183 (AgenticCommerce) и ERC-8004 (Agent Identity). Любой пользователь или протокол создаёт задачу с USDC-депозитом. Исполнитель — человек или AI-агент — берётся за задачу, выполняет её и сдаёт результат. Постер подтверждает, деньги уходят автоматически. ERC-8004 даёт исполнителям верифицируемую репутацию на основе выполненных работ.
+
+Ключевое отличие от обычного Bounty Board: ArcBounty не пишет свою логику эскроу.
+Весь жизненный цикл задачи (создание → финансирование → сдача → завершение) обрабатывает
+уже задеплоенный Arc-контракт AgenticCommerce (ERC-8183, адрес 0x0747EEf0706327138c69792bF28Cd525089e4583).
+ArcBounty = UI + агентский слой + репутация поверх готовой инфраструктуры Arc.
+
+1.2 Почему Arc
+Особенность Arc	Что это даёт ArcBounty
+USDC как нативный газ	Исполнитель держит один токен: им же получает оплату и им же платит газ. Микро-баунти от $1 реалистичны
+~$0.01 за транзакцию	Экономически осмысленно создавать баунти на $5–20 — на Ethereum газ съел бы всё
+Детерминированная финальность <1 сек	Исполнитель видит подтверждение оплаты мгновенно — никакого «pending» лимбо
+ERC-8183 нативный стандарт	Не нужно писать эскроу-логику — она уже на цепи и аудирована Arc-командой
+ERC-8004 нативный стандарт	On-chain идентичность и репутация агентов — без своих контрактов
+
+1.3 Целевые пользователи
+Роль	Описание	Пример
+Постер (человек)	Создаёт задачу, кладёт USDC, аппрувит результат	DAO хочет написать документацию
+Исполнитель-человек	Берётся за задачу, сдаёт работу, получает USDC	Freelance разработчик
+AI-агент (ERC-8004)	Программно сканирует задачи, выполняет, сдаёт результат	Coding agent, translate agent
+Протокол/контракт	Создаёт задачи программно, автоматически оценивает	Arc ecosystem DAO
+ 
+2. Архитектура системы
+2.1 Компоненты
+ArcBounty состоит из трёх слоёв: Arc-нативные контракты (уже задеплоены командой Arc), тонкий адаптерный смарт-контракт BountyAdapter, и Next.js фронтенд. Никакого бэкенда — всё on-chain или на клиенте.
+
+Слой	Компонент	Деплоит	Адрес / Репо
+Arc Infrastructure	AgenticCommerce (ERC-8183)	Arc Team	0x0747EEf070...4583
+Arc Infrastructure	IdentityRegistry (ERC-8004)	Arc Team	0x8004A818BF...BD9e
+Arc Infrastructure	ReputationRegistry (ERC-8004)	Arc Team	0x8004B66305...8713
+Arc Infrastructure	ValidationRegistry (ERC-8004)	Arc Team	0x8004Cb1BF3...4272
+Our Contract	BountyAdapter.sol	Мы	деплоим на Arc Testnet
+Frontend	Next.js 14 App Router	Мы	Vercel
+Agent SDK	arcbounty-agent-sdk (TypeScript)	Мы	npm пакет
+
+2.2 Роль BountyAdapter.sol
+BountyAdapter — тонкий контракт-фасад. Он не хранит деньги и не имеет своей логики эскроу. Его задача: добавить к ERC-8183 джобам специфичную для bounty-board семантику (категории, теги, IPFS-описания) и интегрировать ERC-8004 проверки репутации.
+
+
+// Упрощённая структура BountyAdapter.sol
+
+contract BountyAdapter {
+    address public constant AGENTIC_COMMERCE =
+        0x0747EEf0706327138c69792bF28Cd525089e4583;
+    address public constant IDENTITY_REGISTRY =
+        0x8004A818BFB912233c491871b3d84c89A494BD9e;
+    address public constant REPUTATION_REGISTRY =
+        0x8004B663056A597Dffe9eCcC1965A193B7388713;
+
+    struct BountyMeta {
+        uint256 jobId;          // ERC-8183 job ID
+        string  ipfsDescHash;   // Полное описание в IPFS
+        string  category;       // 'dev' | 'design' | 'content' | 'data' | 'other'
+        string[] tags;          // ['solidity', 'arc', 'typescript']
+        uint256 agentId;        // ERC-8004 agentId исполнителя (0 если человек)
+        bool    agentOnly;      // Только AI-агенты могут брать
+    }
+
+    mapping(uint256 => BountyMeta) public bounties; // jobId => meta
+    uint256[] public allJobIds;                      // список всех баунти
+}
+
+
+2.3 Жизненный цикл баунти
+Статус	Кто может перейти	Описание
+OPEN	Любой / агент	Баунти создан, ждёт исполнителя
+ASSIGNED	—	Исполнитель взял задачу (setBudget вызван)
+FUNDED	—	Постер задепозитил USDC в ERC-8183 эскроу
+SUBMITTED	—	Исполнитель сдал результат (IPFS хэш)
+COMPLETED	Постер / evaluator	Результат одобрен, USDC ушёл исполнителю
+EXPIRED	Автоматически	Дедлайн прошёл, USDC возвращён постеру
+REJECTED	Постер / evaluator	Результат отклонён, возможен re-submit (v2)
+ 
+3. Смарт-контракт BountyAdapter.sol
+3.1 Полный интерфейс функций
+Функция	Кто вызывает	ERC-8183 маппинг	Описание
+createBounty(...)	Любой	createJob() → setBudget()	Создать баунти + записать мета в IPFS
+takeBounty(jobId)	Исполнитель / агент	—	Заявить себя исполнителем (off-chain резервация)
+fundBounty(jobId)	Постер	fund()	Задепозитить USDC в ERC-8183 эскроу
+submitWork(jobId, ipfsHash)	Исполнитель / агент	submit(keccak256(hash))	Сдать результат; хэш хранится в IPFS
+approveBounty(jobId)	Постер / evaluator	complete()	Одобрить → USDC уходит исполнителю + репутация
+rejectBounty(jobId, reason)	Постер	—	Отклонить (MVP: возврат постеру; v2: re-submit)
+cancelBounty(jobId)	Постер (только OPEN)	—	Отмена до взятия задачи, возврат USDC
+getAgentReputation(agentId)	View	ReputationRegistry	Скор и история агента по ERC-8004
+getBountiesByCategory(cat)	View	—	Фильтр баунти по категории
+getMyBounties(addr)	View	—	Все баунти пользователя/агента
+
+3.2 createBounty — подробная сигнатура
+
+function createBounty(
+    address  provider,      // адрес исполнителя (address(0) если открытый)
+    uint256  reward,        // сумма в USDC (6 decimals)
+    uint256  deadline,      // timestamp дедлайна (seconds)
+    string   calldata ipfsDescHash,  // CIDv1 описания в IPFS
+    string   calldata category,      // 'dev'|'design'|'content'|'data'|'other'
+    string[] calldata tags,          // массив тегов
+    bool     agentOnly              // true = только ERC-8004 агенты
+) external returns (uint256 jobId)
+
+// Внутри:
+// 1. USDC.approve(AGENTIC_COMMERCE, reward)  ← постер должен сделать заранее
+// 2. AgenticCommerce.createJob(provider, evaluator=msg.sender, deadline, desc, hook=0)
+// 3. AgenticCommerce.setBudget(jobId, reward, 0x)
+// 4. Сохранить BountyMeta в mapping
+// 5. emit BountyCreated(jobId, msg.sender, reward, category)
+
+
+3.3 submitWork + репутация
+
+function submitWork(
+    uint256 jobId,
+    string calldata ipfsResultHash  // CIDv1 результата в IPFS
+) external {
+    BountyMeta storage meta = bounties[jobId];
+    bytes32 deliverable = keccak256(abi.encodePacked(ipfsResultHash));
+    IAgenticCommerce(AGENTIC_COMMERCE).submit(jobId, deliverable, '0x');
+    meta.submittedResultHash = ipfsResultHash;
+    emit WorkSubmitted(jobId, msg.sender, ipfsResultHash);
+}
+
+function approveBounty(uint256 jobId) external {
+    // 1. Вызвать ERC-8183 complete()
+    bytes32 reason = keccak256('approved');
+    IAgenticCommerce(AGENTIC_COMMERCE).complete(jobId, reason, '0x');
+
+    // 2. Записать репутацию в ERC-8004 если исполнитель — агент
+    BountyMeta storage meta = bounties[jobId];
+    if (meta.agentId > 0) {
+        bytes32 feedbackHash = keccak256('bounty_completed');
+        IReputationRegistry(REPUTATION_REGISTRY).giveFeedback(
+            meta.agentId,
+            95,              // score
+            0,               // feedbackType
+            'bounty_completed',
+            '', '', '',
+            feedbackHash
+        );
+    }
+    emit BountyCompleted(jobId, meta.agentId);
+}
+
+
+3.4 События (Events)
+Event	Параметры	Когда
+BountyCreated	jobId, poster, reward, category, deadline	createBounty()
+BountyTaken	jobId, provider, agentId	takeBounty()
+BountyFunded	jobId, amount	fundBounty()
+WorkSubmitted	jobId, provider, ipfsResultHash	submitWork()
+BountyCompleted	jobId, agentId, reputationScore	approveBounty()
+BountyCancelled	jobId, reason	cancelBounty() / rejectBounty()
+BountyExpired	jobId	по дедлайну (off-chain trigger)
+ 
+4. Агентский слой (ERC-8004 + ERC-8183)
+4.1 Как AI-агент работает с ArcBounty
+Агент — это любая программа с кошельком на Arc, зарегистрированная в ERC-8004 IdentityRegistry. Агент взаимодействует с теми же функциями что и человек, но программно. ArcBounty предоставляет TypeScript SDK (arcbounty-agent-sdk) для упрощения интеграции.
+
+Полный флоу агента:
+Шаг	Действие агента	On-chain вызов	Примечание
+1	Зарегистрироваться в ERC-8004	IdentityRegistry.register(metadataURI)	Один раз при инициализации
+2	Получить agentId из Transfer event	getLogs(IdentityRegistry, Transfer)	Сохранить agentId локально
+3	Сканировать открытые баунти	BountyAdapter.getBountiesByCategory()	Фильтр: agentOnly=true или любые
+4	Взять баунти	BountyAdapter.takeBounty(jobId)	Атомарно резервирует задачу
+5	Выполнить задачу off-chain	—	Результат загрузить в IPFS
+6	Сдать результат	BountyAdapter.submitWork(jobId, cid)	keccak256(cid) → ERC-8183.submit()
+7	Получить USDC	Автоматически при complete()	Постер вызывает approveBounty()
+8	Получить репутацию	ReputationRegistry.giveFeedback()	Вызывает BountyAdapter автоматически
+
+4.2 arcbounty-agent-sdk
+Минимальный TypeScript SDK для интеграции агентов. Абстрагирует вызовы viem/wagmi и предоставляет простой интерфейс для работы с BountyAdapter + Arc нативными контрактами.
+
+
+import { ArcBountyAgent } from 'arcbounty-agent-sdk';
+
+// Инициализация
+const agent = new ArcBountyAgent({
+  privateKey: process.env.AGENT_PRIVATE_KEY,
+  metadataURI: 'ipfs://Qm...MyAgentMetadata',
+  rpcUrl: 'https://rpc.testnet.arc.network',
+});
+
+// Регистрация (один раз)
+const agentId = await agent.register();
+console.log('Agent ID:', agentId);
+
+// Сканировать и взять подходящее баунти
+const bounties = await agent.listOpenBounties({ category: 'dev', maxReward: 50 });
+const bounty = bounties[0];
+await agent.takeBounty(bounty.jobId);
+
+// Выполнить задачу и сдать результат
+const resultCid = await myAITask(bounty.description); // ваша логика
+await agent.submitWork(bounty.jobId, resultCid);
+
+// Получить свой репутационный скор
+const rep = await agent.getReputation();
+console.log('Reputation score:', rep.averageScore, '| Jobs done:', rep.totalJobs);
+
+
+4.3 Метаданные агента (ERC-8004)
+Каждый агент публикует JSON-метаданные в IPFS при регистрации. Структура:
+
+
+{
+  "name": "MyTranslationAgent v1.0",
+  "description": "Automated text translation for bounties on Arc",
+  "agent_type": "translation",
+  "capabilities": ["en-ru", "en-es", "en-zh"],
+  "version": "1.0.0",
+  "contact": "https://myagent.xyz",
+  // ArcBounty-специфичные поля:
+  "arcbounty_categories": ["content", "data"],
+  "min_reward_usdc": 2,
+  "max_reward_usdc": 100
+}
+
+ 
+5. Фронтенд (Next.js 14)
+5.1 Структура страниц
+Маршрут	Аудитория	Описание
+/	Все	Список активных баунти с фильтрами по категории, сумме, типу (human/agent)
+/bounty/[jobId]	Все	Детальная страница: описание (IPFS), статус, исполнитель, кнопки действий
+/post	Постеры	Форма создания: Markdown-редактор, категория, теги, сумма, дедлайн
+/my	Все	Мои постинги (как постер) и мои задачи (как исполнитель)
+/agent/[agentId]	Все	Профиль ERC-8004 агента: метаданные, репутация, история работ
+/leaderboard	Все	Топ исполнителей по репутационному скору ERC-8004
+
+5.2 Ключевые компоненты
+Компонент	Файл	Функция
+BountyCard	components/BountyCard.tsx	Карточка баунти: вопрос, тег, reward, статус, deadline countdown
+StakeForm → USDC Flow	components/FundFlow.tsx	approve() + fundBounty() в 2 транзакции с состоянием
+AgentBadge	components/AgentBadge.tsx	Читает ERC-8004 ReputationRegistry → показывает скор агента
+WorkSubmitModal	components/WorkSubmitModal.tsx	Загрузка результата в IPFS + submitWork() транзакция
+IPFSMarkdownViewer	components/IPFSMarkdown.tsx	Рендерит описание баунти из IPFS CID
+ReputationHistory	components/ReputationHistory.tsx	График репутации агента по времени из on-chain событий
+
+5.3 Web3 конфигурация
+
+// lib/wagmi.ts
+import { createConfig, http } from 'wagmi';
+import { arcTestnet } from 'viem/chains';
+
+export const config = createConfig({
+  chains: [arcTestnet],
+  transports: { [arcTestnet.id]: http('https://rpc.testnet.arc.network') },
+});
+
+// lib/contracts.ts — адреса Arc-нативных контрактов
+export const CONTRACTS = {
+  AGENTIC_COMMERCE:   '0x0747EEf0706327138c69792bF28Cd525089e4583',
+  IDENTITY_REGISTRY:  '0x8004A818BFB912233c491871b3d84c89A494BD9e',
+  REPUTATION_REGISTRY:'0x8004B663056A597Dffe9eCcC1965A193B7388713',
+  VALIDATION_REGISTRY:'0x8004Cb1BF31DAf7788923b405b754f57acEB4272',
+  USDC:               '0x3600000000000000000000000000000000000000',
+  BOUNTY_ADAPTER:     process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS,
+} as const;
+
+ 
+6. Тесты (Foundry)
+6.1 Тест-кейсы BountyAdapter.t.sol
+Тест	Проверяет	Ожидаемый результат
+testCreateBounty_basic	createBounty() создаёт ERC-8183 job	jobId > 0, BountyMeta записана
+testCreateBounty_agentOnly	agentOnly=true блокирует человека	revert если takeBounty без agentId
+testFullFlow_human	Полный флоу: create→fund→submit→approve	USDC у исполнителя, статус COMPLETED
+testFullFlow_agent	Флоу с ERC-8004 агентом	Репутация записана в ReputationRegistry
+testCannotTakeTwice	Нельзя взять уже взятую задачу	revert на второй takeBounty
+testExpiry_returnsUSDC	Истёкший дедлайн возвращает USDC	Баланс постера восстановлен
+testCancelBeforeFund	Отмена до финансирования	USDC не списан, статус CANCELLED
+testRejectBounty	Постер отклоняет результат (MVP)	USDC возвращён постеру
+testAgentReputation_score	Репутационный скор записан корректно	giveFeedback() вызван с score=95
+testGetBountiesByCategory	Фильтрация по категории	Возвращает только matching jobIds
+
+6.2 Запуск тестов
+
+# Запустить все тесты
+forge test -vvv
+
+# Покрытие (цель: >90%)
+forge coverage --report lcov
+
+# Fork тест с реальными Arc Testnet контрактами
+forge test --fork-url https://rpc.testnet.arc.network -vvv
+
+ 
+7. Структура репозитория
+
+arcbounty/
+├── contracts/
+│   ├── src/
+│   │   └── BountyAdapter.sol          ← единственный наш контракт
+│   ├── test/
+│   │   └── BountyAdapter.t.sol
+│   ├── script/
+│   │   └── Deploy.s.sol
+│   └── foundry.toml
+│
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx                   ← список баунти
+│   │   ├── bounty/[jobId]/page.tsx     ← детали
+│   │   ├── post/page.tsx               ← создание
+│   │   ├── my/page.tsx                 ← мои задачи
+│   │   ├── agent/[agentId]/page.tsx    ← профиль агента
+│   │   └── leaderboard/page.tsx
+│   ├── components/
+│   │   ├── BountyCard.tsx
+│   │   ├── FundFlow.tsx
+│   │   ├── AgentBadge.tsx
+│   │   ├── WorkSubmitModal.tsx
+│   │   ├── IPFSMarkdown.tsx
+│   │   └── ReputationHistory.tsx
+│   ├── lib/
+│   │   ├── wagmi.ts
+│   │   ├── contracts.ts
+│   │   └── ipfs.ts
+│   └── package.json
+│
+├── agent-sdk/                          ← arcbounty-agent-sdk
+│   ├── src/
+│   │   ├── ArcBountyAgent.ts
+│   │   ├── types.ts
+│   │   └── index.ts
+│   └── package.json
+│
+├── .env.example
+└── README.md
+
+ 
+8. Деплой и конфигурация
+8.1 .env.example
+
+# Arc Network
+ARC_TESTNET_RPC_URL="https://rpc.testnet.arc.network"
+PRIVATE_KEY="0x..."                   # кошелёк деплоера
+FEE_RECIPIENT="0x..."                  # адрес для protocol fee (1%)
+
+# Уже задеплоены командой Arc — не менять
+AGENTIC_COMMERCE="0x0747EEf0706327138c69792bF28Cd525089e4583"
+IDENTITY_REGISTRY="0x8004A818BFB912233c491871b3d84c89A494BD9e"
+REPUTATION_REGISTRY="0x8004B663056A597Dffe9eCcC1965A193B7388713"
+USDC_ADDRESS="0x3600000000000000000000000000000000000000"
+
+# После деплоя BountyAdapter
+BOUNTY_ADAPTER_ADDRESS="0x..."
+
+# Frontend
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS="0x..."
+NEXT_PUBLIC_RPC_URL="https://rpc.testnet.arc.network"
+
+# IPFS (Pinata или web3.storage)
+PINATA_API_KEY="..."
+PINATA_SECRET="..."
+
+
+8.2 Деплой-скрипт
+
+// script/Deploy.s.sol
+contract Deploy is Script {
+    function run() external {
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+
+        BountyAdapter adapter = new BountyAdapter(
+            vm.envAddress("AGENTIC_COMMERCE"),
+            vm.envAddress("IDENTITY_REGISTRY"),
+            vm.envAddress("REPUTATION_REGISTRY"),
+            vm.envAddress("USDC_ADDRESS"),
+            vm.envAddress("FEE_RECIPIENT"),
+            100 // 1% protocol fee in BPS
+        );
+
+        console.log("BountyAdapter deployed:", address(adapter));
+        vm.stopBroadcast();
+    }
+}
+
+# Команда деплоя:
+forge script script/Deploy.s.sol \
+  --rpc-url $ARC_TESTNET_RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast --verify
+
+ 
+9. Дорожная карта
+Неделя	Задачи	Deliverable
+1	BountyAdapter.sol: структуры, createBounty, takeBounty, fundBounty. Forge tests. Fork-тесты с реальными Arc контрактами.	Контракт с coverage >90%, задеплоен на Arc Testnet
+2	submitWork + approveBounty + ERC-8004 репутация. Полный forge test suite. Deploy script.	Полный on-chain флоу работает, 3 демо-баунти на тестнете
+3	Next.js фронтенд: список баунти, детальная страница, USDC approve/fund flow, submit work.	Рабочий MVP фронтенда на Vercel
+4	Страницы /post и /my. AgentBadge с ERC-8004 репутацией. Leaderboard.	Полный фронтенд, все страницы работают
+5	arcbounty-agent-sdk TypeScript. README + документация. Demo agent скрипт.	SDK опубликован на npm, demo agent выполняет реальное баунти
+6 (бонус)	Уведомления (webhook или polling). Категориальные страницы. Улучшение UX.	Production-ready версия для mainnet
+
+Технический стек — итог
+Категория	Технология	Версия
+Смарт-контракты	Solidity + Foundry	^0.8.30
+Фронтенд	Next.js App Router + TypeScript	14.x
+Web3 клиент	wagmi + viem	v2 / v2
+Стили	Tailwind CSS	3.x
+IPFS	Pinata SDK	latest
+Agent SDK	TypeScript + viem	ESM пакет
+Деплой фронтенда	Vercel	—
+Тестирование	forge test + fork tests	>90% coverage
+ 
+10. Аргументация для Arc Grant
+10.1 Почему ArcBounty получит грант
+Аргумент	Детали
+Прямое попадание в Arc roadmap	Arc явно называет agentic commerce и AI-mediated marketplaces как целевые use cases. ArcBounty — это именно это.
+Использует ОБА агентских стандарта	ERC-8183 для job lifecycle + ERC-8004 для identity/reputation. Ни один другой проект не использует оба одновременно.
+Не дублирует sample apps Arc	Arc Escrow (AI-powered), Arc Commerce, Arc Fintech — ни один не является bounty board.
+Реальная инфраструктура для экосистемы	Любой Arc-проект может создавать баунти программно. ArcBounty — публичное благо для всей экосистемы.
+Демонстрирует Arc УТП	$0.01 газ + USDC нативный = микро-баунти от $1 реалистичны. На Ethereum это невозможно.
+Open source + документация	Весь код на GitHub, arcbounty-agent-sdk на npm — ecosystem tooling.
+Реалистичный скоуп	Один разработчик, 5-6 недель, один смарт-контракт. Никакого overpromise.
+
+10.2 Конкурентное позиционирование
+Платформа	Сеть	Агентская поддержка	Нативный USDC газ
+Gitcoin Bounties	Ethereum	❌	❌
+Layer3 / Dework	Multi-chain	❌	❌
+Arc Escrow (sample)	Arc	Частично (AI validation)	✅
+ArcBounty	Arc	✅ ERC-8004 + ERC-8183	✅
+
+Главный нарратив для заявки:
+"ArcBounty — это не просто bounty board. Это первая демонстрация того,
+как AI-агенты могут автономно зарабатывать USDC на Arc, используя нативные
+стандарты идентичности и коммерции сети. Это и
+
+
+Вот дополнения к твоему ТЗ. Я написал их как отдельные новые разделы, которые можно вставить в существующий документ (с указанием, куда именно). Они закрывают основные пробелы, которые я отметил ранее: безопасность, обработка ошибок, актуальность адресов, риски, метрики успеха, улучшенный UX и интеграцию с Circle Wallets.
+
+### Рекомендации по вставке
+- **2.1 Компоненты** → добавить disclaimer по адресам.
+- После раздела 3.4 (Events) → вставить новый **3.5 Security Considerations**.
+- После раздела 4.3 (Метаданные агента) → вставить **4.4 Поддержка Circle Wallets**.
+- В конец раздела 5 (Фронтенд) → добавить **5.4 Дополнительные UX-требования**.
+- После раздела 9 (Дорожная карта) → вставить новые разделы **10. Риски и зависимости** + **11. Метрики успеха**.
+- В раздел 10 (Аргументация для Arc Grant) можно добавить ссылки на новые метрики.
+
+### 2.1 Компоненты (дополнение в конец таблицы или как примечание)
+
+**Важное примечание по инфраструктуре Arc**  
+Все адреса Arc-нативных контрактов (AgenticCommerce, IdentityRegistry, ReputationRegistry, ValidationRegistry и USDC) взяты из официальной документации и блога Arc по состоянию на апрель 2026 года. Перед деплоем BountyAdapter и запуском фронтенда **обязательно проверить актуальные адреса** на:
+- https://docs.arc.network/arc/references/contract-addresses
+- ArcScan (https://testnet.arcscan.app)
+- Официальном блоге Arc (статья «Running an Agentic Economic Flow on Arc with ERC-8183»).
+
+В случае миграции на Mainnet адреса будут обновлены. BountyAdapter использует immutable constant-адреса для минимизации риска.
+
+### 3.5 Security Considerations и обработка edge-кейсов
+
+BountyAdapter — это тонкий фасад без хранения средств, однако он взаимодействует с доверенной, но внешней инфраструктурой Arc (ERC-8183 + ERC-8004). Основные меры безопасности:
+
+- **Reentrancy**: Используем `ReentrancyGuard` из OpenZeppelin (или transient storage в Solidity 0.8.30) для всех внешних вызовов к AgenticCommerce и ReputationRegistry.
+- **Allowance checks**: В `createBounty` и `fundBounty` добавляется проверка `USDC.allowance(msg.sender, AGENTIC_COMMERCE) >= reward`. Approve должен выполняться пользователем заранее (стандартный двух-транзакционный flow: approve → fund).
+- **Access control**: 
+  - `approveBounty` и `rejectBounty` может вызывать только evaluator (по умолчанию — poster из ERC-8183) или назначенный адрес.
+  - `takeBounty` для agentOnly-бounty проверяет через IdentityRegistry, что msg.sender владеет agentId.
+- **Reject / Dispute flow (MVP)**: При `rejectBounty` USDC возвращается poster’у через вызов `refund` в ERC-8183. В v2 планируется добавить optional dispute period (24–48 часов) с возможностью эскалации на ValidationRegistry (ERC-8004).
+- **Expiry**: Автоматический возврат USDC при истечении дедлайна реализуется через off-chain скрипт (cron/job) или subgraph-триггер, который вызывает `expire` в ERC-8183.
+- **Upgradability**: BountyAdapter не upgradable (минимальный риск). При изменении ERC-8183/ERC-8004 — деплоим новый Adapter.
+- **Аудит**: Перед Mainnet — полный аудит (Slither + Aderyn + ручной review). Для Testnet достаточно fork-тестов с реальными Arc-контрактами.
+- **Gas limits**: Все функции протестированы на газ < 300k (чтобы микро-баунти оставались экономически выгодными).
+
+Дополнительные проверки в тестах: двойное взятие задачи, вызов от не-владельца агента, недостаточный allowance, истёкший дедлайн, reject после submit.
+
+### 4.4 Поддержка Circle Wallets (для AI-агентов и пользователей)
+
+Arc активно продвигает Circle Wallets (developer-controlled и user-controlled SCA). ArcBounty полностью совместим:
+
+- Фронтенд поддерживает подключение через wagmi + Circle Wallet SDK (где доступно).
+- Агентский SDK (`arcbounty-agent-sdk`) позволяет использовать private key или Circle developer-controlled wallet для полностью автономной работы агента.
+- Преимущества: sponsored transactions (газ спонсируется), лучшая UX для пользователей, seamless интеграция с USDC-native газом.
+
+В SDK добавляется опциональный параметр `useCircleWallet: true`.
+
+### 5.4 Дополнительные UX-требования к фронтенду
+
+- **Wallet support**: wagmi connectors включают MetaMask, WalletConnect и Circle Wallets.
+- **USDC UX**: Все суммы отображаются в human-readable формате (6 decimals). Автоматический approve + fund в одном flow с progress-индикаторами и toast-уведомлениями.
+- **Real-time updates**: Polling каждые 5–10 секунд для статуса bounty + использование событий (BountyCreated, WorkSubmitted и т.д.) через viem watchContractEvent.
+- **Agent-friendly**: На странице /bounty/[jobId] отображается «Agent-only» бейдж + прямые кнопки «Take as Agent» с подсказкой для SDK.
+- **Countdown + Auto-expiry**: Таймер дедлайна с автоматическим обновлением статуса на EXPIRED.
+- **IPFS**: Загрузка описания и результата через Pinata (с fallback на nft.storage). Рендер Markdown из CID с кэшированием.
+- **Мобильная адаптивность**: Полная поддержка на мобильных устройствах (важно для фрилансеров).
+- **Dark mode** по умолчанию (современно для dev/агент-аудитории).
+
+### 10. Риски и зависимости
+
+| Риск | Вероятность | Влияние | Митigation |
+|------|-------------|---------|------------|
+| Изменение адресов или интерфейса ERC-8183/ERC-8004 | Средняя | Высокое | Immutable constants + disclaimer в коде и документации. Быстрый redeploy Adapter. |
+| Низкая активность AI-агентов на старте | Высокая | Среднее | Запуск с human-bounties + публичный SDK + демо-агенты (translation, code review). |
+| Задержка Mainnet Arc | Средняя | Среднее | Полностью работать на Testnet первые 2–3 месяца. |
+| Проблемы с IPFS (доступность контента) | Низкая | Среднее | Pinning через Pinata + multiple gateways. |
+| Газ/fee спайки (даже на Arc) | Низкая | Низкое | Мониторинг + лимит на минимальный reward ($1–2). |
+| Безопасность (bug в BountyAdapter) | Низкая | Высокое | Полные тесты + fork-тесты + планируемый аудит. |
+
+Все критические зависимости — только от официальной инфраструктуры Arc (аудирована командой).
+
+### 11. Метрики успеха проекта
+
+После запуска на Testnet (цель — 6–8 недель):
+
+**Короткосрочные (первые 30 дней):**
+- ≥ 30 созданных bounties
+- ≥ 10 успешно завершённых задач (из них ≥ 3 выполнены AI-агентами)
+- ≥ 5 уникальных интеграций SDK (демо-агенты от сообщества)
+- Покрытие тестов > 90%, gas-отчёты опубликованы
+
+**Среднесрочные (первые 3 месяца):**
+- ≥ 100 активных bounties
+- ≥ 50 выполненных AI-агентами
+- ≥ 10 Arc-проектов/DAO используют ArcBounty для внутренних задач
+- SDK скачано ≥ 500 раз с npm
+- Опубликован полный гайд + видео-демо «Как AI-агент заработал первые USDC на Arc»
+
+Эти метрики будут использоваться для отчёта по гранту и дальнейшего развития.
+
+### Дополнение к финальному нарративу (раздел 10)
+
+... «Это и первая реальная инфраструктура, где AI-агенты могут автономно находить, выполнять и получать оплату в USDC на полностью on-chain рынке труда, используя нативные стандарты Arc. ArcBounty превращает обещание agentic commerce в работающий публичный инструмент для всей экосистемы».
+
+### Итог по дополнениям
+Эти разделы делают ТЗ более зрелым, безопасным и убедительным для грант-комитета Arc. Они показывают, что ты подумал о рисках, UX и долгосрочной ценности.
+
+
+
+

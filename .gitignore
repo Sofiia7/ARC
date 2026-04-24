@@ -1,0 +1,29 @@
+# Secrets & Credentials
+.env
+.env.*
+*.key
+*.pem
+*.json
+!package.json
+!tsconfig.json
+!openclaw.json
+secrets.json
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
+.agent/
+
+# JS/Node
+node_modules/
+dist/
+build/
+.next/
+.vscode/
+
+# Logs
+*.log
+logs/
