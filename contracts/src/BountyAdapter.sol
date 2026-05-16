@@ -118,6 +118,11 @@ contract BountyAdapter is ReentrancyGuard {
     // ─── Admin (arbitrator-controlled) ────────────────────────────────────────
 
     /// @notice Step 1: current arbitrator proposes new one. Use address(0) to cancel pending.
+    /// @dev    Zero is an intentional sentinel ("cancel pending"); the live arbitrator never
+    ///         changes here, only `pendingArbitrator` does. The zero-check belongs in
+    ///         acceptArbitrator (which already requires msg.sender == pendingArbitrator,
+    ///         making accept by address(0) impossible).
+    // slither-disable-next-line missing-zero-check
     function transferArbitrator(address newArbitrator) external {
         require(msg.sender == arbitrator, "only arbitrator");
         pendingArbitrator = newArbitrator;
@@ -424,10 +429,11 @@ contract BountyAdapter is ReentrancyGuard {
     /// @dev Forwards USDC that AC returned to the adapter back to the poster.
     function _refundFromAC(BountyMeta storage meta) internal {
         uint256 bal = usdc.balanceOf(address(this));
-        if (bal == 0) return;
-        uint256 amount = bal >= meta.reward ? meta.reward : bal;
-        usdc.safeTransfer(meta.poster, amount);
-        emit BountyRefunded(meta.jobId, meta.poster, amount);
+        if (bal > 0) {
+            uint256 amount = bal >= meta.reward ? meta.reward : bal;
+            usdc.safeTransfer(meta.poster, amount);
+            emit BountyRefunded(meta.jobId, meta.poster, amount);
+        }
     }
 
     function _giveFeedback(uint256 agentId, uint8 score, string memory context, uint256 jobId) internal {
