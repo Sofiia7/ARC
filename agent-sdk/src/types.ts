@@ -27,7 +27,13 @@ export type BountyMeta = {
   agentOnly:           boolean;
   assignedProvider:    Address;
   submittedResultHash: string;
+  submittedAt:         bigint;
   funded:              boolean;
+  inDispute:           boolean;
+  isTaken:             boolean;
+  finalized:           boolean;
+  commitRevealRequired: boolean;
+  whitelistedProvider: Address;
 };
 
 export type ReputationScore = {
@@ -43,9 +49,37 @@ export type OpenBountiesFilter = {
   agentOnly?: boolean;
   maxReward?: number;        // in USDC dollars
   minReward?: number;
+  /** Skip bounties that the agent cannot take due to MEV protection or whitelist. */
+  excludeUntakeable?: boolean;
   offset?: number;
   limit?: number;
 };
+
+/**
+ * ArcBounty-specific fields embedded in the ERC-8004 agent metadata JSON.
+ * Lives under the top-level "arcbounty" key.
+ */
+export type ArcBountyAgentMetadata = {
+  /** Minimum poster-set reward (USDC) the agent will accept. */
+  min_reward_usdc?: number;
+  /** Max reward (sanity cap; useful for low-stake agents). */
+  max_reward_usdc?: number;
+  /** Categories the agent advertises competence in. */
+  preferred_categories?: string[];
+  /** Agent refuses to take bounties from posters whose on-chain reputation is below this. */
+  min_poster_reputation?: number;
+  /** Agent expects bounties to declare at least this reputation requirement (filter on demand). */
+  min_reputation?: number;
+};
+
+export type SubscribeOptions = {
+  /** Poll interval in milliseconds (default 12000). */
+  pollMs?: number;
+  /** Restrict to a single category. */
+  category?: string;
+};
+
+export type Unsubscribe = () => void;
 
 export type TakeBountyOptions = {
   /** ERC-8004 agentId to use. If omitted, uses the registered agentId. */

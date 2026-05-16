@@ -1,0 +1,10 @@
+{
+  "filter_paths": "lib/|test/|script/",
+  "exclude_informational": true,
+  "exclude_low": false,
+  "exclude_optimization": true,
+  "solc_remaps": [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/"
+  ]
+}

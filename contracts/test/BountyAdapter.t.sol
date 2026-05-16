@@ -43,6 +43,9 @@ contract MockAgenticCommerce {
     uint256 private _nextJobId = 1;
     mapping(uint256 => IAgenticCommerce.Job) public jobs;
     mapping(uint256 => uint256) public budgets;
+    mapping(uint256 => address) public client; // who funded → who gets refund
+
+    MockUSDC public immutable usdcToken;
 
     event JobCreated(uint256 jobId, address poster, address provider, address evaluator);
     event JobFunded(uint256 jobId);
@@ -50,6 +53,10 @@ contract MockAgenticCommerce {
     event JobCompleted(uint256 jobId);
     event JobRefunded(uint256 jobId);
     event JobExpired(uint256 jobId);
+
+    constructor(MockUSDC _usdc) {
+        usdcToken = _usdc;
+    }
 
     function createJob(
         address provider,
@@ -67,6 +74,7 @@ contract MockAgenticCommerce {
             status: IAgenticCommerce.JobStatus.OPEN,
             deliverable: bytes32(0)
         });
+        client[jobId] = msg.sender; // adapter is client
         emit JobCreated(jobId, msg.sender, provider, evaluator);
     }
 
@@ -74,7 +82,17 @@ contract MockAgenticCommerce {
         budgets[jobId] = amount;
     }
 
+    function setProvider(uint256 jobId, address provider) external {
+        jobs[jobId].provider = provider;
+        jobs[jobId].status = IAgenticCommerce.JobStatus.ASSIGNED;
+    }
+
     function fund(uint256 jobId, bytes calldata) external {
+        // Pull budget USDC from caller (adapter) into AC escrow
+        require(
+            usdcToken.transferFrom(msg.sender, address(this), budgets[jobId]),
+            "fund: USDC pull failed"
+        );
         jobs[jobId].status = IAgenticCommerce.JobStatus.FUNDED;
         emit JobFunded(jobId);
     }
@@ -87,16 +105,29 @@ contract MockAgenticCommerce {
 
     function complete(uint256 jobId, bytes32, bytes calldata) external {
         jobs[jobId].status = IAgenticCommerce.JobStatus.COMPLETED;
+        // Pay provider directly
+        usdcToken.transfer(jobs[jobId].provider, budgets[jobId]);
+        budgets[jobId] = 0;
         emit JobCompleted(jobId);
     }
 
     function refund(uint256 jobId, bytes calldata) external {
         jobs[jobId].status = IAgenticCommerce.JobStatus.REJECTED;
+        usdcToken.transfer(client[jobId], budgets[jobId]);
+        budgets[jobId] = 0;
         emit JobRefunded(jobId);
+    }
+
+    function reject(uint256 jobId, bytes32, bytes calldata) external {
+        jobs[jobId].status = IAgenticCommerce.JobStatus.REJECTED;
+        usdcToken.transfer(client[jobId], budgets[jobId]);
+        budgets[jobId] = 0;
     }
 
     function expire(uint256 jobId, bytes calldata) external {
         jobs[jobId].status = IAgenticCommerce.JobStatus.EXPIRED;
+        usdcToken.transfer(client[jobId], budgets[jobId]);
+        budgets[jobId] = 0;
         emit JobExpired(jobId);
     }
 
@@ -160,6 +191,12 @@ contract MockReputationRegistry {
     }
 }
 
+contract MockSanctionsOracle {
+    mapping(address => bool) public sanctioned;
+    function isSanctioned(address a) external view returns (bool) { return sanctioned[a]; }
+    function sanction(address a, bool s) external { sanctioned[a] = s; }
+}
+
 // ─── Test suite ────────────────────────────────────────────────────────────────
 
 contract BountyAdapterTest is Test {
@@ -191,7 +228,7 @@ contract BountyAdapterTest is Test {
         tags[1] = "arc";
 
         usdc       = new MockUSDC();
-        commerce   = new MockAgenticCommerce();
+        commerce   = new MockAgenticCommerce(usdc);
         identity   = new MockIdentityRegistry();
         reputation = new MockReputationRegistry();
 
@@ -215,9 +252,31 @@ contract BountyAdapterTest is Test {
 
     // ─── Helper ────────────────────────────────────────────────────────────────
 
+    function _params(address provider, uint256 _reward, uint256 _deadline, string memory _category, string[] memory _tags, bool agentOnly, bool commitReveal)
+        internal
+        view
+        returns (BountyAdapter.CreateParams memory p)
+    {
+        p = BountyAdapter.CreateParams({
+            provider: provider,
+            reward: _reward,
+            deadline: _deadline,
+            ipfsDescHash: IPFS_DESC,
+            category: _category,
+            tags: _tags,
+            agentOnly: agentOnly,
+            commitRevealRequired: commitReveal
+        });
+    }
+
     function _createBounty(bool agentOnly) internal returns (uint256 jobId) {
         vm.prank(poster);
-        jobId = adapter.createBounty(address(0), reward, deadline, IPFS_DESC, CATEGORY, tags, agentOnly);
+        jobId = adapter.createBounty(_params(address(0), reward, deadline, CATEGORY, tags, agentOnly, false));
+    }
+
+    function _createBountyAdvanced(address provider, bool agentOnly, bool commitReveal) internal returns (uint256 jobId) {
+        vm.prank(poster);
+        jobId = adapter.createBounty(_params(provider, reward, deadline, CATEGORY, tags, agentOnly, commitReveal));
     }
 
     // ─── createBounty ─────────────────────────────────────────────────────────
@@ -253,19 +312,19 @@ contract BountyAdapterTest is Test {
     function testCreateBounty_revertRewardTooLow() public {
         vm.prank(poster);
         vm.expectRevert("reward too low");
-        adapter.createBounty(address(0), 0.5e6, deadline, IPFS_DESC, CATEGORY, tags, false);
+        adapter.createBounty(_params(address(0), 0.5e6, deadline, CATEGORY, tags, false, false));
     }
 
     function testCreateBounty_revertDeadlineInPast() public {
         vm.prank(poster);
         vm.expectRevert("deadline in past");
-        adapter.createBounty(address(0), reward, block.timestamp - 1, IPFS_DESC, CATEGORY, tags, false);
+        adapter.createBounty(_params(address(0), reward, block.timestamp - 1, CATEGORY, tags, false, false));
     }
 
     function testCreateBounty_revertInvalidCategory() public {
         vm.prank(poster);
         vm.expectRevert("invalid category");
-        adapter.createBounty(address(0), reward, deadline, IPFS_DESC, "invalid", tags, false);
+        adapter.createBounty(_params(address(0), reward, deadline, "invalid", tags, false, false));
     }
 
     function testCreateBounty_revertInsufficientAllowance() public {
@@ -274,7 +333,7 @@ contract BountyAdapterTest is Test {
         // No approve
         vm.prank(newUser);
         vm.expectRevert("insufficient USDC allowance");
-        adapter.createBounty(address(0), reward, deadline, IPFS_DESC, CATEGORY, tags, false);
+        adapter.createBounty(_params(address(0), reward, deadline, CATEGORY, tags, false, false));
     }
 
     // ─── takeBounty ────────────────────────────────────────────────────────────
@@ -319,7 +378,7 @@ contract BountyAdapterTest is Test {
     function testTakeBounty_agentOnly_revertWrongOwner() public {
         uint256 jobId = _createBounty(true);
         vm.prank(stranger); // stranger doesn't own agentId
-        vm.expectRevert("agent only: caller is not agent owner");
+        vm.expectRevert("caller is not agent owner");
         adapter.takeBounty(jobId, agentId);
     }
 
@@ -337,13 +396,9 @@ contract BountyAdapterTest is Test {
         // create
         uint256 jobId = _createBounty(false);
 
-        // take
+        // take (escrow already funded inside createBounty)
         vm.prank(worker);
         adapter.takeBounty(jobId, 0);
-
-        // fund
-        vm.prank(poster);
-        adapter.fundBounty(jobId);
 
         // submit
         vm.prank(worker);
@@ -354,7 +409,7 @@ contract BountyAdapterTest is Test {
 
         // approve
         vm.prank(poster);
-        adapter.approveBounty(jobId);
+        adapter.approveBounty(jobId, 95);
 
         // no reputation for human (agentId == 0)
         assertEq(reputation.getFeedbackCount(), 0);
@@ -368,14 +423,11 @@ contract BountyAdapterTest is Test {
         vm.prank(agent);
         adapter.takeBounty(jobId, agentId);
 
-        vm.prank(poster);
-        adapter.fundBounty(jobId);
-
         vm.prank(agent);
         adapter.submitWork(jobId, IPFS_RESULT);
 
         vm.prank(poster);
-        adapter.approveBounty(jobId);
+        adapter.approveBounty(jobId, 95);
 
         // Reputation must be recorded
         assertEq(reputation.getFeedbackCount(), 1);
@@ -439,13 +491,14 @@ contract BountyAdapterTest is Test {
 
         vm.prank(worker);
         adapter.takeBounty(jobId, 0);
-        vm.prank(poster);
-        adapter.fundBounty(jobId);
         vm.prank(worker);
         adapter.submitWork(jobId, IPFS_RESULT);
 
+        uint256 posterBalBefore = usdc.balanceOf(poster);
         vm.prank(poster);
         adapter.rejectBounty(jobId, "bad quality");
+        // poster gets reward back (net of fee)
+        assertEq(usdc.balanceOf(poster), posterBalBefore + reward - (reward * 100 / 10_000));
     }
 
     function testRejectBounty_revertNoSubmission() public {
@@ -488,7 +541,7 @@ contract BountyAdapterTest is Test {
         // Create another with category "design"
         string[] memory t = new string[](0);
         vm.prank(poster);
-        adapter.createBounty(address(0), reward, deadline, IPFS_DESC, "design", t, false);
+        adapter.createBounty(_params(address(0), reward, deadline, "design", t, false, false));
 
         uint256[] memory devBounties = adapter.getOpenBounties("dev", 0, 10);
         assertEq(devBounties.length, 1);
@@ -553,22 +606,374 @@ contract BountyAdapterTest is Test {
         assertEq(mine[0], jobId);
     }
 
-    // ─── fundBounty guards ────────────────────────────────────────────────────
+    // ─── Funding invariant (Variant A: funded at creation) ───────────────────
 
-    function testFundBounty_revertNotPoster() public {
+    function testCreateBounty_immediatelyFunded() public {
         uint256 jobId = _createBounty(false);
-        vm.prank(stranger);
-        vm.expectRevert("only poster");
-        adapter.fundBounty(jobId);
+        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
+        assertTrue(meta.funded);
+        // USDC sits in AC, not in adapter
+        assertEq(usdc.balanceOf(address(adapter)), 0);
+        assertEq(usdc.balanceOf(address(commerce)), reward - (reward * 100 / 10_000));
     }
 
-    function testFundBounty_revertAlreadyFunded() public {
+    // ─── Refund flows (cancel / expire / reject) ─────────────────────────────
+
+    function testCancelBounty_refundsPoster() public {
+        uint256 posterBalBefore = usdc.balanceOf(poster);
         uint256 jobId = _createBounty(false);
         vm.prank(poster);
-        adapter.fundBounty(jobId);
+        adapter.cancelBounty(jobId);
+        // poster gets back net reward; fee stays with feeRecipient
+        uint256 fee = reward * 100 / 10_000;
+        assertEq(usdc.balanceOf(poster), posterBalBefore - fee);
+    }
+
+    function testExpireBounty_refundsPoster() public {
+        uint256 posterBalBefore = usdc.balanceOf(poster);
+        uint256 jobId = _createBounty(false);
+        vm.warp(deadline + 1);
+        adapter.expireBounty(jobId);
+        uint256 fee = reward * 100 / 10_000;
+        assertEq(usdc.balanceOf(poster), posterBalBefore - fee);
+    }
+
+    // ─── Approve payout (full flow) ──────────────────────────────────────────
+
+    function testApprove_paysProvider() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, IPFS_RESULT);
+
+        uint256 workerBalBefore = usdc.balanceOf(worker);
+        vm.prank(poster);
+        adapter.approveBounty(jobId, 95);
+        assertEq(usdc.balanceOf(worker), workerBalBefore + reward - (reward * 100 / 10_000));
+    }
+
+    // ─── Validations ─────────────────────────────────────────────────────────
+
+    function testApprove_revertScoreTooHigh() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, IPFS_RESULT);
 
         vm.prank(poster);
-        vm.expectRevert("already funded");
-        adapter.fundBounty(jobId);
+        vm.expectRevert("score > 100");
+        adapter.approveBounty(jobId, 101);
+    }
+
+    function testCreateBounty_revertTooManyTags() public {
+        string[] memory many = new string[](11);
+        for (uint256 i = 0; i < 11; i++) many[i] = "x";
+        vm.prank(poster);
+        vm.expectRevert("too many tags");
+        adapter.createBounty(_params(address(0), reward, deadline, CATEGORY, many, false, false));
+    }
+
+    function testConstructor_revertZeroFeeRecipient() public {
+        vm.expectRevert("zero feeRecipient");
+        new BountyAdapter(
+            address(commerce), address(identity), address(reputation),
+            address(usdc), address(0), 100
+        );
+    }
+
+    function testConstructor_revertFeeTooHigh() public {
+        vm.expectRevert("fee too high");
+        new BountyAdapter(
+            address(commerce), address(identity), address(reputation),
+            address(usdc), feeAddr, 1_001
+        );
+    }
+
+    // ─── Dispute flow ────────────────────────────────────────────────────────
+
+    function testDispute_requiresSubmission() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+
+        vm.prank(poster);
+        vm.expectRevert("no submission to dispute");
+        adapter.disputeBounty(jobId);
+    }
+
+    function testDispute_blocksApprove() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(agent);
+        adapter.takeBounty(jobId, agentId);
+        vm.prank(agent);
+        adapter.submitWork(jobId, IPFS_RESULT);
+
+        vm.prank(poster);
+        adapter.disputeBounty(jobId);
+
+        vm.prank(poster);
+        vm.expectRevert("in dispute");
+        adapter.approveBounty(jobId, 95);
+    }
+
+    function testResolveDispute_payProvider() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(agent);
+        adapter.takeBounty(jobId, agentId);
+        vm.prank(agent);
+        adapter.submitWork(jobId, IPFS_RESULT);
+        vm.prank(agent);
+        adapter.disputeBounty(jobId);
+
+        uint256 agentBalBefore = usdc.balanceOf(agent);
+        adapter.resolveDispute(jobId, true, 0);
+        assertEq(usdc.balanceOf(agent), agentBalBefore + reward - (reward * 100 / 10_000));
+    }
+
+    function testResolveDispute_payPoster() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(agent);
+        adapter.takeBounty(jobId, agentId);
+        vm.prank(agent);
+        adapter.submitWork(jobId, IPFS_RESULT);
+        vm.prank(poster);
+        adapter.disputeBounty(jobId);
+
+        uint256 posterBalBefore = usdc.balanceOf(poster);
+        adapter.resolveDispute(jobId, false, 10);
+        assertEq(usdc.balanceOf(poster), posterBalBefore + reward - (reward * 100 / 10_000));
+    }
+
+    // ─── Auto-approve after dispute window ───────────────────────────────────
+
+    function testAutoApprove_afterWindow() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, IPFS_RESULT);
+
+        vm.warp(block.timestamp + 48 hours + 1);
+
+        uint256 workerBalBefore = usdc.balanceOf(worker);
+        vm.prank(worker);
+        adapter.autoApprove(jobId);
+        assertEq(usdc.balanceOf(worker), workerBalBefore + reward - (reward * 100 / 10_000));
+    }
+
+    function testAutoApprove_revertWindowOpen() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, IPFS_RESULT);
+
+        vm.prank(worker);
+        vm.expectRevert("dispute window open");
+        adapter.autoApprove(jobId);
+    }
+
+    // ─── MEV protection: poster-whitelisted provider ─────────────────────────
+
+    function testWhitelist_strangerCannotTake() public {
+        uint256 jobId = _createBountyAdvanced(worker, false, false);
+        vm.prank(stranger);
+        vm.expectRevert("not whitelisted");
+        adapter.takeBounty(jobId, 0);
+    }
+
+    function testWhitelist_assignedCanTake() public {
+        uint256 jobId = _createBountyAdvanced(worker, false, false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
+        assertEq(meta.assignedProvider, worker);
+    }
+
+    // ─── MEV protection: commit-reveal ───────────────────────────────────────
+
+    function testCommitReveal_directTakeReverts() public {
+        uint256 jobId = _createBountyAdvanced(address(0), false, true);
+        vm.prank(worker);
+        vm.expectRevert("use commit-reveal");
+        adapter.takeBounty(jobId, 0);
+    }
+
+    function testCommitReveal_happyPath() public {
+        uint256 jobId = _createBountyAdvanced(address(0), false, true);
+        bytes32 salt = keccak256("worker-secret");
+        bytes32 commitment = keccak256(abi.encode(jobId, worker, uint256(0), salt));
+
+        vm.prank(worker);
+        adapter.commitTake(jobId, commitment);
+
+        vm.roll(block.number + 2);
+
+        vm.prank(worker);
+        adapter.revealTake(jobId, 0, salt);
+
+        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
+        assertEq(meta.assignedProvider, worker);
+    }
+
+    function testCommitReveal_revertTooEarly() public {
+        uint256 jobId = _createBountyAdvanced(address(0), false, true);
+        bytes32 salt = keccak256("worker-secret");
+        bytes32 commitment = keccak256(abi.encode(jobId, worker, uint256(0), salt));
+
+        vm.prank(worker);
+        adapter.commitTake(jobId, commitment);
+
+        // Same block — must revert
+        vm.prank(worker);
+        vm.expectRevert("reveal too early");
+        adapter.revealTake(jobId, 0, salt);
+    }
+
+    function testCommitReveal_revertWrongSalt() public {
+        uint256 jobId = _createBountyAdvanced(address(0), false, true);
+        bytes32 commitment = keccak256(abi.encode(jobId, worker, uint256(0), keccak256("a")));
+
+        vm.prank(worker);
+        adapter.commitTake(jobId, commitment);
+
+        vm.roll(block.number + 2);
+
+        vm.prank(worker);
+        vm.expectRevert("commitment mismatch");
+        adapter.revealTake(jobId, 0, keccak256("b"));
+    }
+
+    // ─── Arbitrator transfer ─────────────────────────────────────────────────
+
+    function testArbitratorTransfer_twoStep() public {
+        address newArb = address(0xA1B);
+        // adapter constructor sets arbitrator = address(this)
+        adapter.transferArbitrator(newArb);
+        assertEq(adapter.pendingArbitrator(), newArb);
+        assertEq(adapter.arbitrator(), address(this)); // unchanged until accept
+
+        vm.prank(newArb);
+        adapter.acceptArbitrator();
+        assertEq(adapter.arbitrator(), newArb);
+        assertEq(adapter.pendingArbitrator(), address(0));
+    }
+
+    function testArbitratorTransfer_revertNotPending() public {
+        adapter.transferArbitrator(address(0xA1B));
+        vm.prank(stranger);
+        vm.expectRevert("not pending arbitrator");
+        adapter.acceptArbitrator();
+    }
+
+    function testArbitratorTransfer_revertNotArbitrator() public {
+        vm.prank(stranger);
+        vm.expectRevert("only arbitrator");
+        adapter.transferArbitrator(address(0xA1B));
+    }
+
+    function testArbitrator_resolveAfterTransfer() public {
+        // Setup: create a disputed bounty
+        uint256 jobId = _createBounty(false);
+        vm.prank(agent);
+        adapter.takeBounty(jobId, agentId);
+        vm.prank(agent);
+        adapter.submitWork(jobId, IPFS_RESULT);
+        vm.prank(poster);
+        adapter.disputeBounty(jobId);
+
+        // Transfer arbitrator
+        address newArb = address(0xA1B);
+        adapter.transferArbitrator(newArb);
+        vm.prank(newArb);
+        adapter.acceptArbitrator();
+
+        // Old arbitrator can no longer resolve
+        vm.expectRevert("only arbitrator");
+        adapter.resolveDispute(jobId, true, 0);
+
+        // New arbitrator can
+        vm.prank(newArb);
+        adapter.resolveDispute(jobId, true, 0);
+    }
+
+    // ─── Sanctions oracle ────────────────────────────────────────────────────
+
+    function testSanctions_blocksCreateBounty() public {
+        MockSanctionsOracle oracle = new MockSanctionsOracle();
+        adapter.setSanctionsOracle(address(oracle));
+        oracle.sanction(poster, true);
+
+        vm.prank(poster);
+        vm.expectRevert("sanctioned address");
+        adapter.createBounty(_params(address(0), reward, deadline, CATEGORY, tags, false, false));
+    }
+
+    function testSanctions_blocksTake() public {
+        MockSanctionsOracle oracle = new MockSanctionsOracle();
+        adapter.setSanctionsOracle(address(oracle));
+        uint256 jobId = _createBounty(false);
+        oracle.sanction(worker, true);
+
+        vm.prank(worker);
+        vm.expectRevert("sanctioned address");
+        adapter.takeBounty(jobId, 0);
+    }
+
+    function testSanctions_blocksApprovePayoutToSanctionedProvider() public {
+        uint256 jobId = _createBounty(false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, IPFS_RESULT);
+
+        // Sanction the worker AFTER submission
+        MockSanctionsOracle oracle = new MockSanctionsOracle();
+        adapter.setSanctionsOracle(address(oracle));
+        oracle.sanction(worker, true);
+
+        vm.prank(poster);
+        vm.expectRevert("sanctioned address");
+        adapter.approveBounty(jobId, 95);
+    }
+
+    function testSanctions_disabled_oracleAddressZero() public {
+        // Default state: oracle is address(0), no checks
+        uint256 jobId = _createBounty(false);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        // No revert despite no oracle
+    }
+
+    function testSanctions_setOracle_onlyArbitrator() public {
+        vm.prank(stranger);
+        vm.expectRevert("only arbitrator");
+        adapter.setSanctionsOracle(address(1));
+    }
+
+    function testCommitReveal_frontRunnerCannotCopyReveal() public {
+        // Worker commits, then a front-runner sees the reveal tx in mempool and tries to copy.
+        // The reveal tx's salt won't match the front-runner's (different) commitment.
+        uint256 jobId = _createBountyAdvanced(address(0), false, true);
+        bytes32 salt = keccak256("victim-secret");
+        bytes32 victimCommitment = keccak256(abi.encode(jobId, worker, uint256(0), salt));
+
+        vm.prank(worker);
+        adapter.commitTake(jobId, victimCommitment);
+
+        // Front-runner saw the (jobId, agentId=0, salt) but has no commitment of their own.
+        vm.roll(block.number + 2);
+        vm.prank(stranger);
+        vm.expectRevert("no commitment");
+        adapter.revealTake(jobId, 0, salt);
+
+        // Worker reveals successfully.
+        vm.prank(worker);
+        adapter.revealTake(jobId, 0, salt);
+
+        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
+        assertEq(meta.assignedProvider, worker);
     }
 }

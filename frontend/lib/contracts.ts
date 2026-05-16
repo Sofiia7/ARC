@@ -4,8 +4,9 @@ export const CONTRACTS = {
   AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583" as Address,
   IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address,
   REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address,
-  VALIDATION_REGISTRY: "0x8004Cb1BF31DAf7788923b405b754f57acEB4272" as Address,
   USDC:                "0x3600000000000000000000000000000000000000" as Address,
+  // ValidationRegistry intentionally omitted — not consumed by ArcBounty MVP.
+  // Re-add when an external Validator is wired into resolveDispute (post-MVP).
   BOUNTY_ADAPTER:      (process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS ?? "0x0000000000000000000000000000000000000000") as Address,
 } as const;
 
@@ -17,15 +18,43 @@ export const BOUNTY_ADAPTER_ABI = [
     type: "function",
     stateMutability: "nonpayable",
     inputs: [
-      { name: "provider",      type: "address" },
-      { name: "reward",        type: "uint256" },
-      { name: "deadline",      type: "uint256" },
-      { name: "ipfsDescHash",  type: "string"  },
-      { name: "category",      type: "string"  },
-      { name: "tags",          type: "string[]" },
-      { name: "agentOnly",     type: "bool"    },
+      {
+        name: "p",
+        type: "tuple",
+        components: [
+          { name: "provider",             type: "address"  },
+          { name: "reward",               type: "uint256"  },
+          { name: "deadline",             type: "uint256"  },
+          { name: "ipfsDescHash",         type: "string"   },
+          { name: "category",             type: "string"   },
+          { name: "tags",                 type: "string[]" },
+          { name: "agentOnly",            type: "bool"     },
+          { name: "commitRevealRequired", type: "bool"     },
+        ],
+      },
     ],
     outputs: [{ name: "jobId", type: "uint256" }],
+  },
+  {
+    name: "commitTake",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "jobId",      type: "uint256" },
+      { name: "commitment", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "revealTake",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "jobId",   type: "uint256" },
+      { name: "agentId", type: "uint256" },
+      { name: "salt",    type: "bytes32" },
+    ],
+    outputs: [],
   },
   {
     name: "takeBounty",
@@ -35,13 +64,6 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "jobId",   type: "uint256" },
       { name: "agentId", type: "uint256" },
     ],
-    outputs: [],
-  },
-  {
-    name: "fundBounty",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
   {
@@ -62,6 +84,13 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "jobId", type: "uint256" },
       { name: "reputationScore", type: "uint8" }
     ],
+    outputs: [],
+  },
+  {
+    name: "autoApprove",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
   {
@@ -86,6 +115,24 @@ export const BOUNTY_ADAPTER_ABI = [
     type: "function",
     stateMutability: "nonpayable",
     inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "disputeBounty",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "resolveDispute",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "jobId",             type: "uint256" },
+      { name: "payProvider",       type: "bool"    },
+      { name: "reputationPenalty", type: "uint8"   },
+    ],
     outputs: [],
   },
   // Read
@@ -121,7 +168,13 @@ export const BOUNTY_ADAPTER_ABI = [
           { name: "agentOnly",           type: "bool"    },
           { name: "assignedProvider",    type: "address" },
           { name: "submittedResultHash", type: "string"  },
+          { name: "submittedAt",         type: "uint256" },
           { name: "funded",              type: "bool"    },
+          { name: "inDispute",           type: "bool"    },
+          { name: "isTaken",             type: "bool"    },
+          { name: "finalized",           type: "bool"    },
+          { name: "commitRevealRequired",type: "bool"    },
+          { name: "whitelistedProvider", type: "address" },
         ],
       },
     ],
@@ -201,6 +254,44 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "jobId",           type: "uint256", indexed: true  },
       { name: "agentId",         type: "uint256", indexed: false },
       { name: "reputationScore", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "BountyFunded",
+    type: "event",
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true  },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "BountyCancelled",
+    type: "event",
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true  },
+      { name: "reason", type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "BountyExpired",
+    type: "event",
+    inputs: [
+      { name: "jobId", type: "uint256", indexed: true },
+    ],
+  },
+  {
+    name: "DisputeRaised",
+    type: "event",
+    inputs: [
+      { name: "jobId", type: "uint256", indexed: true },
+    ],
+  },
+  {
+    name: "DisputeResolved",
+    type: "event",
+    inputs: [
+      { name: "jobId",       type: "uint256", indexed: true  },
+      { name: "payProvider", type: "bool",    indexed: false },
     ],
   },
 ] as const;

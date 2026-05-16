@@ -1,0 +1,101 @@
+name: contracts-security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/security.yml"
+  pull_request:
+    paths:
+      - "contracts/**"
+      - ".github/workflows/security.yml"
+
+jobs:
+  forge-test:
+    name: forge test + gas snapshot
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: forge build
+        run: forge build --sizes
+
+      - name: forge test
+        run: forge test -vvv
+
+      - name: forge coverage (lcov)
+        run: forge coverage --report lcov --report summary
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-coverage
+          path: contracts/lcov.info
+          if-no-files-found: ignore
+
+      - name: forge snapshot
+        run: forge snapshot --check || (echo "Gas snapshot drift — run \`forge snapshot\` locally and commit." && exit 1)
+
+  slither:
+    name: slither static analysis
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Slither
+        run: pip install slither-analyzer
+
+      - name: Run Slither (fail on Medium+)
+        run: |
+          slither src/BountyAdapter.sol \
+            --config-file slither.config.json \
+            --fail-medium \
+            --exclude reentrancy-benign,timestamp
+
+  fork-tests:
+    name: fork tests (optional)
+    runs-on: ubuntu-latest
+    if: ${{ vars.ARC_TESTNET_RPC_URL != '' }}
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run fork tests
+        env:
+          ARC_TESTNET_RPC_URL: ${{ vars.ARC_TESTNET_RPC_URL }}
+        run: forge test --match-path "test/BountyAdapter.fork.t.sol" -vvv

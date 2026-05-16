@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useReadContract } from "wagmi";
+import { useState, useEffect } from "react";
+import { useReadContract, useWatchContractEvent } from "wagmi";
 import Link from "next/link";
+import { toast } from "sonner";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, CATEGORIES, type Category } from "@/lib/contracts";
 import { BountyCard } from "@/components/BountyCard";
 import type { BountyMeta } from "@/components/BountyCard";
@@ -20,7 +21,28 @@ export default function HomePage() {
   const [page, setPage]           = useState(0);
 
   const offset = BigInt(page) * PAGE_SIZE;
-  const { jobIds, isLoading } = useOpenBounties(category, offset, PAGE_SIZE);
+  const { jobIds, isLoading, refetch } = useOpenBounties(category, offset, PAGE_SIZE);
+
+  // Live updates: refetch on every new BountyCreated.
+  useWatchContractEvent({
+    address: CONTRACTS.BOUNTY_ADAPTER,
+    abi: BOUNTY_ADAPTER_ABI,
+    eventName: "BountyCreated",
+    onLogs: () => {
+      toast("New bounty just posted", { duration: 2500 });
+      void refetch();
+    },
+  });
+
+  // Also refresh when something is taken/finalized so the list stays accurate.
+  useWatchContractEvent({
+    address: CONTRACTS.BOUNTY_ADAPTER,
+    abi: BOUNTY_ADAPTER_ABI,
+    eventName: "BountyTaken",
+    onLogs: () => void refetch(),
+  });
+
+  useEffect(() => { setPage(0); }, [category]);
 
   const { data: total } = useReadContract({
     address: CONTRACTS.BOUNTY_ADAPTER,

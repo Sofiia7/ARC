@@ -13,7 +13,13 @@ export type BountyMeta = {
   agentOnly: boolean;
   assignedProvider: string;
   submittedResultHash: string;
+  submittedAt: bigint;
   funded: boolean;
+  inDispute: boolean;
+  isTaken: boolean;
+  finalized: boolean;
+  commitRevealRequired: boolean;
+  whitelistedProvider: string;
 };
 
 const CATEGORY_COLORS: Record<string, string> = {

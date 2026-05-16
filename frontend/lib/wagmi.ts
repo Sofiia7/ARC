@@ -29,6 +29,10 @@ export const config = createConfig({
     walletConnect({
       projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID ?? "YOUR_WC_PROJECT_ID",
     }),
+    // Circle Wallets (sponsored USDC-as-gas, ERC-4337 SCA).
+    // TODO sprint 5: wire @circle-fin/modular-wallets-core EIP-1193 connector once Arc Testnet is listed.
+    // Docs: https://developers.circle.com/w3s/modular-wallets-web-sdk
+    // The connector should expose `useCircleWallet` opt-in for fully autonomous agent flows.
   ],
   ssr: true,
 });

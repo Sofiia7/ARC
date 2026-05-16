@@ -22,6 +22,7 @@ export default function PostPage() {
     reward:      "",
     days:        "7",
     agentOnly:   false,
+    commitReveal: false,
   });
   const [step, setStep]   = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -59,15 +60,16 @@ export default function PostPage() {
         address: CONTRACTS.BOUNTY_ADAPTER,
         abi: BOUNTY_ADAPTER_ABI,
         functionName: "createBounty",
-        args: [
-          "0x0000000000000000000000000000000000000000",
-          rewardRaw,
+        args: [{
+          provider: "0x0000000000000000000000000000000000000000",
+          reward: rewardRaw,
           deadline,
-          cid,
-          form.category,
+          ipfsDescHash: cid,
+          category: form.category,
           tags,
-          form.agentOnly,
-        ],
+          agentOnly: form.agentOnly,
+          commitRevealRequired: form.commitReveal,
+        }],
       });
       if (publicClient) {
         await publicClient.waitForTransactionReceipt({ hash: receiptHash });
@@ -195,6 +197,22 @@ export default function PostPage() {
           <div>
             <span className="text-sm font-medium">Agent only</span>
             <span className="ml-2 text-xs text-gray-500">Only ERC-8004 registered AI agents can take this bounty</span>
+          </div>
+        </label>
+
+        {/* MEV protection toggle */}
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={form.commitReveal}
+            onChange={e => set("commitReveal", e.target.checked)}
+            className="accent-amber-500 w-4 h-4"
+          />
+          <div>
+            <span className="text-sm font-medium">MEV protection (commit-reveal)</span>
+            <span className="ml-2 text-xs text-gray-500">
+              Requires takers to commit first and reveal ≥ 2 blocks later. Recommended for high-value bounties.
+            </span>
           </div>
         </label>
 

@@ -3,12 +3,17 @@ import {
   createWalletClient,
   http,
   defineChain,
+  keccak256,
+  encodeAbiParameters,
+  toHex,
   type Address,
   type Hash,
+  type Hex,
   type PublicClient,
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { randomBytes } from "node:crypto";
 import {
   BOUNTY_ADAPTER_ABI,
   IDENTITY_REGISTRY_ABI,
@@ -30,6 +35,8 @@ import type {
   SubmitWorkOptions,
   AgentInfo,
   TxResult,
+  SubscribeOptions,
+  Unsubscribe,
 } from "./types.js";
 
 const arcTestnet = defineChain({
@@ -136,10 +143,15 @@ export class ArcBountyAgent {
       jobIds.map(jobId => this.getBounty(jobId))
     );
 
+    const me = this.address.toLowerCase();
     return metas.filter(m => {
       if (agentOnly && !m.agentOnly) return false;
       if (maxReward !== undefined && m.reward > this._parseUsdc(maxReward)) return false;
       if (minReward !== undefined && m.reward < this._parseUsdc(minReward)) return false;
+      if (filter.excludeUntakeable) {
+        const ZERO = "0x0000000000000000000000000000000000000000";
+        if (m.whitelistedProvider !== ZERO && m.whitelistedProvider.toLowerCase() !== me) return false;
+      }
       return true;
     });
   }
@@ -174,11 +186,17 @@ export class ArcBountyAgent {
   // ─── Take a bounty ──────────────────────────────────────────────────────────
 
   /**
-   * Atomically reserve a bounty. On-chain — no race conditions.
-   * Uses registered agentId if agent is registered, otherwise takes as human (agentId=0).
+   * Smart take: directly calls `takeBounty` for open bounties, or runs the full
+   * `commitAndReveal` flow if the bounty has MEV protection enabled.
+   * Uses registered agentId if any, otherwise takes as human (agentId=0).
    */
   async takeBounty(jobId: bigint): Promise<TxResult> {
     const agentId = this._agentId ?? 0n;
+    const meta = await this.getBounty(jobId);
+
+    if (meta.commitRevealRequired) {
+      return this.commitAndReveal(jobId, agentId);
+    }
 
     const hash = await this.walletClient.writeContract({
       address: this.bountyAdapter,
@@ -189,6 +207,122 @@ export class ArcBountyAgent {
       account: this.account,
     });
 
+    await this._waitForTx(hash);
+    return { hash };
+  }
+
+  // ─── MEV-resistant take (commit-reveal) ─────────────────────────────────────
+
+  /**
+   * Step 1: post a commitment. Salt is generated fresh; remember it and pass to revealTake.
+   * Returns `{ hash, salt }` so callers can persist the salt between processes if needed.
+   */
+  async commitTake(jobId: bigint, agentId: bigint = this._agentId ?? 0n):
+    Promise<TxResult & { salt: Hex; commitBlock: bigint }>
+  {
+    const salt = toHex(randomBytes(32));
+    const commitment = keccak256(
+      encodeAbiParameters(
+        [{ type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "bytes32" }],
+        [jobId, this.address, agentId, salt],
+      ),
+    );
+
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "commitTake",
+      args: [jobId, commitment],
+      chain: null,
+      account: this.account,
+    });
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    return { hash, salt, commitBlock: receipt.blockNumber };
+  }
+
+  /** Step 2: reveal — must be ≥ 2 blocks after commit. */
+  async revealTake(jobId: bigint, agentId: bigint, salt: Hex): Promise<TxResult> {
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "revealTake",
+      args: [jobId, agentId, salt],
+      chain: null,
+      account: this.account,
+    });
+    await this._waitForTx(hash);
+    return { hash };
+  }
+
+  /**
+   * One-shot commit-reveal: commit, wait until block.number advances by ≥ 2,
+   * then reveal. Use this when you don't need to persist salt between sessions.
+   */
+  async commitAndReveal(jobId: bigint, agentId: bigint = this._agentId ?? 0n): Promise<TxResult> {
+    const { salt, commitBlock } = await this.commitTake(jobId, agentId);
+    await this._waitUntilBlock(commitBlock + 2n);
+    return this.revealTake(jobId, agentId, salt);
+  }
+
+  // ─── Subscribe ──────────────────────────────────────────────────────────────
+
+  /**
+   * Watch for new bounties via the `BountyCreated` event.
+   * Returns an unsubscribe function. Uses viem's watchContractEvent under the hood.
+   * Filters off-chain by category to keep the SDK chain-agnostic about indexing.
+   */
+  subscribeToNewBounties(
+    handler: (jobId: bigint, meta: BountyMeta) => void | Promise<void>,
+    options: SubscribeOptions = {},
+  ): Unsubscribe {
+    const { category, pollMs = 12_000 } = options;
+    const unwatch = this.publicClient.watchContractEvent({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      eventName: "BountyCreated",
+      pollingInterval: pollMs,
+      onLogs: async (logs) => {
+        for (const log of logs) {
+          const jobId = (log.args as { jobId?: bigint }).jobId;
+          if (jobId === undefined) continue;
+          try {
+            const meta = await this.getBounty(jobId);
+            if (category && meta.category !== category) continue;
+            await handler(jobId, meta);
+          } catch {
+            // swallow per-event errors so one bad bounty doesn't kill the loop
+          }
+        }
+      },
+    });
+    return () => unwatch();
+  }
+
+  // ─── Dispute & auto-approve ─────────────────────────────────────────────────
+
+  async disputeBounty(jobId: bigint): Promise<TxResult> {
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "disputeBounty",
+      args: [jobId],
+      chain: null,
+      account: this.account,
+    });
+    await this._waitForTx(hash);
+    return { hash };
+  }
+
+  /** Provider-only: force payout after the 48h dispute window elapses. */
+  async autoApprove(jobId: bigint): Promise<TxResult> {
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "autoApprove",
+      args: [jobId],
+      chain: null,
+      account: this.account,
+    });
     await this._waitForTx(hash);
     return { hash };
   }
@@ -335,6 +469,15 @@ export class ArcBountyAgent {
 
   private async _waitForTx(hash: Hash): Promise<void> {
     await this.publicClient.waitForTransactionReceipt({ hash });
+  }
+
+  private async _waitUntilBlock(target: bigint): Promise<void> {
+    // Arc finalises in <1s; poll every 600ms.
+    while (true) {
+      const current = await this.publicClient.getBlockNumber();
+      if (current >= target) return;
+      await new Promise(r => setTimeout(r, 600));
+    }
   }
 
   private async _findExistingAgentId(): Promise<bigint | null> {
