@@ -99,9 +99,11 @@ contract BountyAdapter is ReentrancyGuard {
 }
 ```
 
-### 2.3 Bounty lifecycle
+### 2.3 Bounty lifecycle (Variant B+, shipped in sprint 6)
 
-**Status (sprint 5 → sprint 6 transition)**: real ERC-8183 on Arc Testnet enforces the strict order `createJob → setProvider → setBudget → fund`, and `setProvider` is one-shot. Our sprint-1 Variant A (atomic create+fund with `provider=0`) reverts at AC.setBudget with `ProviderNotSet()`. Sprint 6 (separate PR) reverts to Variant B: `createBounty` temporarily holds USDC and calls `createJob`; `takeBounty` runs `setProvider + setBudget + fund` (USDC moves to AC escrow on take). Cancel/expire before take return USDC directly from the adapter; after take they go through `AC.claimRefund(jobId)`. Full diagnosis in `docs/testnet-launch.md §3.5`. The table below describes the target Variant B lifecycle.
+The real ERC-8183 on Arc enforces a strict order `createJob → setProvider (client only) → setBudget (provider only) → fund (client only)` and pays out at the AC-level provider. To keep the user-facing flow as one `createBounty → takeBounty → submit → approve` transaction per actor, **the adapter takes all three AC roles** (client + provider + evaluator) and tracks the real worker only in `BountyMeta.assignedProvider`. AC remains the actual escrow — funds physically move through it with native USDC gas; the adapter forwards the payout to the real worker via balance-delta accounting inside `_completeAndForward`.
+
+Verified by a real transaction on Arc Testnet (sprint 6 smoke): jobId 21377, four successful txes `createBounty → takeBounty → submitWork → approveBounty`, provider received 1.977174 USDC (2 USDC − 1% our fee − ~0.14% AC platform fee). Contract: `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`.
 
 | Status | Trigger | Description |
 |---|---|---|

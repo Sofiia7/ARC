@@ -51,15 +51,13 @@ contract BountyAdapterForkTest is Test {
         _;
     }
 
-    /// @notice Verify the AC interface — function selectors actually resolve on-chain.
+    /// @notice Verify the AC interface — `jobHasBudget` is a stable view that
+    ///         exists on the live AC implementation (sprint 6 ABI alignment).
     function testFork_acHasExpectedInterface() public onlyFork {
-        // getJob on jobId=0 should not revert with "function not found"; it may revert
-        // with "job not found" or return zeroed struct — either is fine, both prove ABI match.
-        try IAgenticCommerce(AC_TESTNET).getJob(0) returns (IAgenticCommerce.Job memory) {
-            // ok
-        } catch {
-            // ok (revert on bad jobId is expected)
-        }
+        // jobHasBudget for a high (likely-nonexistent) jobId should just return false
+        // and not blow up the call. Proves selector resolves.
+        bool res = IAgenticCommerce(AC_TESTNET).jobHasBudget(0);
+        assertFalse(res);
     }
 
     /// @notice Smoke test: createBounty against real AC. Requires deployer to be funded with USDC.

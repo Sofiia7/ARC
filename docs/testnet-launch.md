@@ -117,9 +117,9 @@ cast code 0xABCD...1234 --rpc-url $ARC_TESTNET_RPC_URL | head -c 60
 
 ---
 
-## Шаг 3.5. ⚠️ ERC-8183 lifecycle на Arc Testnet требует Variant B потока
+## Шаг 3.5. ⚠️ ERC-8183 lifecycle на Arc Testnet — РЕШЕНО в sprint 6
 
-**Это реальный технический блокер, найденный при первом смоук-тесте новой версии контракта. Требует одного спринта рефакторинга (sprint 6).**
+**Был блокером, теперь — задокументированный workaround. Sprint 6 рефакторинг закрыт, end-to-end smoke прошёл реально on-chain (см. README верхняя плашка).**
 
 При деплое sprint-5 BountyAdapter и попытке `createBounty` транзакция падает на вызове `AC.setBudget(jobId, amount, "")`. Через `debug_traceTransaction` (Arcscan RPC поддерживает) видна цепочка успешных USDC.allowance/transferFrom/transfer/approve, успешный `AC.createJob`, затем revert на селекторе `0xdd4ae9d4` (= `setBudget(uint256,uint256,bytes)`).
 
@@ -131,21 +131,25 @@ cast code 0xABCD...1234 --rpc-url $ARC_TESTNET_RPC_URL | head -c 60
 
 Также найдено: в реальном AC нет `refund(uint256,bytes)` и `expire(uint256,bytes)` — есть только `claimRefund(uint256)`. Наш интерфейс `IAgenticCommerce.sol` устарел в этих двух функциях.
 
-**Что делать (sprint 6, отдельный PR)**:
+**Дополнительное открытие при попытке Variant B** (через source code на Arcscan):
+- AC.setBudget требует `msg.sender == job.provider` (провайдер сам ставит свой бюджет, не client!)
+- AC.fund требует `msg.sender == job.client`
+- AC.complete требует `msg.sender == job.evaluator` и платит `job.provider` напрямую
 
-1. **Перейти на Variant B lifecycle**:
-   - `createBounty` пулит USDC от постера в адаптер + берёт fee + вызывает `AC.createJob`. **Без** `setBudget`/`fund`.
-   - Адаптер временно держит `netReward` USDC.
-   - `takeBounty(jobId, agentId)` вызывает `AC.setProvider(jobId, taker)` + `AC.setBudget(jobId, netReward, "")` + `AC.fund(jobId, "")` (последний пулит USDC из адаптера в AC-эскроу).
-   - `cancelBounty` (до take) / `expireBounty` (deadline без take) возвращают USDC напрямую из адаптера постеру.
-   - `rejectBounty` / `resolveDispute(payPoster)` после take вызывают `AC.claimRefund(jobId)` (новая сигнатура) и затем `_refundFromAC`.
-2. **Обновить `IAgenticCommerce.sol`**: убрать `refund(uint256,bytes)` и `expire(uint256,bytes)`, добавить `claimRefund(uint256)` и `jobHasBudget(uint256)`.
-3. **Обновить mock `MockAgenticCommerce` в тестах** под реальный flow setProvider→setBudget→fund.
-4. **Обновить frontend ABI и тексты** (поле `funded` на BountyMeta становится осмысленным — true только после take, как было в первоначальном TZ §2.3).
+То есть наивный «adapter as client + worker as provider» не работает: setBudget не может вызвать adapter (он не provider), а worker не может «зайти в AC через адаптер».
 
-Не критично для подачи на грант (вся остальная инфраструктура — MEV, dispute, sanctions, arbitrator, тесты, Slither, CI — независима от этого). Критично для end-to-end смоук-демо.
+**Решение (Variant B+)** — адаптер берёт **все три AC-роли** (client + provider + evaluator), а реальный воркер живёт только в `BountyMeta.assignedProvider`:
 
-**Альтернатива на время** (для grant-демо): задеплоить наш `MockAgenticCommerce` рядом и переключить адаптер на mock через ENV (нужна минимальная правка в Deploy.s.sol). Тогда end-to-end флоу работает на Arc Testnet, но через mock AC, а не нативный — честно отметить это в демо.
+1. `createBounty`: pull USDC, fee → recipient, `AC.createJob(provider=this, evaluator=this)`, `AC.setBudget(jobId, netReward, "")`. USDC сидит в адаптере, AC ещё не профинансирован.
+2. `takeBounty`: записывает `meta.assignedProvider = worker`, делает `usdc.forceApprove(AC, netReward)` + `AC.fund(jobId, "")` → USDC уходит из адаптера в AC-эскроу.
+3. `submitWork`: msg.sender == meta.assignedProvider (адаптер делает проверку), затем `AC.submit(...)` от лица адаптера (адаптер = AC.provider).
+4. `approveBounty(jobId, score)`: `AC.complete(jobId, ...)` от лица evaluator=адаптер → AC платит **адаптеру** (он AC.provider). Адаптер форвардит дельту баланса реальному воркеру через `_completeAndForward`.
+5. `cancelBounty` (до take): прямой refund из адаптера постеру (AC ещё не funded).
+6. `rejectBounty` / `resolveDispute(payPoster)`: `AC.reject` + `AC.claimRefund` → forward постеру.
+
+Это сохраняет «Arc-native escrow» (AC реально держит USDC и проводит выплаты с native USDC-gas), а адаптер выступает proxy слоем со своей логикой dispute/MEV/sanctions/репутации.
+
+**Реальный smoke на Arc Testnet sprint 6**: контракт `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`, jobId 21377, full create→take→submit→approve, поставщик получил **1.977174 USDC** (2 USDC – 1% наш fee – 0.14% AC platform fee). 4 успешных on-chain транзакции.
 
 **Что НЕ является причиной** (моя предыдущая гипотеза была неверной): compliance-precompile `0x1800…0001::isBlocklisted`. Реальные on-chain transfer USDC на новый адрес контракта проходят (балансы меняются). Симулятор `cast call --trace` показывает `StackUnderflow` на этом precompile — это артефакт инструмента, а не настоящий revert. Не отправляйте Arc team запрос на whitelisting.
 

@@ -146,7 +146,13 @@ contract BountyAdapter is ReentrancyGuard {
         emit SanctionsOracleUpdated(prev, oracle);
     }
 
-    // ─── Create (atomic: pull USDC + fee + AC.fund) ───────────────────────────
+    // ─── Create (Variant B: USDC parked in adapter until takeBounty) ───────────
+    //
+    // Real ERC-8183 on Arc enforces order createJob → setProvider → setBudget → fund,
+    // and `setProvider` is one-shot. So we cannot pre-fund AC with provider = address(0)
+    // and reassign later. Adapter therefore holds the netReward locally until a worker
+    // takes the bounty, at which point _take() runs setProvider+setBudget+fund and moves
+    // USDC into AC escrow.
 
     struct CreateParams {
         address  provider;
@@ -181,18 +187,26 @@ contract BountyAdapter is ReentrancyGuard {
         uint256 netReward = p.reward - fee;
         if (fee > 0) usdc.safeTransfer(feeRecipient, fee);
 
-        // Reserve jobId first, then write all internal state BEFORE setBudget/fund (CEI).
-        usdc.forceApprove(address(agenticCommerce), netReward);
-        jobId = agenticCommerce.createJob(p.provider, address(this), p.deadline, p.ipfsDescHash, address(0));
+        // Real ERC-8183 puts hard restrictions on setProvider/setBudget callers:
+        //   setProvider — only `client`
+        //   setBudget   — only `provider`, status must be Open
+        //   fund        — only `client`, status must be Open, provider must be set
+        //   submit      — only `provider`
+        //   complete    — only `evaluator`
+        //   reject      — `client` if Open, `evaluator` if Funded/Submitted
+        // So adapter takes ALL three roles at AC (client+provider+evaluator) and tracks the
+        // real worker separately in BountyMeta.assignedProvider. AC stays the actual escrow
+        // and payout rail; adapter is just the proxy that knows who the human/agent worker is.
+        jobId = agenticCommerce.createJob(address(this), address(this), p.deadline, p.ipfsDescHash, address(0));
 
         _writeMeta(jobId, p, netReward);
         allJobIds.push(jobId);
 
+        // Adapter (as provider) declares the budget while status is still Open.
         agenticCommerce.setBudget(jobId, netReward, bytes(""));
-        agenticCommerce.fund(jobId, bytes(""));
 
         emit BountyCreated(jobId, msg.sender, netReward, p.category, p.deadline);
-        emit BountyFunded(jobId, netReward);
+        // BountyFunded is emitted from _take(), once USDC actually lands in AC escrow.
     }
 
     function _writeMeta(uint256 jobId, CreateParams calldata p, uint256 netReward) internal {
@@ -204,7 +218,7 @@ contract BountyAdapter is ReentrancyGuard {
         meta.ipfsDescHash         = p.ipfsDescHash;
         meta.category             = p.category;
         meta.agentOnly            = p.agentOnly;
-        meta.funded               = true;
+        meta.funded               = false; // becomes true at takeBounty
         meta.commitRevealRequired = p.commitRevealRequired;
         meta.whitelistedProvider  = p.provider;
         for (uint256 i = 0; i < p.tags.length; i++) {
@@ -277,11 +291,19 @@ contract BountyAdapter is ReentrancyGuard {
             meta.agentId = agentId;
         }
 
+        // CEI: write internal state first, then fund AC.
+        // Adapter is already AC.provider (set at createJob), so setProvider is skipped.
+        // Only `fund` runs here, transferring USDC from adapter into AC escrow.
         meta.isTaken          = true;
         meta.assignedProvider = taker;
-        agenticCommerce.setProvider(jobId, taker);
+        meta.funded           = true;
+
+        uint256 amount = meta.reward;
+        usdc.forceApprove(address(agenticCommerce), amount);
+        agenticCommerce.fund(jobId, bytes(""));
 
         emit BountyTaken(jobId, taker, agentId);
+        emit BountyFunded(jobId, amount);
     }
 
     // ─── Submit / Approve ─────────────────────────────────────────────────────
@@ -315,7 +337,7 @@ contract BountyAdapter is ReentrancyGuard {
 
         meta.finalized = true;
         _giveFeedback(meta.agentId, reputationScore, "bounty_completed", jobId);
-        agenticCommerce.complete(jobId, keccak256("approved"), bytes("Poster approved"));
+        _completeAndForward(jobId, meta.assignedProvider, keccak256("approved"), "Poster approved");
 
         emit BountyCompleted(jobId, meta.agentId, reputationScore);
     }
@@ -334,9 +356,20 @@ contract BountyAdapter is ReentrancyGuard {
         meta.finalized = true;
         uint8 defaultScore = 80;
         _giveFeedback(meta.agentId, defaultScore, "bounty_auto_completed", jobId);
-        agenticCommerce.complete(jobId, keccak256("auto_approved"), bytes("Auto-approved after dispute window"));
+        _completeAndForward(jobId, meta.assignedProvider, keccak256("auto_approved"), "Auto-approved after dispute window");
 
         emit BountyCompleted(jobId, meta.agentId, defaultScore);
+    }
+
+    /// @dev AC pays out to AC.provider, which is the adapter. We then forward the actual
+    ///      payout (net of any AC-level platform/evaluator fees) to the real worker.
+    function _completeAndForward(uint256 jobId, address realProvider, bytes32 reason, bytes memory data) internal {
+        uint256 balBefore = usdc.balanceOf(address(this));
+        agenticCommerce.complete(jobId, reason, data);
+        uint256 received = usdc.balanceOf(address(this)) - balBefore;
+        if (received > 0) {
+            usdc.safeTransfer(realProvider, received);
+        }
     }
 
     // ─── Dispute ──────────────────────────────────────────────────────────────
@@ -370,12 +403,13 @@ contract BountyAdapter is ReentrancyGuard {
         if (payProvider) {
             _requireNotSanctioned(meta.assignedProvider);
             _giveFeedback(meta.agentId, uint8(MAX_REPUTATION), "dispute_won_provider", jobId);
-            agenticCommerce.complete(jobId, keccak256("dispute_resolved_provider"), bytes("Arbitrator: provider wins"));
+            _completeAndForward(jobId, meta.assignedProvider, keccak256("dispute_resolved_provider"), "Arbitrator: provider wins");
             emit DisputeResolved(jobId, true);
         } else {
             _giveFeedback(meta.agentId, reputationPenalty, "bounty_failed", jobId);
             agenticCommerce.reject(jobId, keccak256("dispute_resolved_poster"), bytes("Arbitrator: poster wins"));
-            _refundFromAC(meta);
+            agenticCommerce.claimRefund(jobId);
+            _forwardAdapterBalance(meta);
             emit DisputeResolved(jobId, false);
         }
     }
@@ -392,11 +426,14 @@ contract BountyAdapter is ReentrancyGuard {
 
         meta.finalized = true;
         agenticCommerce.reject(jobId, keccak256(abi.encodePacked(reason)), bytes(reason));
-        _refundFromAC(meta);
+        agenticCommerce.claimRefund(jobId);
+        _forwardAdapterBalance(meta);
 
         emit BountyCancelled(jobId, reason);
     }
 
+    /// @notice Cancel an open bounty before anyone takes it. Refund comes straight from
+    ///         the adapter (USDC was never funded into AC — Variant B parks it locally).
     function cancelBounty(uint256 jobId) external nonReentrant {
         BountyMeta storage meta = bounties[jobId];
         require(meta.poster == msg.sender, "only poster");
@@ -404,8 +441,7 @@ contract BountyAdapter is ReentrancyGuard {
         require(!meta.isTaken, "already taken, cannot cancel");
 
         meta.finalized = true;
-        agenticCommerce.refund(jobId, bytes("cancelled by poster"));
-        _refundFromAC(meta);
+        _forwardAdapterBalance(meta);
 
         emit BountyCancelled(jobId, "cancelled by poster");
     }
@@ -418,16 +454,23 @@ contract BountyAdapter is ReentrancyGuard {
         require(bytes(meta.submittedResultHash).length == 0, "already submitted");
 
         meta.finalized = true;
-        agenticCommerce.expire(jobId, bytes(""));
-        _refundFromAC(meta);
+
+        if (meta.isTaken) {
+            // USDC is in AC escrow — reject the funded job and claim refund.
+            agenticCommerce.reject(jobId, keccak256("expired"), bytes("expired past deadline"));
+            agenticCommerce.claimRefund(jobId);
+        }
+        // Whether or not we hit AC, anything that ended up back in the adapter goes to poster.
+        _forwardAdapterBalance(meta);
 
         emit BountyExpired(jobId);
     }
 
     // ─── Internal ─────────────────────────────────────────────────────────────
 
-    /// @dev Forwards USDC that AC returned to the adapter back to the poster.
-    function _refundFromAC(BountyMeta storage meta) internal {
+    /// @dev Forwards adapter's USDC balance back to the poster. Used by every refund path.
+    ///      Caps to `meta.reward` so an accidentally-overfunded adapter can't drain via cancel.
+    function _forwardAdapterBalance(BountyMeta storage meta) internal {
         uint256 bal = usdc.balanceOf(address(this));
         if (bal > 0) {
             uint256 amount = bal >= meta.reward ? meta.reward : bal;

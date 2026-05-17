@@ -40,23 +40,27 @@ contract MockUSDC {
 }
 
 contract MockAgenticCommerce {
+    // Mirrors the real ERC-8183 lifecycle on Arc Testnet
+    // (createJob → setProvider one-shot → setBudget → fund → submit → complete | reject + claimRefund).
+
+    enum Status { OPEN, ASSIGNED, FUNDED, SUBMITTED, COMPLETED, REJECTED }
+
+    struct Job {
+        address client;
+        address provider;
+        address evaluator;
+        uint256 deadline;
+        uint256 budget;
+        Status  status;
+    }
+
     uint256 private _nextJobId = 1;
-    mapping(uint256 => IAgenticCommerce.Job) public jobs;
-    mapping(uint256 => uint256) public budgets;
-    mapping(uint256 => address) public client; // who funded → who gets refund
+    mapping(uint256 => Job) public jobs;
+    mapping(uint256 => uint256) public escrow; // USDC held per jobId
 
     MockUSDC public immutable usdcToken;
 
-    event JobCreated(uint256 jobId, address poster, address provider, address evaluator);
-    event JobFunded(uint256 jobId);
-    event JobSubmitted(uint256 jobId, bytes32 deliverable);
-    event JobCompleted(uint256 jobId);
-    event JobRefunded(uint256 jobId);
-    event JobExpired(uint256 jobId);
-
-    constructor(MockUSDC _usdc) {
-        usdcToken = _usdc;
-    }
+    constructor(MockUSDC _usdc) { usdcToken = _usdc; }
 
     function createJob(
         address provider,
@@ -66,73 +70,69 @@ contract MockAgenticCommerce {
         address
     ) external returns (uint256 jobId) {
         jobId = _nextJobId++;
-        jobs[jobId] = IAgenticCommerce.Job({
-            poster: msg.sender,
+        jobs[jobId] = Job({
+            client: msg.sender,
             provider: provider,
             evaluator: evaluator,
             deadline: deadline,
-            status: IAgenticCommerce.JobStatus.OPEN,
-            deliverable: bytes32(0)
+            budget: 0,
+            status: Status.OPEN
         });
-        client[jobId] = msg.sender; // adapter is client
-        emit JobCreated(jobId, msg.sender, provider, evaluator);
-    }
-
-    function setBudget(uint256 jobId, uint256 amount, bytes calldata) external {
-        budgets[jobId] = amount;
     }
 
     function setProvider(uint256 jobId, address provider) external {
-        jobs[jobId].provider = provider;
-        jobs[jobId].status = IAgenticCommerce.JobStatus.ASSIGNED;
+        Job storage j = jobs[jobId];
+        require(j.provider == address(0), "provider already set");
+        j.provider = provider;
+        j.status = Status.ASSIGNED;
+    }
+
+    function setBudget(uint256 jobId, uint256 amount, bytes calldata) external {
+        Job storage j = jobs[jobId];
+        // Real AC requires msg.sender == provider && status == Open. Adapter holds the
+        // provider role in our integration, so msg.sender (= adapter) === provider.
+        require(j.provider != address(0), "ProviderNotSet");
+        require(msg.sender == j.provider, "Unauthorized");
+        require(j.status == Status.OPEN, "WrongStatus");
+        j.budget = amount;
     }
 
     function fund(uint256 jobId, bytes calldata) external {
-        // Pull budget USDC from caller (adapter) into AC escrow
-        require(
-            usdcToken.transferFrom(msg.sender, address(this), budgets[jobId]),
-            "fund: USDC pull failed"
-        );
-        jobs[jobId].status = IAgenticCommerce.JobStatus.FUNDED;
-        emit JobFunded(jobId);
+        Job storage j = jobs[jobId];
+        require(j.budget > 0, "no budget");
+        require(usdcToken.transferFrom(msg.sender, address(this), j.budget), "fund: pull failed");
+        escrow[jobId] = j.budget;
+        j.status = Status.FUNDED;
     }
 
-    function submit(uint256 jobId, bytes32 deliverable, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.SUBMITTED;
-        jobs[jobId].deliverable = deliverable;
-        emit JobSubmitted(jobId, deliverable);
+    function submit(uint256 jobId, bytes32, bytes calldata) external {
+        jobs[jobId].status = Status.SUBMITTED;
     }
 
     function complete(uint256 jobId, bytes32, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.COMPLETED;
-        // Pay provider directly
-        usdcToken.transfer(jobs[jobId].provider, budgets[jobId]);
-        budgets[jobId] = 0;
-        emit JobCompleted(jobId);
-    }
-
-    function refund(uint256 jobId, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.REJECTED;
-        usdcToken.transfer(client[jobId], budgets[jobId]);
-        budgets[jobId] = 0;
-        emit JobRefunded(jobId);
+        Job storage j = jobs[jobId];
+        uint256 amt = escrow[jobId];
+        escrow[jobId] = 0;
+        j.status = Status.COMPLETED;
+        usdcToken.transfer(j.provider, amt);
     }
 
     function reject(uint256 jobId, bytes32, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.REJECTED;
-        usdcToken.transfer(client[jobId], budgets[jobId]);
-        budgets[jobId] = 0;
+        jobs[jobId].status = Status.REJECTED;
+        // Funds stay in escrow until claimRefund.
     }
 
-    function expire(uint256 jobId, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.EXPIRED;
-        usdcToken.transfer(client[jobId], budgets[jobId]);
-        budgets[jobId] = 0;
-        emit JobExpired(jobId);
+    function claimRefund(uint256 jobId) external {
+        Job storage j = jobs[jobId];
+        // Real AC allows claimRefund when status == REJECTED or past deadline.
+        require(j.status == Status.REJECTED || block.timestamp > j.deadline, "cannot refund yet");
+        uint256 amt = escrow[jobId];
+        escrow[jobId] = 0;
+        usdcToken.transfer(j.client, amt);
     }
 
-    function getJob(uint256 jobId) external view returns (IAgenticCommerce.Job memory) {
-        return jobs[jobId];
+    function jobHasBudget(uint256 jobId) external view returns (bool) {
+        return jobs[jobId].budget > 0;
     }
 }
 
@@ -608,13 +608,23 @@ contract BountyAdapterTest is Test {
 
     // ─── Funding invariant (Variant A: funded at creation) ───────────────────
 
-    function testCreateBounty_immediatelyFunded() public {
+    function testCreateBounty_holdsUSDCInAdapter_untilTake() public {
+        // Variant B: at create, USDC sits in adapter (fee already routed); AC has nothing.
+        uint256 net = reward - (reward * 100 / 10_000);
         uint256 jobId = _createBounty(false);
+
         BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
-        assertTrue(meta.funded);
-        // USDC sits in AC, not in adapter
-        assertEq(usdc.balanceOf(address(adapter)), 0);
-        assertEq(usdc.balanceOf(address(commerce)), reward - (reward * 100 / 10_000));
+        assertFalse(meta.funded, "not funded at create");
+        assertEq(usdc.balanceOf(address(adapter)), net, "adapter holds netReward");
+        assertEq(usdc.balanceOf(address(commerce)), 0, "AC empty until take");
+
+        // After take, USDC moves into AC.
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        meta = adapter.getBountyMeta(jobId);
+        assertTrue(meta.funded, "funded after take");
+        assertEq(usdc.balanceOf(address(adapter)), 0, "adapter drained on take");
+        assertEq(usdc.balanceOf(address(commerce)), net, "AC now holds netReward");
     }
 
     // ─── Refund flows (cancel / expire / reject) ─────────────────────────────

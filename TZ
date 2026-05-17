@@ -74,9 +74,11 @@ contract BountyAdapter {
 }
 
 
-2.3 Жизненный цикл баунти
+2.3 Жизненный цикл баунти (Variant B+, реализованный в sprint 6)
 
-**Status (sprint 5 → sprint 6 transition)**: реальный ERC-8183 на Arc Testnet требует строгий порядок `createJob → setProvider → setBudget → fund`, причём `setProvider` — one-shot. Наш sprint-1 Variant A (атомарный create+fund при `provider=0`) реверт-ит на AC.setBudget с `ProviderNotSet()`. Sprint 6 (отдельный PR) возвращает Variant B: `createBounty` держит USDC временно + `createJob`; `takeBounty` делает `setProvider+setBudget+fund` (USDC уходит в AC-эскроу). Cancel/expire до take возвращают USDC напрямую из адаптера постеру; после take — через `AC.claimRefund(jobId)`. Полный разбор в `docs/testnet-launch.md §3.5`. Таблица ниже описывает целевой Variant B жизненный цикл.
+Реальный ERC-8183 на Arc навязывает строгий порядок `createJob → setProvider (только client) → setBudget (только provider) → fund (только client)` и payouts на AC-уровень провайдера. Чтобы оставить пользовательский flow `createBounty → takeBounty → submit → approve` в одной транзакции на каждого, **адаптер берёт все три AC-роли** (client+provider+evaluator), а реальный воркер живёт только в `BountyMeta.assignedProvider`. AC остаётся реальным эскроу — деньги физически проходят через него с native USDC-gas; адаптер форвардит payout реальному воркеру через `_completeAndForward` (баланс-дельта).
+
+Подтверждено реальной транзакцией на Arc Testnet (sprint 6 smoke): jobId 21377, 4 успешные транзакции `createBounty → takeBounty → submitWork → approveBounty`, провайдер получил 1.977174 USDC (2 USDC − 1% наш fee − 0.14% AC platform fee). Контракт: `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`.
 
 Статус	Кто переводит	Описание
 OPEN (funded)	createBounty	Баунти создан и уже профинансирован в AC, ждёт исполнителя

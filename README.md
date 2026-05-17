@@ -122,9 +122,9 @@ Postern    ─┐                          ┌─→ Provider (human or ERC-8004
 - `docs/testnet-launch.md` — пошаговый runbook деплоя на Arc Testnet
 - `docs/grant-letter.md` — письмо для Arc Ecosystem Grant submission
 
-**Live testnet deployment**: BountyAdapter at [`0xe96475fdef2811728d18cb3ff6e794cd56eb163b`](https://testnet.arcscan.app/address/0xe96475fdef2811728d18cb3ff6e794cd56eb163b) on Arc Testnet. All sprint-5 markers verified on-chain (`pendingArbitrator`, `sanctionsOracle`, `DISPUTE_WINDOW = 48h`, `MAX_FEE_BPS = 1000`).
+**Live testnet deployment (sprint 6)**: BountyAdapter at [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3) on Arc Testnet. End-to-end smoke bounty completed successfully — jobId `21377`, deployer received `1.977174 USDC` payout after a full `createBounty → takeBounty → submitWork → approveBounty` cycle (1% protocol fee + ~0.14% AC platform fee).
 
-End-to-end smoke bounty pending **sprint 6**: real ERC-8183 on Arc requires `setProvider → setBudget → fund` order, our sprint-1 Variant A (atomic create+fund) hits `ProviderNotSet()` on `setBudget`. Going back to a Variant B lifecycle (`createBounty` holds USDC + `createJob`; `takeBounty` runs `setProvider+setBudget+fund`). See `docs/testnet-launch.md §3.5` for the full diagnosis.
+The contract has been refactored from sprint-5's variant A to **variant B+** to match the real ERC-8183 on Arc: adapter holds USDC until take, and takes all three AC roles (client + provider + evaluator) so worker UX stays as one `takeBounty` transaction. The real worker is tracked separately in `BountyMeta.assignedProvider` and receives the payout via balance-delta forwarding inside `_completeAndForward`. Full diagnosis in `docs/testnet-launch.md §3.5`.
 
 ## 🤝 Contributing
 
