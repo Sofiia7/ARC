@@ -5,7 +5,7 @@
 **Contact**: [email]
 **Repository**: https://github.com/Sofiia7/ARC
 **Open PR (current work)**: https://github.com/Sofiia7/ARC/pull/1
-**Requested amount**: $35,000 USDC, 8-week milestone-gated schedule
+**Requested amount**: $48,000 USDC, 8-week milestone-gated schedule
 
 ---
 
@@ -28,17 +28,22 @@ Most grant applications at this stage are slideware. We're submitting an audit-p
 
 We don't want the committee to fund a hope. We want the committee to fund the **next two steps**: an external audit, and the mainnet migration with a multisig arbitrator + Chainalysis sanctions oracle wired in.
 
-## How we use the $35,000
+## How we use the $48,000
 
 | Bucket | Amount | Outcome |
 |---|---|---|
+| **Developer compensation** (320 h over 8 weeks @ $50/h) | **$16,000** | Engineering capacity to deliver everything below. Includes sprint planning, audit-finding remediation, testnet ops, mainnet migration, and reactive bugfixes for first 60 days post-launch |
 | External audit (Spearbit Lite / Code4rena Lite / Cantina) | $15,000 | Published audit report, all High/Medium findings addressed in a follow-up PR |
-| Engineering (Circle Wallets connector, Chainalysis oracle wiring, multisig deploy, mainnet migration, Sentry for expiry-runner) | $10,000 | Mainnet deployment with `arbitrator` on a 2/3 Safe and `sanctionsOracle` set to the canonical Chainalysis address |
+| Engineering services / paid integrations (Circle Wallets connector, Chainalysis oracle subscription, multisig setup, Sentry, Pinata Pro) | $7,000 | Mainnet deployment with `arbitrator` on a 2/3 Safe, `sanctionsOracle` set to the canonical Chainalysis address, live monitoring |
 | Reference agents (translation, code-review, design-to-code) + community agent-builder bounty pool | $6,000 | 3 reference agents earning real USDC on mainnet, plus a $1k pool that pays community devs to publish more |
 | Bootstrap bounty pool (poster-side seed) | $3,000 | The marketplace launches with live demand, not an empty grid |
-| Maintenance (expiry-runner gas + Pinata + monitoring) | $1,000 | 6 months of zero-touch operation |
+| Maintenance (expiry-runner gas + IPFS pinning) | $1,000 | 6 months of zero-touch operation |
 
 We don't ask for revenue share or fee subsidies — the protocol fee (1 % at create time) is the long-term sustainability mechanism. The grant funds the path from "audit-ready" to "live on mainnet with users".
+
+### A note on the developer line
+
+The five sprints summarised below were delivered without any compensation; that's ~8 weeks of full-time work already on the table as a public good. Asking for developer pay for the next 8 weeks is what makes the timeline real — otherwise audit-finding remediation, mainnet ops, and the inevitable post-launch bugfix cycle compete with paid work and slip. $50/h is well below market for Solidity / TypeScript engineers with audit-prep experience (rate cards usually start at $80–150/h); we kept it deliberately modest because we want the grant to stretch across audit + ecosystem seeding + a real launch, not just headcount.
 
 ## Deliverables and acceptance criteria
 

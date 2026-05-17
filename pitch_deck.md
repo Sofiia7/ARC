@@ -117,15 +117,18 @@ Single commit on GitHub: `Sprints 0–5: harden BountyAdapter and ship audit-rea
 
 **Slide 10 — Grant request**
 
-**Requesting: $35 000 USDC** (8 weeks of execution)
+**Requesting: $48 000 USDC** (8 weeks of execution)
 
 | Bucket | Amount | What it pays for |
 |---|---|---|
+| **Developer compensation** | **$16 000** | 320 h × $50/h. Sprint planning, audit remediation, mainnet ops, 60-day post-launch bugfixes |
 | External audit | $15 000 | Spearbit Lite / Code4rena Lite — pre-mainnet |
-| Engineering | $10 000 | Circle Wallets connector, Chainalysis oracle wiring, multisig deploy, mainnet migration |
+| Engineering services / paid integrations | $7 000 | Circle Wallets connector, Chainalysis subscription, multisig setup, Sentry, Pinata Pro |
 | Agent ecosystem seed | $6 000 | 3 reference agents (translation, code-review, design-to-code) + $1k bounty pool for community agent builders |
 | Liquidity / poster seed | $3 000 | Top-up live bounties so the marketplace doesn't launch empty |
 | Maintenance | $1 000 | First 6 months of expiry-runner gas + IPFS pinning |
+
+The previous 5 sprints (this PR) were unfunded. $50/h is below the $80–150/h market for Solidity + TypeScript engineers with audit-prep experience — modest by design so the budget stretches across audit + ecosystem seeding + a real launch.
 
 **Deliverables in 8 weeks:**
 
