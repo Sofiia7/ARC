@@ -117,6 +117,38 @@ cast code 0xABCD...1234 --rpc-url $ARC_TESTNET_RPC_URL | head -c 60
 
 ---
 
+## Шаг 3.5. ⚠️ Whitelisting контракта у Arc / Circle (1 рабочий день)
+
+**Без этого шага создать баунти невозможно. Это самый важный gotcha runbook.**
+
+Arc Testnet USDC (`0x3600…0000`) делегирует все `transferFrom` к compliance-precompile по адресу `0x1800000000000000000000000000000000000001` с методом `isBlocklisted(address)`. Этот precompile **проверяет получателя**:
+
+- EOA-адреса проходят свободно.
+- Свежие смарт-контракты — **revert со StackUnderflow внутри precompile**, который USDC интерпретирует как блок.
+- Контракты, которые ранее были одобрены Arc/Circle (например, наш предыдущий деплой `0x1EFf…0b55`), проходят.
+
+**Симптом**: `cast send … "createBounty(…)"` возвращает `status: 0 (failed)`, в trace видно
+```
+0x1800…0001::isBlocklisted(<your adapter>) [staticcall]
+    └─ ← [StackUnderflow] EvmError: StackUnderflow
+```
+
+**Что делать**:
+
+1. **Идти в Arc Discord / Foundation contact** с просьбой добавить новый адрес адаптера в USDC compliance allowlist. Шаблон сообщения:
+
+   > Hi Arc team. Deployed a new BountyAdapter to Arc Testnet at `0xe96475fdef2811728d18cb3ff6e794cd56eb163b`. Compliance precompile at `0x1800…0001::isBlocklisted` is currently reverting (StackUnderflow) for this address, blocking `USDC.transferFrom` into the contract. Could you whitelist it for the Testnet compliance engine? This is for an ecosystem grant submission (ArcBounty — first ERC-8183/8004 native bounty board). Repo: github.com/Sofiia7/ARC.
+
+2. **SLA по нашему опыту**: 0.5–1 рабочий день для тестнета.
+3. Пока ждёшь — фронтенд можно собирать и деплоить (он не упадёт; tx просто будет реверчиться, пока whitelist не активен), CI/SDK/docs движутся независимо.
+4. После того как whitelist активирован — сделать smoke-bounty (Шаг 5 ниже) для подтверждения.
+
+**Mainnet**: тот же шаг, но через Circle support — обычно 1–3 рабочих дня и могут потребовать KYB.
+
+Если хочется обойти на время — можно временно переключить адаптер на mock USDC (свой ERC-20 без compliance), но тогда теряется главное демо: «реально работает на Arc-нативном USDC».
+
+---
+
 ## Шаг 4. Sanity-call контракта (5 минут)
 
 ```bash

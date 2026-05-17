@@ -115,10 +115,14 @@ Postern    ─┐                          ┌─→ Provider (human or ERC-8004
 
 ## 📚 Документация
 
-- `TZ` — техническое задание (полная спецификация)
+- `TZ` — техническое задание (полная спецификация, RU) · `TZ.en.md` — английская версия для grant submission
 - `SECURITY.md` — threat model + статус аудита
 - `AUDIT.md` — инварианты, accepted findings, runbook деплоя
 - `docs/economics.md` — экономика protocol fee 1%
+- `docs/testnet-launch.md` — пошаговый runbook деплоя на Arc Testnet
+- `docs/grant-letter.md` — письмо для Arc Ecosystem Grant submission
+
+**Live testnet deployment**: BountyAdapter at [`0xe96475fdef2811728d18cb3ff6e794cd56eb163b`](https://testnet.arcscan.app/address/0xe96475fdef2811728d18cb3ff6e794cd56eb163b) on Arc Testnet (pending Arc / Circle USDC compliance whitelist — see `docs/testnet-launch.md §3.5`).
 
 ## 🤝 Contributing
 
