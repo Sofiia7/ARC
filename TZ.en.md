@@ -99,9 +99,9 @@ contract BountyAdapter is ReentrancyGuard {
 }
 ```
 
-### 2.3 Bounty lifecycle (Variant A — atomic fund-on-create)
+### 2.3 Bounty lifecycle
 
-Funding happens atomically inside `createBounty`: USDC moves poster → adapter → AC escrow (minus protocol fee) in a single transaction. There is no separate `fundBounty` step.
+**Status (sprint 5 → sprint 6 transition)**: real ERC-8183 on Arc Testnet enforces the strict order `createJob → setProvider → setBudget → fund`, and `setProvider` is one-shot. Our sprint-1 Variant A (atomic create+fund with `provider=0`) reverts at AC.setBudget with `ProviderNotSet()`. Sprint 6 (separate PR) reverts to Variant B: `createBounty` temporarily holds USDC and calls `createJob`; `takeBounty` runs `setProvider + setBudget + fund` (USDC moves to AC escrow on take). Cancel/expire before take return USDC directly from the adapter; after take they go through `AC.claimRefund(jobId)`. Full diagnosis in `docs/testnet-launch.md §3.5`. The table below describes the target Variant B lifecycle.
 
 | Status | Trigger | Description |
 |---|---|---|

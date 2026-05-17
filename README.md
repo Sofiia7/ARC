@@ -122,7 +122,9 @@ Postern    ─┐                          ┌─→ Provider (human or ERC-8004
 - `docs/testnet-launch.md` — пошаговый runbook деплоя на Arc Testnet
 - `docs/grant-letter.md` — письмо для Arc Ecosystem Grant submission
 
-**Live testnet deployment**: BountyAdapter at [`0xe96475fdef2811728d18cb3ff6e794cd56eb163b`](https://testnet.arcscan.app/address/0xe96475fdef2811728d18cb3ff6e794cd56eb163b) on Arc Testnet (pending Arc / Circle USDC compliance whitelist — see `docs/testnet-launch.md §3.5`).
+**Live testnet deployment**: BountyAdapter at [`0xe96475fdef2811728d18cb3ff6e794cd56eb163b`](https://testnet.arcscan.app/address/0xe96475fdef2811728d18cb3ff6e794cd56eb163b) on Arc Testnet. All sprint-5 markers verified on-chain (`pendingArbitrator`, `sanctionsOracle`, `DISPUTE_WINDOW = 48h`, `MAX_FEE_BPS = 1000`).
+
+End-to-end smoke bounty pending **sprint 6**: real ERC-8183 on Arc requires `setProvider → setBudget → fund` order, our sprint-1 Variant A (atomic create+fund) hits `ProviderNotSet()` on `setBudget`. Going back to a Variant B lifecycle (`createBounty` holds USDC + `createJob`; `takeBounty` runs `setProvider+setBudget+fund`). See `docs/testnet-launch.md §3.5` for the full diagnosis.
 
 ## 🤝 Contributing
 

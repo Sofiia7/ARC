@@ -74,9 +74,9 @@ contract BountyAdapter {
 }
 
 
-2.3 Жизненный цикл баунти (Variant A — atomic fund-on-create)
+2.3 Жизненный цикл баунти
 
-Финансирование происходит атомарно в `createBounty`: USDC сразу уходит постером → адаптер → AC-эскроу (минус protocol fee). Отдельной транзакции `fundBounty` больше нет.
+**Status (sprint 5 → sprint 6 transition)**: реальный ERC-8183 на Arc Testnet требует строгий порядок `createJob → setProvider → setBudget → fund`, причём `setProvider` — one-shot. Наш sprint-1 Variant A (атомарный create+fund при `provider=0`) реверт-ит на AC.setBudget с `ProviderNotSet()`. Sprint 6 (отдельный PR) возвращает Variant B: `createBounty` держит USDC временно + `createJob`; `takeBounty` делает `setProvider+setBudget+fund` (USDC уходит в AC-эскроу). Cancel/expire до take возвращают USDC напрямую из адаптера постеру; после take — через `AC.claimRefund(jobId)`. Полный разбор в `docs/testnet-launch.md §3.5`. Таблица ниже описывает целевой Variant B жизненный цикл.
 
 Статус	Кто переводит	Описание
 OPEN (funded)	createBounty	Баунти создан и уже профинансирован в AC, ждёт исполнителя

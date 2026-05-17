@@ -117,35 +117,37 @@ cast code 0xABCD...1234 --rpc-url $ARC_TESTNET_RPC_URL | head -c 60
 
 ---
 
-## Шаг 3.5. ⚠️ Whitelisting контракта у Arc / Circle (1 рабочий день)
+## Шаг 3.5. ⚠️ ERC-8183 lifecycle на Arc Testnet требует Variant B потока
 
-**Без этого шага создать баунти невозможно. Это самый важный gotcha runbook.**
+**Это реальный технический блокер, найденный при первом смоук-тесте новой версии контракта. Требует одного спринта рефакторинга (sprint 6).**
 
-Arc Testnet USDC (`0x3600…0000`) делегирует все `transferFrom` к compliance-precompile по адресу `0x1800000000000000000000000000000000000001` с методом `isBlocklisted(address)`. Этот precompile **проверяет получателя**:
+При деплое sprint-5 BountyAdapter и попытке `createBounty` транзакция падает на вызове `AC.setBudget(jobId, amount, "")`. Через `debug_traceTransaction` (Arcscan RPC поддерживает) видна цепочка успешных USDC.allowance/transferFrom/transfer/approve, успешный `AC.createJob`, затем revert на селекторе `0xdd4ae9d4` (= `setBudget(uint256,uint256,bytes)`).
 
-- EOA-адреса проходят свободно.
-- Свежие смарт-контракты — **revert со StackUnderflow внутри precompile**, который USDC интерпретирует как блок.
-- Контракты, которые ранее были одобрены Arc/Circle (например, наш предыдущий деплой `0x1EFf…0b55`), проходят.
+**Корневая причина** (подтверждена прямыми вызовами AC от deployer-EOA):
+1. AC.setBudget revert-ит с `ProviderNotSet()`, пока для job не вызван `setProvider`.
+2. AC.setProvider — **one-shot**: повторный вызов с другим адресом silently fails.
 
-**Симптом**: `cast send … "createBounty(…)"` возвращает `status: 0 (failed)`, в trace видно
-```
-0x1800…0001::isBlocklisted(<your adapter>) [staticcall]
-    └─ ← [StackUnderflow] EvmError: StackUnderflow
-```
+Это значит наш Variant A (атомарный `createJob → setBudget → fund` внутри `createBounty` с `provider=0`) **принципиально несовместим** со стандартом — реальный ERC-8183 требует порядок `createJob → setProvider → setBudget → fund`, и provider нельзя поменять задним числом.
 
-**Что делать**:
+Также найдено: в реальном AC нет `refund(uint256,bytes)` и `expire(uint256,bytes)` — есть только `claimRefund(uint256)`. Наш интерфейс `IAgenticCommerce.sol` устарел в этих двух функциях.
 
-1. **Идти в Arc Discord / Foundation contact** с просьбой добавить новый адрес адаптера в USDC compliance allowlist. Шаблон сообщения:
+**Что делать (sprint 6, отдельный PR)**:
 
-   > Hi Arc team. Deployed a new BountyAdapter to Arc Testnet at `0xe96475fdef2811728d18cb3ff6e794cd56eb163b`. Compliance precompile at `0x1800…0001::isBlocklisted` is currently reverting (StackUnderflow) for this address, blocking `USDC.transferFrom` into the contract. Could you whitelist it for the Testnet compliance engine? This is for an ecosystem grant submission (ArcBounty — first ERC-8183/8004 native bounty board). Repo: github.com/Sofiia7/ARC.
+1. **Перейти на Variant B lifecycle**:
+   - `createBounty` пулит USDC от постера в адаптер + берёт fee + вызывает `AC.createJob`. **Без** `setBudget`/`fund`.
+   - Адаптер временно держит `netReward` USDC.
+   - `takeBounty(jobId, agentId)` вызывает `AC.setProvider(jobId, taker)` + `AC.setBudget(jobId, netReward, "")` + `AC.fund(jobId, "")` (последний пулит USDC из адаптера в AC-эскроу).
+   - `cancelBounty` (до take) / `expireBounty` (deadline без take) возвращают USDC напрямую из адаптера постеру.
+   - `rejectBounty` / `resolveDispute(payPoster)` после take вызывают `AC.claimRefund(jobId)` (новая сигнатура) и затем `_refundFromAC`.
+2. **Обновить `IAgenticCommerce.sol`**: убрать `refund(uint256,bytes)` и `expire(uint256,bytes)`, добавить `claimRefund(uint256)` и `jobHasBudget(uint256)`.
+3. **Обновить mock `MockAgenticCommerce` в тестах** под реальный flow setProvider→setBudget→fund.
+4. **Обновить frontend ABI и тексты** (поле `funded` на BountyMeta становится осмысленным — true только после take, как было в первоначальном TZ §2.3).
 
-2. **SLA по нашему опыту**: 0.5–1 рабочий день для тестнета.
-3. Пока ждёшь — фронтенд можно собирать и деплоить (он не упадёт; tx просто будет реверчиться, пока whitelist не активен), CI/SDK/docs движутся независимо.
-4. После того как whitelist активирован — сделать smoke-bounty (Шаг 5 ниже) для подтверждения.
+Не критично для подачи на грант (вся остальная инфраструктура — MEV, dispute, sanctions, arbitrator, тесты, Slither, CI — независима от этого). Критично для end-to-end смоук-демо.
 
-**Mainnet**: тот же шаг, но через Circle support — обычно 1–3 рабочих дня и могут потребовать KYB.
+**Альтернатива на время** (для grant-демо): задеплоить наш `MockAgenticCommerce` рядом и переключить адаптер на mock через ENV (нужна минимальная правка в Deploy.s.sol). Тогда end-to-end флоу работает на Arc Testnet, но через mock AC, а не нативный — честно отметить это в демо.
 
-Если хочется обойти на время — можно временно переключить адаптер на mock USDC (свой ERC-20 без compliance), но тогда теряется главное демо: «реально работает на Arc-нативном USDC».
+**Что НЕ является причиной** (моя предыдущая гипотеза была неверной): compliance-precompile `0x1800…0001::isBlocklisted`. Реальные on-chain transfer USDC на новый адрес контракта проходят (балансы меняются). Симулятор `cast call --trace` показывает `StackUnderflow` на этом precompile — это артефакт инструмента, а не настоящий revert. Не отправляйте Arc team запрос на whitelisting.
 
 ---
 
