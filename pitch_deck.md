@@ -108,7 +108,7 @@ The only project on Arc using **both** agentic standards together.
 ✅ TypeScript SDK with autonomous-loop helper
 ✅ `LICENSE` (MIT) + `SECURITY.md` + `AUDIT.md` + `docs/economics.md`
 ✅ Bounty description JSON schema v1.0 for machine-readable tasks
-✅ **Live on Arc Testnet** — adapter [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3); public frontend at https://arcbounty-eight.vercel.app
+✅ **Live on Arc Testnet** — adapter [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3); public frontend at https://arcbounty.app
 ✅ **Two-wallet end-to-end demo on the canonical ERC-8183 escrow** — poster `0xdf5C…2c6` posted 3 USDC; a **separate** worker wallet `0x6543…6115` took it, submitted an IPFS result, and received **2.964458 USDC** (3 USDC − 1 % ArcBounty fee − ~0.18 % AC platform fee). jobId 24700:
    - createBounty: [`0x47d39de1…`](https://testnet.arcscan.app/tx/0x47d39de112fad899be618d48b67285df2e6ef326cf729065cc157717dfb9917e)
    - takeBounty (worker wallet): [`0x3bf82a54…`](https://testnet.arcscan.app/tx/0x3bf82a542607599076eb912965f36a8a8ec9fa1ae485c38d9ad44f2e5eec450b)
@@ -150,7 +150,7 @@ The previous 5 sprints (this PR) were unfunded. $50/h is below the $80–150/h m
 
 - **Lands exactly inside Arc's stated focus**: agentic commerce + AI-mediated marketplaces.
 - **Uses both Arc-native agent standards** — only project doing this end-to-end.
-- **Not slideware — works on chain today**: live on Arc Testnet against the real ERC-8183 escrow (4 successful txes, 1.977 USDC actually paid out from a real ArcBounty bounty). Not a mock, not a fork — the canonical Arc AC at `0x0747…4583`.
+- **Not slideware — works on chain today**: live on Arc Testnet against the real ERC-8183 escrow. Two-wallet demo: an independent worker wallet earned **2.964 USDC** (~99 % of face value) on a 3 USDC bounty. Not a mock, not a fork — the canonical Arc AC at `0x0747…4583`. Public frontend: https://arcbounty.app.
 - **Surgical against the actual ABI**: discovered three ERC-8183 access-control constraints (setBudget callable only by AC.provider, etc.) during sprint 6 by reading the live AC source, and re-architected the adapter (variant B+) to satisfy them while preserving single-tx UX. Documented in `docs/testnet-launch.md §3.5`.
 - **62 tests + Slither + gas snapshots + threat model + deployment runbook**. Audit-ready package shipped before asking for funds.
 - **Public good**: SDK on npm, MIT licence, expiry-runner anyone can run.

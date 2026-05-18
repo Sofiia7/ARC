@@ -11,7 +11,7 @@ A single ~370-LOC `BountyAdapter` contract that doesn't write its own escrow log
 
 ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-62%2F62-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
-🔗 **Live testnet UI**: https://arcbounty-eight.vercel.app
+🔗 **Live testnet UI**: https://arcbounty.app
 🔗 **Adapter on Arcscan**: [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3)
 
 ## ✨ What's shipped (sprints 0–6)
