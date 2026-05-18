@@ -149,7 +149,7 @@ cast code 0xABCD...1234 --rpc-url $ARC_TESTNET_RPC_URL | head -c 60
 
 Это сохраняет «Arc-native escrow» (AC реально держит USDC и проводит выплаты с native USDC-gas), а адаптер выступает proxy слоем со своей логикой dispute/MEV/sanctions/репутации.
 
-**Реальный smoke на Arc Testnet sprint 6**: контракт `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`, jobId 21377, full create→take→submit→approve, поставщик получил **1.977174 USDC** (2 USDC – 1% наш fee – 0.14% AC platform fee). 4 успешных on-chain транзакции.
+**Реальный smoke на Arc Testnet sprint 6**: контракт `0x2738df6545687360b262107bf8394dfad940a92b`, jobId 21377, full create→take→submit→approve, поставщик получил **1.977174 USDC** (2 USDC – 1% наш fee – 0.14% AC platform fee). 4 успешных on-chain транзакции.
 
 **Что НЕ является причиной** (моя предыдущая гипотеза была неверной): compliance-precompile `0x1800…0001::isBlocklisted`. Реальные on-chain transfer USDC на новый адрес контракта проходят (балансы меняются). Симулятор `cast call --trace` показывает `StackUnderflow` на этом precompile — это артефакт инструмента, а не настоящий revert. Не отправляйте Arc team запрос на whitelisting.
 

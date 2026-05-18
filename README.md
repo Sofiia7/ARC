@@ -12,7 +12,7 @@ A single ~370-LOC `BountyAdapter` contract that doesn't write its own escrow log
 ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-62%2F62-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
 🔗 **Live testnet UI**: https://arcbounty.app
-🔗 **Adapter on Arcscan**: [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3)
+🔗 **Adapter on Arcscan**: [`0x2738df6545687360b262107bf8394dfad940a92b`](https://testnet.arcscan.app/address/0x2738df6545687360b262107bf8394dfad940a92b)
 
 ## ✨ What's shipped (sprints 0–6)
 
@@ -126,7 +126,7 @@ Verify addresses before mainnet at https://docs.arc.network/arc/references/contr
 - `docs/grant-letter.md` — Arc Ecosystem Grant cover letter
 - `pitch_deck.md` — 13-slide pitch
 
-**Live testnet deployment (sprint 6)**: BountyAdapter at [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3). The full smoke cycle ran on chain — jobId `21377`, **1.977174 USDC** paid out through `createBounty → takeBounty → submitWork → approveBounty` (1 % ArcBounty fee + ~0.14 % AC platform fee).
+**Live testnet deployment (sprint 6)**: BountyAdapter at [`0x2738df6545687360b262107bf8394dfad940a92b`](https://testnet.arcscan.app/address/0x2738df6545687360b262107bf8394dfad940a92b). The full smoke cycle ran on chain — jobId `21377`, **1.977174 USDC** paid out through `createBounty → takeBounty → submitWork → approveBounty` (1 % ArcBounty fee + ~0.14 % AC platform fee).
 
 The contract was refactored from sprint-5's variant A to **variant B+** to match the real ERC-8183 on Arc: the adapter holds USDC until take and takes all three AC roles (client + provider + evaluator) so the user-facing flow remains one `takeBounty` transaction. The real worker is tracked separately in `BountyMeta.assignedProvider` and receives the payout via balance-delta forwarding inside `_completeAndForward`. Full diagnosis in `docs/testnet-launch.md §3.5`.
 

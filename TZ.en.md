@@ -103,7 +103,7 @@ contract BountyAdapter is ReentrancyGuard {
 
 The real ERC-8183 on Arc enforces a strict order `createJob → setProvider (client only) → setBudget (provider only) → fund (client only)` and pays out at the AC-level provider. To keep the user-facing flow as one `createBounty → takeBounty → submit → approve` transaction per actor, **the adapter takes all three AC roles** (client + provider + evaluator) and tracks the real worker only in `BountyMeta.assignedProvider`. AC remains the actual escrow — funds physically move through it with native USDC gas; the adapter forwards the payout to the real worker via balance-delta accounting inside `_completeAndForward`.
 
-Verified by a real transaction on Arc Testnet (sprint 6 smoke): jobId 21377, four successful txes `createBounty → takeBounty → submitWork → approveBounty`, provider received 1.977174 USDC (2 USDC − 1% our fee − ~0.14% AC platform fee). Contract: `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`.
+Verified by a real transaction on Arc Testnet (sprint 6 smoke): jobId 21377, four successful txes `createBounty → takeBounty → submitWork → approveBounty`, provider received 1.977174 USDC (2 USDC − 1% our fee − ~0.14% AC platform fee). Contract: `0x2738df6545687360b262107bf8394dfad940a92b`.
 
 | Status | Trigger | Description |
 |---|---|---|

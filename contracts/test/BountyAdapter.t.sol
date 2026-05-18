@@ -118,14 +118,22 @@ contract MockAgenticCommerce {
     }
 
     function reject(uint256 jobId, bytes32, bytes calldata) external {
-        jobs[jobId].status = Status.REJECTED;
-        // Funds stay in escrow until claimRefund.
+        Job storage j = jobs[jobId];
+        // Mirror real AC: reject from Funded/Submitted refunds the client atomically.
+        bool wasFundedOrSubmitted = j.status == Status.FUNDED || j.status == Status.SUBMITTED;
+        j.status = Status.REJECTED;
+        if (wasFundedOrSubmitted && escrow[jobId] > 0) {
+            uint256 amt = escrow[jobId];
+            escrow[jobId] = 0;
+            usdcToken.transfer(j.client, amt);
+        }
     }
 
     function claimRefund(uint256 jobId) external {
         Job storage j = jobs[jobId];
-        // Real AC allows claimRefund when status == REJECTED or past deadline.
-        require(j.status == Status.REJECTED || block.timestamp > j.deadline, "cannot refund yet");
+        // Real AC: claimRefund requires Funded/Submitted (not Rejected) and deadline passed.
+        require(j.status == Status.FUNDED || j.status == Status.SUBMITTED, "WrongStatus");
+        require(block.timestamp > j.deadline, "deadline not passed");
         uint256 amt = escrow[jobId];
         escrow[jobId] = 0;
         usdcToken.transfer(j.client, amt);

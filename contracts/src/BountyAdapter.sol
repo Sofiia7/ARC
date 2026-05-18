@@ -407,8 +407,10 @@ contract BountyAdapter is ReentrancyGuard {
             emit DisputeResolved(jobId, true);
         } else {
             _giveFeedback(meta.agentId, reputationPenalty, "bounty_failed", jobId);
+            // AC.reject from Funded/Submitted ALREADY refunds the client (adapter)
+            // in the same call. claimRefund afterwards would revert with WrongStatus
+            // because status is now Rejected, not Funded/Submitted.
             agenticCommerce.reject(jobId, keccak256("dispute_resolved_poster"), bytes("Arbitrator: poster wins"));
-            agenticCommerce.claimRefund(jobId);
             _forwardAdapterBalance(meta);
             emit DisputeResolved(jobId, false);
         }
@@ -425,8 +427,9 @@ contract BountyAdapter is ReentrancyGuard {
         require(block.timestamp <= meta.submittedAt + DISPUTE_WINDOW, "dispute window closed");
 
         meta.finalized = true;
+        // AC.reject from Funded/Submitted refunds the adapter directly — no
+        // separate claimRefund needed.
         agenticCommerce.reject(jobId, keccak256(abi.encodePacked(reason)), bytes(reason));
-        agenticCommerce.claimRefund(jobId);
         _forwardAdapterBalance(meta);
 
         emit BountyCancelled(jobId, reason);
@@ -456,9 +459,9 @@ contract BountyAdapter is ReentrancyGuard {
         meta.finalized = true;
 
         if (meta.isTaken) {
-            // USDC is in AC escrow — reject the funded job and claim refund.
+            // USDC is in AC escrow — reject the funded job. AC.reject from
+            // Funded/Submitted refunds the adapter atomically.
             agenticCommerce.reject(jobId, keccak256("expired"), bytes("expired past deadline"));
-            agenticCommerce.claimRefund(jobId);
         }
         // Whether or not we hit AC, anything that ended up back in the adapter goes to poster.
         _forwardAdapterBalance(meta);

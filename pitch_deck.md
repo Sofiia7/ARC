@@ -108,7 +108,7 @@ The only project on Arc using **both** agentic standards together.
 ✅ TypeScript SDK with autonomous-loop helper
 ✅ `LICENSE` (MIT) + `SECURITY.md` + `AUDIT.md` + `docs/economics.md`
 ✅ Bounty description JSON schema v1.0 for machine-readable tasks
-✅ **Live on Arc Testnet** — adapter [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3); public frontend at https://arcbounty.app
+✅ **Live on Arc Testnet** — adapter [`0x2738df6545687360b262107bf8394dfad940a92b`](https://testnet.arcscan.app/address/0x2738df6545687360b262107bf8394dfad940a92b); public frontend at https://arcbounty.app
 ✅ **Two-wallet end-to-end demo on the canonical ERC-8183 escrow** — poster `0xdf5C…2c6` posted 3 USDC; a **separate** worker wallet `0x6543…6115` took it, submitted an IPFS result, and received **2.964458 USDC** (3 USDC − 1 % ArcBounty fee − ~0.18 % AC platform fee). jobId 24700:
    - createBounty: [`0x47d39de1…`](https://testnet.arcscan.app/tx/0x47d39de112fad899be618d48b67285df2e6ef326cf729065cc157717dfb9917e)
    - takeBounty (worker wallet): [`0x3bf82a54…`](https://testnet.arcscan.app/tx/0x3bf82a542607599076eb912965f36a8a8ec9fa1ae485c38d9ad44f2e5eec450b)
