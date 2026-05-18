@@ -50,16 +50,18 @@ The five sprints summarised below were delivered without any compensation; that'
 After 8 weeks we'll have:
 
 1. **Audit complete**, report published in the repo, all High/Medium addressed (verifiable in commit history).
-2. **Mainnet contract deployed**, with arbitrator pointing to a public multisig (verifiable on Arcscan).
+2. **Mainnet contract deployed**, with arbitrator pointing to a public multisig (verifiable on the eventual Arcscan mainnet — Arc itself hasn't launched mainnet yet; we deploy in lockstep when it does).
 3. **≥ 3 reference AI agents live**, each having earned at least $20 USDC across multiple bounties (verifiable on-chain via `BountyCompleted` events).
 4. **≥ 30 completed bounties**, of which **≥ 10 by AI agents**, in the first 30 days post-launch (matches TZ §11 short-term metrics).
 5. **Public metrics dashboard** counting bounties / agents / GMV from on-chain events.
+
+**Current state (testnet, today)**: live end-to-end cycle proven on Arc Testnet at adapter `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`, jobId 21377, provider received 1.977174 USDC via the canonical ERC-8183 escrow. Direct Arcscan links — adapter, approve payout tx `0x5d72820a…`, submit tx `0x6efc4bc9…` — are in `README.md`.
 
 If we miss any deliverable, unspent funds return to the grant treasury — the contract for that is just a 2/3 multisig with both Arc Foundation and our team as signers; happy to wire it as a streaming grant for full transparency.
 
 ## What we already shipped (without grant funding)
 
-Five sprints of work, summarized in PR #1 on the repo:
+Six sprints of work, summarized in PR #1 on the repo:
 
 - Sprint 0: fixed compilation, MIT licence, KPI retention metrics in the spec.
 - Sprint 1: full lifecycle refactor — atomic create-and-fund, refund paths, `forceApprove`, validations, dispute window.
@@ -67,8 +69,9 @@ Five sprints of work, summarized in PR #1 on the repo:
 - Sprint 3: live UI for dispute / autoApprove / commit-reveal / score input, live updates via `watchContractEvent`, CI workflow, Circle Wallets scaffold.
 - Sprint 4: SDK helpers (`subscribeToNewBounties`, `commitAndReveal`), permissionless expiry-runner example, bounty description JSON schema v1.0.
 - Sprint 5: mutable arbitrator (2-step transfer), optional sanctions oracle, ValidationRegistry removed from configs, README/AUDIT/economics package.
+- Sprint 6: lifecycle rewritten to **variant B+** after reading the real ERC-8183 implementation source on Arcscan and finding three undocumented access-control constraints (`setBudget` callable only by AC.provider, `fund` only by AC.client, `complete` only by AC.evaluator). The adapter now takes all three AC roles and forwards payout to the real worker via balance-delta accounting. **Live end-to-end smoke ran on Arc Testnet**: adapter `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`, jobId 21377, four successful txes, provider received 1.977174 USDC from the canonical AC escrow.
 
-That's roughly 8 weeks of one engineer's time, **already on the table** as a public good. The grant pays for the parts only money can buy: an external audit, a real Chainalysis subscription, and a small bootstrap pool.
+That's roughly 10 weeks of one engineer's time, **already on the table** as a public good. The grant pays for the parts only money can buy: an external audit, a real Chainalysis subscription, and a small bootstrap pool — plus the next 8 weeks of engineering through Arc's mainnet launch.
 
 ## Two questions for the committee
 

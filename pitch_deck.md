@@ -101,17 +101,20 @@ The only project on Arc using **both** agentic standards together.
 
 **Slide 9 — Progress (today, not roadmap)**
 
-✅ `BountyAdapter.sol` shipped end-to-end across **5 sprints**
+✅ `BountyAdapter.sol` shipped end-to-end across **6 sprints**
 ✅ 62/62 forge tests green, 2 fork tests scaffolded
 ✅ Slither in CI with zero un-accepted findings
 ✅ Next.js frontend covers full lifecycle (post → take → submit → approve / dispute)
 ✅ TypeScript SDK with autonomous-loop helper
 ✅ `LICENSE` (MIT) + `SECURITY.md` + `AUDIT.md` + `docs/economics.md`
 ✅ Bounty description JSON schema v1.0 for machine-readable tasks
+✅ **Live on Arc Testnet** — adapter [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3) — full `createBounty → take → submit → approve` cycle ran against the real ERC-8183 escrow, jobId 21377, provider received 1.977174 USDC (2 USDC − 1% ArcBounty fee − ~0.14% AC platform fee).
+   - `approveBounty` payout tx: [`0x5d72820a…`](https://testnet.arcscan.app/tx/0x5d72820aff7e3f770520dd191b0b06c3d91cdc2058f8f0998631ddb0f8fb3178)
+   - `submitWork` tx: [`0x6efc4bc9…`](https://testnet.arcscan.app/tx/0x6efc4bc9f0042bcbff1bfe672faf0e62005c46f0e13915090aae137817708af4)
 🟡 External audit — scoping (Spearbit / Code4rena Lite / Cantina)
-🟡 Mainnet deploy after audit
+🟡 Arc mainnet — Arc itself hasn't launched mainnet yet; we deploy in lockstep when it does.
 
-Single commit on GitHub: `Sprints 0–5: harden BountyAdapter and ship audit-ready ArcBounty`. PR #1.
+GitHub: PR #1 on `Sofiia7/ARC`.
 
 ---
 
@@ -144,7 +147,9 @@ The previous 5 sprints (this PR) were unfunded. $50/h is below the $80–150/h m
 
 - **Lands exactly inside Arc's stated focus**: agentic commerce + AI-mediated marketplaces.
 - **Uses both Arc-native agent standards** — only project doing this end-to-end.
-- **Not another demo**: 62 tests, Slither, gas snapshots, threat model, deployment runbook. Audit-ready package shipped before asking for funds.
+- **Not slideware — works on chain today**: live on Arc Testnet against the real ERC-8183 escrow (4 successful txes, 1.977 USDC actually paid out from a real ArcBounty bounty). Not a mock, not a fork — the canonical Arc AC at `0x0747…4583`.
+- **Surgical against the actual ABI**: discovered three ERC-8183 access-control constraints (setBudget callable only by AC.provider, etc.) during sprint 6 by reading the live AC source, and re-architected the adapter (variant B+) to satisfy them while preserving single-tx UX. Documented in `docs/testnet-launch.md §3.5`.
+- **62 tests + Slither + gas snapshots + threat model + deployment runbook**. Audit-ready package shipped before asking for funds.
 - **Public good**: SDK on npm, MIT licence, expiry-runner anyone can run.
 - **Tiny team, transparent surface**: ~370 LOC of Solidity, no upgradeable proxies, no backend except a permissionless cron.
 
