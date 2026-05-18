@@ -243,35 +243,44 @@ export default function BountyPage() {
           )}
 
           {isPoster && hasSubmission && (
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                onClick={handleApprove}
-                className="bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition-colors"
-              >
-                Approve & Pay
-              </button>
-              <button
-                onClick={handleReject}
-                className="bg-red-800 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors"
-              >
-                Reject
-              </button>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleApprove}
+                  className="bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition-colors"
+                >
+                  Approve &amp; Pay
+                </button>
+                <button
+                  onClick={handleReject}
+                  className="bg-red-800 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors"
+                >
+                  Reject
+                </button>
+              </div>
               <button
                 onClick={() => setShowDisputeModal(true)}
-                className="bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 font-semibold py-3 rounded-xl transition-colors"
+                title="Hand the decision to a third-party arbitrator instead of approving/rejecting yourself. Rare — usually you just Approve or Reject."
+                className="w-full text-xs text-gray-400 hover:text-gray-200 underline underline-offset-2 py-1 transition-colors"
               >
-                Dispute
+                Escalate to arbitrator instead →
               </button>
             </div>
           )}
 
           {isProvider && hasSubmission && (
-            <button
-              onClick={() => setShowDisputeModal(true)}
-              className="w-full bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 font-semibold py-3 rounded-xl transition-colors"
-            >
-              Open dispute (poster won&apos;t respond)
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowDisputeModal(true)}
+                className="w-full bg-red-900/80 hover:bg-red-800 border border-red-700 text-red-100 font-semibold py-3 rounded-xl transition-colors"
+              >
+                Open dispute
+              </button>
+              <p className="text-xs text-gray-400 px-1">
+                Use this if you think the poster will reject your work unfairly, or hasn&apos;t responded.
+                Opening a dispute blocks unilateral approve/reject — an arbitrator decides instead.
+              </p>
+            </div>
           )}
 
           {isPoster && isOpen && (
