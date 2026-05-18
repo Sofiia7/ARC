@@ -166,7 +166,7 @@ export default function BountyPage() {
         </div>
       )}
 
-      <div className="bg-black/30 border border-white/10 backdrop-blur-sm rounded-xl p-6 mb-6">
+      <div className="glass rounded-xl p-6 mb-6">
         <h2 className="text-xs font-semibold text-gray-300 mb-3 uppercase tracking-widest">Description</h2>
         <IPFSMarkdownClient cid={meta.ipfsDescHash} />
       </div>
@@ -176,24 +176,26 @@ export default function BountyPage() {
       )}
 
       {!isOpen && (
-        <div className="bg-black/30 border border-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 text-sm space-y-2">
-          <div>
-            <span className="text-gray-400">Assigned to: </span>
-            <span className="font-mono text-white">{shortAddress(meta.assignedProvider)}</span>
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 mb-6 text-sm">
+          <span className="text-gray-300">Assigned to: </span>
+          <span className="font-mono text-white">{shortAddress(meta.assignedProvider)}</span>
+        </div>
+      )}
+
+      {hasSubmission && (
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-widest">Submitted work</h2>
+            <a
+              href={`https://ipfs.io/ipfs/${meta.submittedResultHash.replace("ipfs://", "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-200 underline font-mono"
+            >
+              raw ↗
+            </a>
           </div>
-          {hasSubmission && (
-            <div>
-              <span className="text-gray-400">Submitted: </span>
-              <a
-                href={`https://ipfs.io/ipfs/${meta.submittedResultHash.replace("ipfs://", "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-blue-300 hover:text-blue-200 underline break-all"
-              >
-                {meta.submittedResultHash}
-              </a>
-            </div>
-          )}
+          <IPFSMarkdownClient cid={meta.submittedResultHash} />
         </div>
       )}
 

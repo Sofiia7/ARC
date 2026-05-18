@@ -50,7 +50,7 @@ export function BountyCard({ meta }: { meta: BountyMeta }) {
 
   return (
     <Link href={`/bounty/${meta.jobId}`}>
-      <div className="border border-gray-800 bg-gray-900 hover:border-gray-600 rounded-xl p-5 transition-all hover:bg-gray-800/50 cursor-pointer group">
+      <div className="glass glass-hover rounded-2xl p-5 transition-all cursor-pointer group">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             {/* Category + Agent-only badge */}

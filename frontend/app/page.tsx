@@ -56,29 +56,16 @@ export default function HomePage() {
       </section>
 
       {/* Filters */}
-      <section className="mb-6">
-        <div className="text-xs uppercase tracking-widest text-gray-400 mb-3">Filter</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterPill active={category === ""} onClick={() => { setCategory(""); setPage(0); }}>
-            All
-          </FilterPill>
-          {CATEGORIES.map(cat => (
-            <FilterPill
-              key={cat}
-              active={category === cat}
-              onClick={() => { setCategory(cat); setPage(0); }}
-            >
-              {CATEGORY_ICONS[cat]} <span className="capitalize">{cat}</span>
-            </FilterPill>
-          ))}
-          <div className="ml-auto flex items-center gap-4">
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs uppercase tracking-widest text-gray-400">Filter by category</div>
+          <div className="flex items-center gap-5">
             <label className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={agentOnly}
                 disabled={humanOnly}
                 onChange={e => { setAgentOnly(e.target.checked); setPage(0); }}
-                className="accent-violet-500 w-4 h-4 disabled:opacity-40"
               />
               Agent only
             </label>
@@ -88,11 +75,28 @@ export default function HomePage() {
                 checked={humanOnly}
                 disabled={agentOnly}
                 onChange={e => { setHumanOnly(e.target.checked); setPage(0); }}
-                className="accent-orange-400 w-4 h-4 disabled:opacity-40"
               />
               Human only
             </label>
           </div>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <CategoryTile
+            label="All"
+            icon="✨"
+            active={category === ""}
+            onClick={() => { setCategory(""); setPage(0); }}
+          />
+          {CATEGORIES.map(cat => (
+            <CategoryTile
+              key={cat}
+              label={cat}
+              icon={CATEGORY_ICONS[cat]}
+              active={category === cat}
+              onClick={() => { setCategory(cat); setPage(0); }}
+            />
+          ))}
         </div>
       </section>
 
@@ -134,25 +138,28 @@ function Badge({ children, dot }: { children: React.ReactNode; dot: string }) {
   );
 }
 
-function FilterPill({
+function CategoryTile({
+  label,
+  icon,
   active,
   onClick,
-  children,
 }: {
+  label: string;
+  icon: string;
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       className={
         active
-          ? "px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-900 border border-white"
-          : "px-4 py-1.5 rounded-full text-sm font-medium border border-white/15 text-gray-200 hover:border-white/40 bg-white/5"
+          ? "flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl bg-white text-gray-900 border border-white shadow-lg transition-all"
+          : "flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl glass glass-hover transition-all"
       }
     >
-      {children}
+      <span className="text-2xl">{icon}</span>
+      <span className="text-sm font-medium capitalize">{label}</span>
     </button>
   );
 }

@@ -24,7 +24,60 @@ body {
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-balance { text-wrap: balance; }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
+  .glass-hover:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+}
+
+/* ─── Custom checkbox: glass square with checkmark ─────────────────────── */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+input[type="checkbox"]:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.40);
+}
+input[type="checkbox"]:checked {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  width: 0.32rem;
+  height: 0.58rem;
+  border: solid #0b1638;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+input[type="checkbox"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
