@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
   const blob = new Blob([content], { type: "text/plain" });
   const form = new FormData();
   form.append("file", blob, "content.md");
+  // Pinata v3 Files API defaults to PRIVATE storage; explicitly opt into the
+  // public IPFS network so the CID is resolvable via every public gateway.
+  form.append("network", "public");
 
   const res = await fetch("https://uploads.pinata.cloud/v3/files", {
     method: "POST",

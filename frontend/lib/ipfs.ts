@@ -19,7 +19,24 @@ export function ipfsUrl(uriOrCid: string, gatewayIndex = 0): string {
 
 export async function fetchIpfsText(uriOrCid: string): Promise<string> {
   const cid = cidFromUri(uriOrCid);
-  // Per-gateway timeout so a slow gateway doesn't block the chain.
+
+  // Primary: our own server route uses the Pinata JWT to fetch via the
+  // authenticated gateway. Works instantly for content we pinned, even if
+  // public DHT hasn't propagated yet.
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    const res = await fetch(`/api/ipfs/get?cid=${encodeURIComponent(cid)}`, {
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (res.ok) return res.text();
+  } catch {
+    // fall through to direct gateways
+  }
+
+  // Fallback: direct hit on public gateways from the browser. Each gets a
+  // per-request timeout so a slow gateway can't block the whole chain.
   for (const gateway of GATEWAYS) {
     try {
       const ctrl = new AbortController();

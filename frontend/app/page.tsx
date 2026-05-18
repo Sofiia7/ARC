@@ -94,7 +94,7 @@ export default function HomePage() {
         <button
           onClick={() => { setCategory(""); setPage(0); }}
           className={`glass glass-hover flex flex-col items-center justify-center gap-1.5 p-4 text-center transition-all
-            ${category === "" ? "!border-violet-400/60 !bg-violet-500/10" : ""}`}
+            ${category === "" ? "!border-white/40 !bg-white/10" : ""}`}
         >
           <span className="text-2xl">✨</span>
           <span className="text-xs text-gray-200 font-medium">All</span>
@@ -104,7 +104,7 @@ export default function HomePage() {
             key={cat}
             onClick={() => { setCategory(cat); setPage(0); }}
             className={`glass glass-hover flex flex-col items-center justify-center gap-1.5 p-4 text-center transition-all
-              ${category === cat ? "!border-violet-400/60 !bg-violet-500/10" : ""}`}
+              ${category === cat ? "!border-white/40 !bg-white/10" : ""}`}
           >
             <span className="text-2xl">{CATEGORY_ICONS[cat]}</span>
             <span className="text-xs text-gray-200 capitalize font-medium">{cat}</span>

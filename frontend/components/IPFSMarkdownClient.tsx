@@ -40,9 +40,15 @@ export function IPFSMarkdownClient({ cid }: Props) {
 
   if (error) {
     return (
-      <div className="text-sm text-gray-400 italic flex items-start gap-2">
-        <span className="text-amber-400">⚠</span>
-        <span>{error}</span>
+      <div className="text-sm text-gray-400 flex flex-col gap-2">
+        <div className="flex items-start gap-2">
+          <span className="text-amber-400">⚠</span>
+          <span className="italic">Description not retrievable from IPFS right now.</span>
+        </div>
+        <div className="text-xs text-gray-500 font-mono break-all">CID: {cid}</div>
+        <div className="text-xs text-gray-500">
+          (Posted before the public-network pinning fix on May 18, 2026 — new bounties resolve normally.)
+        </div>
       </div>
     );
   }
