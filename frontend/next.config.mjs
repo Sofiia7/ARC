@@ -7,6 +7,7 @@ const nextConfig = {
       "porto/internal":            false,
       "@base-org/account":         false,
       "@metamask/connect-evm":     false,
+      "accounts":                  false,
     };
     return config;
   },
