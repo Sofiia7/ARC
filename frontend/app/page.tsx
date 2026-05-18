@@ -63,7 +63,7 @@ export default function HomePage() {
           Native to Arc. Powered by ERC-8183 escrow + ERC-8004 on-chain reputation.
           Micro-bounties from $1 are economically real because USDC is native gas.
         </p>
-        <div className="mt-5 flex items-center gap-3 text-sm text-gray-400">
+        <div className="mt-5 flex items-center gap-2 text-sm text-gray-400 flex-wrap">
           {total !== undefined && (
             <span className="pill">
               <span className="pulse-dot bg-emerald-400" />
@@ -72,67 +72,56 @@ export default function HomePage() {
           )}
           <span className="pill">⚡ ~$0.01 / tx</span>
           <span className="pill">🔒 ERC-8183 escrow</span>
+          <span className="pill">⭐ ERC-8004 reputation</span>
+          <span className="pill">💵 native USDC gas</span>
         </div>
       </div>
 
-      {/* Category quick-links */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        {CATEGORIES.map(cat => (
-          <Link
-            key={cat}
-            href={`/category/${cat}`}
-            className="glass glass-hover flex flex-col items-center gap-1.5 p-4 text-center"
-          >
-            <span className="text-2xl">{CATEGORY_ICONS[cat]}</span>
-            <span className="text-xs text-gray-300 capitalize font-medium">{cat}</span>
-          </Link>
-        ))}
+      {/* Category tiles — these ARE the filter */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm uppercase tracking-widest text-gray-500 font-semibold">Filter by category</h2>
+        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={agentOnly}
+            onChange={e => { setAgentOnly(e.target.checked); setPage(0); }}
+            className="accent-violet-500 w-4 h-4"
+          />
+          Agent only
+        </label>
       </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-6 items-center">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
         <button
           onClick={() => { setCategory(""); setPage(0); }}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border
-            ${category === ""
-              ? "bg-white text-gray-900 border-white"
-              : "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}
+          className={`glass glass-hover flex flex-col items-center justify-center gap-1.5 p-4 text-center transition-all
+            ${category === "" ? "!border-violet-400/60 !bg-violet-500/10" : ""}`}
         >
-          All
+          <span className="text-2xl">✨</span>
+          <span className="text-xs text-gray-200 font-medium">All</span>
         </button>
         {CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => { setCategory(cat); setPage(0); }}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border capitalize
-              ${category === cat
-                ? "bg-white text-gray-900 border-white"
-                : "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}
+            className={`glass glass-hover flex flex-col items-center justify-center gap-1.5 p-4 text-center transition-all
+              ${category === cat ? "!border-violet-400/60 !bg-violet-500/10" : ""}`}
           >
-            {CATEGORY_ICONS[cat]} {cat}
+            <span className="text-2xl">{CATEGORY_ICONS[cat]}</span>
+            <span className="text-xs text-gray-200 capitalize font-medium">{cat}</span>
           </button>
         ))}
-        <label className="ml-2 flex items-center gap-2 text-sm text-gray-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={agentOnly}
-            onChange={e => { setAgentOnly(e.target.checked); setPage(0); }}
-            className="accent-violet-500"
-          />
-          Agent only
-        </label>
       </div>
 
       <BountyList jobIds={jobIds} agentFilter={agentOnly} isLoading={isLoading} />
 
       <div className="flex gap-3 mt-8 justify-center">
         {page > 0 && (
-          <button onClick={() => setPage(p => p - 1)} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm">
+          <button onClick={() => setPage(p => p - 1)} className="btn-ghost text-sm">
             ← Prev
           </button>
         )}
         {jobIds && jobIds.length === Number(PAGE_SIZE) && (
-          <button onClick={() => setPage(p => p + 1)} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm">
+          <button onClick={() => setPage(p => p + 1)} className="btn-ghost text-sm">
             Next →
           </button>
         )}
