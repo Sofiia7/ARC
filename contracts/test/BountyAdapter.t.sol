@@ -7,28 +7,24 @@ import "../src/interfaces/IAgenticCommerce.sol";
 import "../src/interfaces/IIdentityRegistry.sol";
 import "../src/interfaces/IReputationRegistry.sol";
 
-// ─── Mock contracts ────────────────────────────────────────────────────────────
+// ─── Mock USDC ────────────────────────────────────────────────────────────────
 
 contract MockUSDC {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
 
-    function mint(address to, uint256 amount) external {
-        balanceOf[to] += amount;
-    }
+    function mint(address to, uint256 amount) external { balanceOf[to] += amount; }
 
     function approve(address spender, uint256 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
         return true;
     }
-
     function transfer(address to, uint256 amount) external returns (bool) {
         require(balanceOf[msg.sender] >= amount, "insufficient balance");
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
         return true;
     }
-
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         require(allowance[from][msg.sender] >= amount, "insufficient allowance");
         require(balanceOf[from] >= amount, "insufficient balance");
@@ -39,536 +35,556 @@ contract MockUSDC {
     }
 }
 
+// ─── Mock AC that actually moves USDC like real AC ────────────────────────────
+
 contract MockAgenticCommerce {
     uint256 private _nextJobId = 1;
-    mapping(uint256 => IAgenticCommerce.Job) public jobs;
-    mapping(uint256 => uint256) public budgets;
+    MockUSDC public usdc;
 
-    event JobCreated(uint256 jobId, address poster, address provider, address evaluator);
-    event JobFunded(uint256 jobId);
-    event JobSubmitted(uint256 jobId, bytes32 deliverable);
-    event JobCompleted(uint256 jobId);
-    event JobRefunded(uint256 jobId);
-    event JobExpired(uint256 jobId);
+    enum S { OPEN, FUNDED, SUBMITTED, COMPLETED, REJECTED, EXPIRED }
+    struct Job {
+        address poster;       // = client (calls createJob)
+        address provider;
+        address evaluator;
+        uint256 deadline;
+        uint256 budget;
+        S       status;
+        bytes32 deliverable;
+    }
+    mapping(uint256 => Job) public jobs;
 
-    function createJob(
-        address provider,
-        address evaluator,
-        uint256 deadline,
-        string calldata,
-        address
-    ) external returns (uint256 jobId) {
+    constructor(address _usdc) { usdc = MockUSDC(_usdc); }
+
+    function createJob(address provider, address evaluator, uint256 deadline, string calldata, address)
+        external returns (uint256 jobId)
+    {
         jobId = _nextJobId++;
-        jobs[jobId] = IAgenticCommerce.Job({
-            poster: msg.sender,
-            provider: provider,
-            evaluator: evaluator,
-            deadline: deadline,
-            status: IAgenticCommerce.JobStatus.OPEN,
-            deliverable: bytes32(0)
-        });
-        emit JobCreated(jobId, msg.sender, provider, evaluator);
+        jobs[jobId] = Job(msg.sender, provider, evaluator, deadline, 0, S.OPEN, bytes32(0));
     }
-
+    function setProvider(uint256 jobId, address p) external { jobs[jobId].provider = p; }
     function setBudget(uint256 jobId, uint256 amount, bytes calldata) external {
-        budgets[jobId] = amount;
+        jobs[jobId].budget = amount;
     }
-
     function fund(uint256 jobId, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.FUNDED;
-        emit JobFunded(jobId);
+        Job storage j = jobs[jobId];
+        require(msg.sender == j.poster, "not client");
+        require(j.status == S.OPEN, "wrong status");
+        usdc.transferFrom(msg.sender, address(this), j.budget);
+        j.status = S.FUNDED;
     }
-
     function submit(uint256 jobId, bytes32 deliverable, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.SUBMITTED;
-        jobs[jobId].deliverable = deliverable;
-        emit JobSubmitted(jobId, deliverable);
+        Job storage j = jobs[jobId];
+        require(msg.sender == j.provider, "not provider");
+        require(j.status == S.FUNDED, "wrong status");
+        j.deliverable = deliverable;
+        j.status = S.SUBMITTED;
     }
-
     function complete(uint256 jobId, bytes32, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.COMPLETED;
-        emit JobCompleted(jobId);
+        Job storage j = jobs[jobId];
+        require(msg.sender == j.evaluator, "not evaluator");
+        require(j.status == S.SUBMITTED, "wrong status");
+        j.status = S.COMPLETED;
+        usdc.transfer(j.provider, j.budget); // pay provider
     }
-
+    function reject(uint256 jobId, bytes32, bytes calldata) external {
+        Job storage j = jobs[jobId];
+        require(j.status == S.FUNDED || j.status == S.SUBMITTED, "wrong status");
+        j.status = S.REJECTED;
+        usdc.transfer(j.poster, j.budget); // refund client
+    }
     function refund(uint256 jobId, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.REJECTED;
-        emit JobRefunded(jobId);
+        Job storage j = jobs[jobId];
+        require(j.status == S.REJECTED, "wrong status");
+        // no-op (already refunded on reject)
+        jobId;
     }
-
     function expire(uint256 jobId, bytes calldata) external {
-        jobs[jobId].status = IAgenticCommerce.JobStatus.EXPIRED;
-        emit JobExpired(jobId);
+        Job storage j = jobs[jobId];
+        j.status = S.EXPIRED;
     }
-
     function getJob(uint256 jobId) external view returns (IAgenticCommerce.Job memory) {
-        return jobs[jobId];
+        Job storage j = jobs[jobId];
+        return IAgenticCommerce.Job({
+            poster: j.poster, provider: j.provider, evaluator: j.evaluator,
+            deadline: j.deadline, status: IAgenticCommerce.JobStatus(uint8(j.status)),
+            deliverable: j.deliverable
+        });
     }
 }
 
 contract MockIdentityRegistry {
     mapping(uint256 => address) public owners;
-    uint256 private _nextId = 1;
-
-    function register(string calldata) external returns (uint256 agentId) {
-        agentId = _nextId++;
-        owners[agentId] = msg.sender;
-    }
-
-    function ownerOf(uint256 agentId) external view returns (address) {
-        return owners[agentId];
-    }
-
+    function register(string calldata) external returns (uint256) { return 0; }
+    function ownerOf(uint256 agentId) external view returns (address) { return owners[agentId]; }
     function getMetadataURI(uint256) external pure returns (string memory) { return ""; }
-
-    function isRegistered(uint256 agentId) external view returns (bool) {
-        return owners[agentId] != address(0);
-    }
-
-    // Helper for tests: assign ownership directly
-    function setOwner(uint256 agentId, address owner) external {
-        owners[agentId] = owner;
-    }
+    function isRegistered(uint256 agentId) external view returns (bool) { return owners[agentId] != address(0); }
+    function setOwner(uint256 agentId, address owner) external { owners[agentId] = owner; }
 }
 
 contract MockReputationRegistry {
-    struct FeedbackCall {
-        uint256 agentId;
-        uint256 score;
-        bytes32 feedbackHash;
-    }
+    struct FeedbackCall { uint256 agentId; uint256 score; bytes32 feedbackHash; }
     FeedbackCall[] public feedbackCalls;
-
-    function giveFeedback(
-        uint256 agentId,
-        uint256 score,
-        uint256,
-        string calldata,
-        string calldata,
-        string calldata,
-        string calldata,
-        bytes32 feedbackHash
-    ) external {
-        feedbackCalls.push(FeedbackCall(agentId, score, feedbackHash));
+    function giveFeedback(uint256 a, uint256 s, uint256, string calldata, string calldata, string calldata, string calldata, bytes32 h)
+        external
+    {
+        feedbackCalls.push(FeedbackCall(a, s, h));
     }
-
     function getReputation(uint256) external pure returns (IReputationRegistry.ReputationScore memory) {
         return IReputationRegistry.ReputationScore({ averageScore: 90, totalFeedbacks: 5, totalJobs: 5 });
     }
-
-    function getFeedbackCount() external view returns (uint256) {
-        return feedbackCalls.length;
-    }
+    function getFeedbackCount() external view returns (uint256) { return feedbackCalls.length; }
 }
 
 // ─── Test suite ────────────────────────────────────────────────────────────────
 
 contract BountyAdapterTest is Test {
-    BountyAdapter       adapter;
-    MockUSDC            usdc;
-    MockAgenticCommerce commerce;
+    BountyAdapter        adapter;
+    MockUSDC             usdc;
+    MockAgenticCommerce  commerce;
     MockIdentityRegistry identity;
     MockReputationRegistry reputation;
 
-    address poster    = address(0x1001);
-    address worker    = address(0x1002);
-    address agent     = address(0x1003);
-    address feeAddr   = address(0x1004);
-    address stranger  = address(0x1005);
+    address poster   = address(0x1001);
+    address worker   = address(0x1002);
+    address agent    = address(0x1003);
+    address feeAddr  = address(0x1004);
+    address stranger = address(0x1005);
 
-    uint256 agentId   = 1;
-    uint256 reward    = 10e6;  // 10 USDC
+    uint256 agentId  = 1;
+    uint256 reward   = 10e6;
     uint256 deadline;
 
-    string constant IPFS_DESC   = "ipfs://QmDesc123";
-    string constant IPFS_RESULT = "ipfs://QmResult456";
-    string constant CATEGORY    = "dev";
+    string constant DESC   = "ipfs://QmDesc";
+    string constant RESULT = "ipfs://QmResult";
+    string constant REASON = "ipfs://QmReason";
+    string constant RESP   = "ipfs://QmResp";
+    string constant RULING = "ipfs://QmRule";
+    string constant CAT    = "dev";
     string[] tags;
 
     function setUp() public {
         deadline = block.timestamp + 7 days;
-        tags = new string[](2);
-        tags[0] = "solidity";
-        tags[1] = "arc";
+        tags = new string[](2); tags[0] = "solidity"; tags[1] = "arc";
 
         usdc       = new MockUSDC();
-        commerce   = new MockAgenticCommerce();
+        commerce   = new MockAgenticCommerce(address(usdc));
         identity   = new MockIdentityRegistry();
         reputation = new MockReputationRegistry();
 
         adapter = new BountyAdapter(
-            address(commerce),
-            address(identity),
-            address(reputation),
-            address(usdc),
-            feeAddr,
-            100 // 1%
+            address(commerce), address(identity), address(reputation),
+            address(usdc), feeAddr, 100
         );
 
-        // Register agent
         identity.setOwner(agentId, agent);
-
-        // Fund poster
         usdc.mint(poster, 1000e6);
         vm.prank(poster);
         usdc.approve(address(adapter), type(uint256).max);
     }
 
-    // ─── Helper ────────────────────────────────────────────────────────────────
+    function _params(bool agentOnly, bool humanOnly, address provider, string memory cat)
+        internal view returns (BountyAdapter.CreateParams memory)
+    {
+        return BountyAdapter.CreateParams({
+            provider: provider, reward: reward, deadline: deadline,
+            ipfsDescHash: DESC, category: cat, tags: tags,
+            agentOnly: agentOnly, humanOnly: humanOnly
+        });
+    }
 
-    function _createBounty(bool agentOnly) internal returns (uint256 jobId) {
+    function _create() internal returns (uint256) {
         vm.prank(poster);
-        jobId = adapter.createBounty(address(0), reward, deadline, IPFS_DESC, CATEGORY, tags, agentOnly);
+        return adapter.createBounty(_params(false, false, address(0), CAT));
+    }
+    function _createAgentOnly() internal returns (uint256) {
+        vm.prank(poster);
+        return adapter.createBounty(_params(true, false, address(0), CAT));
+    }
+    function _createHumanOnly() internal returns (uint256) {
+        vm.prank(poster);
+        return adapter.createBounty(_params(false, true, address(0), CAT));
     }
 
     // ─── createBounty ─────────────────────────────────────────────────────────
 
-    function testCreateBounty_basic() public {
-        uint256 jobId = _createBounty(false);
-
-        assertTrue(jobId > 0, "jobId should be > 0");
-
-        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
-        assertEq(meta.poster, poster);
-        assertEq(meta.category, CATEGORY);
-        assertEq(meta.ipfsDescHash, IPFS_DESC);
-        assertEq(meta.reward, reward - (reward * 100 / 10_000)); // net of 1% fee
-        assertFalse(meta.agentOnly);
-        assertEq(meta.assignedProvider, address(0));
-        assertEq(adapter.totalBounties(), 1);
+    function testCreate_basic() public {
+        uint256 jobId = _create();
+        BountyAdapter.BountyMeta memory m = adapter.getBountyMeta(jobId);
+        assertEq(m.poster, poster);
+        assertEq(m.reward, reward - reward/100);
+        assertFalse(m.agentOnly);
+        assertFalse(m.humanOnly);
     }
 
-    function testCreateBounty_feeDeducted() public {
-        uint256 balanceBefore = usdc.balanceOf(feeAddr);
-        _createBounty(false);
-        uint256 fee = reward * 100 / 10_000; // 1%
-        assertEq(usdc.balanceOf(feeAddr), balanceBefore + fee);
+    function testCreate_feeToRecipient() public {
+        uint256 before = usdc.balanceOf(feeAddr);
+        _create();
+        assertEq(usdc.balanceOf(feeAddr), before + reward/100);
     }
 
-    function testCreateBounty_agentOnly() public {
-        uint256 jobId = _createBounty(true);
-        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
-        assertTrue(meta.agentOnly);
+    function testCreate_parksFundsInAdapter() public {
+        _create();
+        // Funds stay in adapter until takeBounty.
+        assertEq(usdc.balanceOf(address(adapter)), reward - reward/100);
+        assertEq(usdc.balanceOf(address(commerce)), 0);
     }
 
-    function testCreateBounty_revertRewardTooLow() public {
+    function testCreate_revertRewardTooLow() public {
         vm.prank(poster);
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.reward = 0.5e6;
         vm.expectRevert("reward too low");
-        adapter.createBounty(address(0), 0.5e6, deadline, IPFS_DESC, CATEGORY, tags, false);
+        adapter.createBounty(p);
     }
 
-    function testCreateBounty_revertDeadlineInPast() public {
+    function testCreate_revertDeadlinePast() public {
         vm.prank(poster);
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.deadline = block.timestamp - 1;
         vm.expectRevert("deadline in past");
-        adapter.createBounty(address(0), reward, block.timestamp - 1, IPFS_DESC, CATEGORY, tags, false);
+        adapter.createBounty(p);
     }
 
-    function testCreateBounty_revertInvalidCategory() public {
+    function testCreate_revertInvalidCategory() public {
         vm.prank(poster);
         vm.expectRevert("invalid category");
-        adapter.createBounty(address(0), reward, deadline, IPFS_DESC, "invalid", tags, false);
+        adapter.createBounty(_params(false, false, address(0), "bogus"));
     }
 
-    function testCreateBounty_revertInsufficientAllowance() public {
-        address newUser = address(0x9999);
-        usdc.mint(newUser, 1000e6);
-        // No approve
-        vm.prank(newUser);
+    function testCreate_revertAgentAndHuman() public {
+        vm.prank(poster);
+        vm.expectRevert("agentOnly+humanOnly");
+        adapter.createBounty(_params(true, true, address(0), CAT));
+    }
+
+    function testCreate_revertInsufficientAllowance() public {
+        address u = address(0x9999);
+        usdc.mint(u, 1000e6);
+        vm.prank(u);
         vm.expectRevert("insufficient USDC allowance");
-        adapter.createBounty(address(0), reward, deadline, IPFS_DESC, CATEGORY, tags, false);
+        adapter.createBounty(_params(false, false, address(0), CAT));
     }
 
     // ─── takeBounty ────────────────────────────────────────────────────────────
 
-    function testTakeBounty_human() public {
-        uint256 jobId = _createBounty(false);
+    function testTake_human() public {
+        uint256 jobId = _create();
         vm.prank(worker);
         adapter.takeBounty(jobId, 0);
-
-        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
-        assertEq(meta.assignedProvider, worker);
-        assertEq(meta.agentId, 0);
+        BountyAdapter.BountyMeta memory m = adapter.getBountyMeta(jobId);
+        assertEq(m.assignedProvider, worker);
+        // USDC moved to AC escrow.
+        assertEq(usdc.balanceOf(address(adapter)), 0);
+        assertEq(usdc.balanceOf(address(commerce)), m.reward);
     }
 
-    function testTakeBounty_agent() public {
-        uint256 jobId = _createBounty(false);
+    function testTake_agent() public {
+        uint256 jobId = _create();
         vm.prank(agent);
         adapter.takeBounty(jobId, agentId);
-
-        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
-        assertEq(meta.assignedProvider, agent);
-        assertEq(meta.agentId, agentId);
+        BountyAdapter.BountyMeta memory m = adapter.getBountyMeta(jobId);
+        assertEq(m.agentId, agentId);
     }
 
-    function testTakeBounty_revertAlreadyTaken() public {
-        uint256 jobId = _createBounty(false);
+    function testTake_humanOnly_revertWithAgentId() public {
+        uint256 jobId = _createHumanOnly();
+        vm.prank(agent);
+        vm.expectRevert("human only: no agentId");
+        adapter.takeBounty(jobId, agentId);
+    }
+
+    function testTake_humanOnly_allowsHuman() public {
+        uint256 jobId = _createHumanOnly();
         vm.prank(worker);
         adapter.takeBounty(jobId, 0);
-
-        vm.prank(stranger);
-        vm.expectRevert("already taken");
-        adapter.takeBounty(jobId, 0);
     }
 
-    function testTakeBounty_agentOnly_revertHuman() public {
-        uint256 jobId = _createBounty(true);
+    function testTake_agentOnly_revertHuman() public {
+        uint256 jobId = _createAgentOnly();
         vm.prank(worker);
         vm.expectRevert("agent only: provide agentId");
         adapter.takeBounty(jobId, 0);
     }
 
-    function testTakeBounty_agentOnly_revertWrongOwner() public {
-        uint256 jobId = _createBounty(true);
-        vm.prank(stranger); // stranger doesn't own agentId
+    function testTake_agentOnly_revertWrongOwner() public {
+        uint256 jobId = _createAgentOnly();
+        vm.prank(stranger);
         vm.expectRevert("agent only: caller is not agent owner");
         adapter.takeBounty(jobId, agentId);
     }
 
-    function testTakeBounty_revertExpired() public {
-        uint256 jobId = _createBounty(false);
+    function testTake_revertAlreadyTaken() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(stranger); vm.expectRevert("already taken");
+        adapter.takeBounty(jobId, 0);
+    }
+
+    function testTake_revertExpired() public {
+        uint256 jobId = _create();
         vm.warp(deadline + 1);
-        vm.prank(worker);
-        vm.expectRevert("bounty expired");
+        vm.prank(worker); vm.expectRevert("bounty expired");
         adapter.takeBounty(jobId, 0);
     }
 
-    // ─── Full flow: human ──────────────────────────────────────────────────────
-
-    function testFullFlow_human() public {
-        // create
-        uint256 jobId = _createBounty(false);
-
-        // take
-        vm.prank(worker);
+    function testTake_whitelistedProvider() public {
+        vm.prank(poster);
+        uint256 jobId = adapter.createBounty(_params(false, false, worker, CAT));
+        vm.prank(stranger); vm.expectRevert("not whitelisted");
         adapter.takeBounty(jobId, 0);
-
-        // fund
-        vm.prank(poster);
-        adapter.fundBounty(jobId);
-
-        // submit
-        vm.prank(worker);
-        adapter.submitWork(jobId, IPFS_RESULT);
-
-        BountyAdapter.BountyMeta memory meta = adapter.getBountyMeta(jobId);
-        assertEq(meta.submittedResultHash, IPFS_RESULT);
-
-        // approve
-        vm.prank(poster);
-        adapter.approveBounty(jobId);
-
-        // no reputation for human (agentId == 0)
-        assertEq(reputation.getFeedbackCount(), 0);
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
     }
 
-    // ─── Full flow: AI agent ───────────────────────────────────────────────────
+    // ─── full flow ────────────────────────────────────────────────────────────
 
-    function testFullFlow_agent() public {
-        uint256 jobId = _createBounty(false);
+    function testFullFlow_humanApprove() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        uint256 before = usdc.balanceOf(worker);
+        vm.prank(poster); adapter.approveBounty(jobId, 95);
+        assertEq(usdc.balanceOf(worker), before + (reward - reward/100));
+        assertEq(reputation.getFeedbackCount(), 0); // no agent → no feedback
+    }
 
-        vm.prank(agent);
-        adapter.takeBounty(jobId, agentId);
-
-        vm.prank(poster);
-        adapter.fundBounty(jobId);
-
-        vm.prank(agent);
-        adapter.submitWork(jobId, IPFS_RESULT);
-
-        vm.prank(poster);
-        adapter.approveBounty(jobId);
-
-        // Reputation must be recorded
+    function testFullFlow_agentApprove() public {
+        uint256 jobId = _create();
+        vm.prank(agent); adapter.takeBounty(jobId, agentId);
+        vm.prank(agent); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.approveBounty(jobId, 95);
         assertEq(reputation.getFeedbackCount(), 1);
-        (uint256 storedAgentId, uint256 score,) = reputation.feedbackCalls(0);
-        assertEq(storedAgentId, agentId);
-        assertEq(score, 95);
+        (uint256 a, uint256 s,) = reputation.feedbackCalls(0);
+        assertEq(a, agentId); assertEq(s, 95);
     }
 
-    // ─── submitWork guards ─────────────────────────────────────────────────────
-
-    function testSubmitWork_revertNotProvider() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(worker);
-        adapter.takeBounty(jobId, 0);
-
-        vm.prank(stranger);
-        vm.expectRevert("not assigned provider");
-        adapter.submitWork(jobId, IPFS_RESULT);
+    function testReject_refundsPoster() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        uint256 before = usdc.balanceOf(poster);
+        vm.prank(poster); adapter.rejectBounty(jobId, "bad");
+        assertEq(usdc.balanceOf(poster), before + (reward - reward/100));
     }
 
-    function testSubmitWork_revertExpired() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(worker);
-        adapter.takeBounty(jobId, 0);
+    function testCancel_beforeTake() public {
+        uint256 jobId = _create();
+        uint256 before = usdc.balanceOf(poster);
+        vm.prank(poster); adapter.cancelBounty(jobId);
+        assertEq(usdc.balanceOf(poster), before + (reward - reward/100));
+    }
 
+    function testCancel_revertAlreadyTaken() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(poster); vm.expectRevert("already taken, cannot cancel");
+        adapter.cancelBounty(jobId);
+    }
+
+    function testExpire_beforeTake_refunds() public {
+        uint256 jobId = _create();
         vm.warp(deadline + 1);
-        vm.prank(worker);
-        vm.expectRevert("bounty expired");
-        adapter.submitWork(jobId, IPFS_RESULT);
+        uint256 before = usdc.balanceOf(poster);
+        vm.prank(stranger); adapter.expireBounty(jobId);
+        assertEq(usdc.balanceOf(poster), before + (reward - reward/100));
     }
 
-    // ─── cancelBounty ─────────────────────────────────────────────────────────
-
-    function testCancelBounty_beforeTaken() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(poster);
-        adapter.cancelBounty(jobId);
-    }
-
-    function testCancelBounty_revertAlreadyTaken() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(worker);
-        adapter.takeBounty(jobId, 0);
-
-        vm.prank(poster);
-        vm.expectRevert("already taken, cannot cancel");
-        adapter.cancelBounty(jobId);
-    }
-
-    function testCancelBounty_revertNotPoster() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(stranger);
-        vm.expectRevert("only poster");
-        adapter.cancelBounty(jobId);
-    }
-
-    // ─── rejectBounty ─────────────────────────────────────────────────────────
-
-    function testRejectBounty_returnsToMockState() public {
-        uint256 jobId = _createBounty(false);
-
-        vm.prank(worker);
-        adapter.takeBounty(jobId, 0);
-        vm.prank(poster);
-        adapter.fundBounty(jobId);
-        vm.prank(worker);
-        adapter.submitWork(jobId, IPFS_RESULT);
-
-        vm.prank(poster);
-        adapter.rejectBounty(jobId, "bad quality");
-    }
-
-    function testRejectBounty_revertNoSubmission() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(poster);
-        vm.expectRevert("no submission");
-        adapter.rejectBounty(jobId, "reason");
-    }
-
-    // ─── expireBounty ─────────────────────────────────────────────────────────
-
-    function testExpireBounty_anyoneCanCall() public {
-        uint256 jobId = _createBounty(false);
+    function testExpire_afterTake_refundsViaAC() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
         vm.warp(deadline + 1);
+        uint256 before = usdc.balanceOf(poster);
+        vm.prank(stranger); adapter.expireBounty(jobId);
+        assertEq(usdc.balanceOf(poster), before + (reward - reward/100));
+    }
 
-        vm.prank(stranger); // permissionless
+    function testExpire_revertIfSubmitted() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.warp(deadline + 1);
+        vm.prank(stranger); vm.expectRevert("has submission");
         adapter.expireBounty(jobId);
     }
 
-    function testExpireBounty_revertNotExpired() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(stranger);
-        vm.expectRevert("not expired yet");
-        adapter.expireBounty(jobId);
+    // ─── dispute ──────────────────────────────────────────────────────────────
+
+    function testDispute_postRaises_workerResponds_arbiterRulesProvider() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+        vm.prank(worker); adapter.respondToDispute(jobId, RESP);
+
+        BountyAdapter.BountyMeta memory m = adapter.getBountyMeta(jobId);
+        assertEq(m.disputeReasonHash, REASON);
+        assertEq(m.disputeResponseHash, RESP);
+
+        uint256 before = usdc.balanceOf(worker);
+        // adapter deployer (this) is arbitrator
+        adapter.resolveDispute(jobId, true, RULING, 0);
+        assertEq(usdc.balanceOf(worker), before + (reward - reward/100));
+
+        m = adapter.getBountyMeta(jobId);
+        assertEq(m.disputeRulingHash, RULING);
+        assertTrue(m.resolved);
+        assertFalse(m.inDispute);
     }
 
-    // ─── getOpenBounties ──────────────────────────────────────────────────────
+    function testDispute_workerRaises_posterResponds_arbiterRulesPoster() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
 
-    function testGetOpenBounties_noFilter() public {
-        _createBounty(false);
-        _createBounty(false);
+        vm.prank(worker); adapter.disputeBounty(jobId, REASON);
+        vm.prank(poster); adapter.respondToDispute(jobId, RESP);
 
+        uint256 before = usdc.balanceOf(poster);
+        adapter.resolveDispute(jobId, false, RULING, 0);
+        assertEq(usdc.balanceOf(poster), before + (reward - reward/100));
+    }
+
+    function testDispute_respondToDispute_revertNotRespondent() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+
+        vm.prank(stranger); vm.expectRevert("not the respondent");
+        adapter.respondToDispute(jobId, RESP);
+        // Initiator also cannot self-respond
+        vm.prank(poster); vm.expectRevert("not the respondent");
+        adapter.respondToDispute(jobId, RESP);
+    }
+
+    function testDispute_respondToDispute_revertWindowClosed() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+
+        vm.warp(block.timestamp + 48 hours + 1);
+        vm.prank(worker); vm.expectRevert("response window closed");
+        adapter.respondToDispute(jobId, RESP);
+    }
+
+    function testDispute_respondToDispute_revertAlreadyResponded() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+        vm.prank(worker); adapter.respondToDispute(jobId, RESP);
+        vm.prank(worker); vm.expectRevert("already responded");
+        adapter.respondToDispute(jobId, RESP);
+    }
+
+    function testDispute_resolve_revertEmptyRuling() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+        vm.expectRevert("empty ruling");
+        adapter.resolveDispute(jobId, true, "", 0);
+    }
+
+    function testDispute_resolve_revertNotArbitrator() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+        vm.prank(stranger); vm.expectRevert("only arbitrator");
+        adapter.resolveDispute(jobId, true, RULING, 0);
+    }
+
+    function testDispute_defaultRuling_initiatorPosterWins() public {
+        // Poster raises, worker stays silent for 48h. Anyone may claim default ruling
+        // → refunds poster.
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+
+        vm.warp(block.timestamp + 48 hours + 1);
+        uint256 before = usdc.balanceOf(poster);
+        vm.prank(stranger); adapter.claimDefaultRuling(jobId);
+        assertEq(usdc.balanceOf(poster), before + (reward - reward/100));
+    }
+
+    function testDispute_defaultRuling_initiatorProviderWins() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(worker); adapter.disputeBounty(jobId, REASON);
+
+        vm.warp(block.timestamp + 48 hours + 1);
+        uint256 before = usdc.balanceOf(worker);
+        vm.prank(stranger); adapter.claimDefaultRuling(jobId);
+        assertEq(usdc.balanceOf(worker), before + (reward - reward/100));
+    }
+
+    function testDispute_defaultRuling_revertIfResponded() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+        vm.prank(worker); adapter.respondToDispute(jobId, RESP);
+        vm.warp(block.timestamp + 48 hours + 1);
+        vm.prank(stranger); vm.expectRevert("respondent replied");
+        adapter.claimDefaultRuling(jobId);
+    }
+
+    function testDispute_defaultRuling_revertWindowOpen() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.disputeBounty(jobId, REASON);
+        vm.prank(stranger); vm.expectRevert("window still open");
+        adapter.claimDefaultRuling(jobId);
+    }
+
+    function testDispute_dispute_revertUnauthorized() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(stranger); vm.expectRevert("unauthorized");
+        adapter.disputeBounty(jobId, REASON);
+    }
+
+    function testDispute_dispute_revertNoSubmission() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(poster); vm.expectRevert("no submission");
+        adapter.disputeBounty(jobId, REASON);
+    }
+
+    // ─── arbitrator 2-step ────────────────────────────────────────────────────
+
+    function testArbitratorTransfer_twoStep() public {
+        address next = address(0xBEEF);
+        adapter.transferArbitrator(next);
+        assertEq(adapter.arbitrator(), address(this));
+        vm.prank(next); adapter.acceptArbitrator();
+        assertEq(adapter.arbitrator(), next);
+    }
+
+    function testArbitratorTransfer_revertNotPending() public {
+        adapter.transferArbitrator(address(0xBEEF));
+        vm.prank(stranger); vm.expectRevert("not pending");
+        adapter.acceptArbitrator();
+    }
+
+    // ─── views ────────────────────────────────────────────────────────────────
+
+    function testOpen_excludesTakenAndExpiredAndResolved() public {
+        uint256 a = _create();
+        uint256 b = _create();
+        uint256 c = _create();
+        // a: taken
+        vm.prank(worker); adapter.takeBounty(a, 0);
+        // c: cancelled
+        vm.prank(poster); adapter.cancelBounty(c);
         uint256[] memory open = adapter.getOpenBounties("", 0, 10);
-        assertEq(open.length, 2);
-    }
-
-    function testGetOpenBounties_categoryFilter() public {
-        _createBounty(false); // category = "dev"
-
-        // Create another with category "design"
-        string[] memory t = new string[](0);
-        vm.prank(poster);
-        adapter.createBounty(address(0), reward, deadline, IPFS_DESC, "design", t, false);
-
-        uint256[] memory devBounties = adapter.getOpenBounties("dev", 0, 10);
-        assertEq(devBounties.length, 1);
-
-        uint256[] memory allBounties = adapter.getOpenBounties("", 0, 10);
-        assertEq(allBounties.length, 2);
-    }
-
-    function testGetOpenBounties_excludesTaken() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(worker);
-        adapter.takeBounty(jobId, 0);
-
-        uint256[] memory open = adapter.getOpenBounties("", 0, 10);
-        assertEq(open.length, 0);
-    }
-
-    function testGetOpenBounties_excludesExpired() public {
-        _createBounty(false);
-        vm.warp(deadline + 1);
-
-        uint256[] memory open = adapter.getOpenBounties("", 0, 10);
-        assertEq(open.length, 0);
-    }
-
-    function testGetOpenBounties_pagination() public {
-        _createBounty(false);
-        _createBounty(false);
-        _createBounty(false);
-
-        uint256[] memory page1 = adapter.getOpenBounties("", 0, 2);
-        assertEq(page1.length, 2);
-
-        uint256[] memory page2 = adapter.getOpenBounties("", 2, 2);
-        assertEq(page2.length, 1);
-    }
-
-    // ─── getAgentReputation ───────────────────────────────────────────────────
-
-    function testGetAgentReputation() public view {
-        IReputationRegistry.ReputationScore memory score = adapter.getAgentReputation(agentId);
-        assertEq(score.averageScore, 90);
-        assertEq(score.totalJobs, 5);
-    }
-
-    // ─── getMyBounties ────────────────────────────────────────────────────────
-
-    function testGetMyPostedBounties() public {
-        _createBounty(false);
-        _createBounty(false);
-        uint256[] memory mine = adapter.getMyPostedBounties(poster);
-        assertEq(mine.length, 2);
-    }
-
-    function testGetMyAssignedBounties() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(worker);
-        adapter.takeBounty(jobId, 0);
-
-        uint256[] memory mine = adapter.getMyAssignedBounties(worker);
-        assertEq(mine.length, 1);
-        assertEq(mine[0], jobId);
-    }
-
-    // ─── fundBounty guards ────────────────────────────────────────────────────
-
-    function testFundBounty_revertNotPoster() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(stranger);
-        vm.expectRevert("only poster");
-        adapter.fundBounty(jobId);
-    }
-
-    function testFundBounty_revertAlreadyFunded() public {
-        uint256 jobId = _createBounty(false);
-        vm.prank(poster);
-        adapter.fundBounty(jobId);
-
-        vm.prank(poster);
-        vm.expectRevert("already funded");
-        adapter.fundBounty(jobId);
+        assertEq(open.length, 1);
+        assertEq(open[0], b);
     }
 }

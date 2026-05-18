@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useWriteContract, usePublicClient } from "wagmi";
 import { toast } from "sonner";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { pinText } from "@/lib/ipfs";
+import { FileAttacher } from "./FileAttacher";
 
 type Props = {
   jobId: bigint;
@@ -15,16 +16,37 @@ type Props = {
 export function WorkSubmitModal({ jobId, onSuccess, onClose }: Props) {
   const [text, setText] = useState("");
   const [step, setStep] = useState<"idle" | "pinning" | "submitting" | "done">("idle");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
 
+  function insertSnippet(snippet: string) {
+    setText(prev => {
+      const ta = textareaRef.current;
+      if (!ta) return `${prev}${prev ? "\n\n" : ""}${snippet}\n`;
+      const start = ta.selectionStart ?? prev.length;
+      const end   = ta.selectionEnd ?? start;
+      const before = prev.slice(0, start);
+      const after  = prev.slice(end);
+      const sep = before && !before.endsWith("\n") ? "\n\n" : "";
+      const next = `${before}${sep}${snippet}\n${after}`;
+      requestAnimationFrame(() => {
+        const pos = (before + sep + snippet + "\n").length;
+        ta.focus();
+        ta.setSelectionRange(pos, pos);
+      });
+      return next;
+    });
+  }
+
   async function handleSubmit() {
-    if (!text.trim()) return;
+    const body = text.trim();
+    if (!body) return;
     try {
       setStep("pinning");
       const tid = toast.loading("Uploading result to IPFS…");
-      const cid = await pinText(text.trim());
+      const cid = await pinText(body);
       toast.success("Uploaded to IPFS!", { id: tid });
 
       setStep("submitting");
@@ -67,9 +89,10 @@ export function WorkSubmitModal({ jobId, onSuccess, onClose }: Props) {
         ) : (
           <>
             <p className="text-sm text-gray-400 mb-3">
-              Paste your result or deliverable. It will be pinned to IPFS, then submitted on-chain.
+              Paste your result, or attach files / images. Everything is pinned to IPFS, then submitted on-chain.
             </p>
             <textarea
+              ref={textareaRef}
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder="Paste your result, link, or description here…"
@@ -77,6 +100,9 @@ export function WorkSubmitModal({ jobId, onSuccess, onClose }: Props) {
               className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm resize-none
                          focus:outline-none focus:border-blue-500 font-mono"
             />
+            <div className="mt-2">
+              <FileAttacher onPinned={(snippet) => insertSnippet(snippet)} />
+            </div>
             <div className="flex gap-3 mt-4">
               <button
                 onClick={onClose}

@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   const blob = new Blob([content], { type: "text/plain" });
   const form = new FormData();
   form.append("file", blob, "content.md");
+  form.append("network", "public");
 
   const res = await fetch("https://uploads.pinata.cloud/v3/files", {
     method: "POST",

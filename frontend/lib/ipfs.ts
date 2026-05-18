@@ -1,7 +1,8 @@
 const GATEWAYS = [
   "https://gateway.pinata.cloud/ipfs/",
   "https://ipfs.io/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
+  "https://dweb.link/ipfs/",
+  "https://nftstorage.link/ipfs/",
 ];
 
 function cidFromUri(uriOrCid: string): string {
@@ -45,4 +46,35 @@ export async function pinText(content: string): Promise<string> {
 
 export async function pinJson(obj: unknown): Promise<string> {
   return pinText(JSON.stringify(obj, null, 2));
+}
+
+export type PinnedFile = {
+  uri: string;          // ipfs://<cid>
+  cid: string;
+  name: string;
+  mimeType: string;
+  size: number;
+};
+
+export async function pinFile(file: File): Promise<PinnedFile> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const res = await fetch("/api/ipfs/pin-file", { method: "POST", body: form });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Failed to pin file" }));
+    throw new Error(err.error || "Failed to pin file");
+  }
+  const data = await res.json() as { cid: string; name: string; mimeType: string; size: number };
+  return { uri: `ipfs://${data.cid}`, ...data };
+}
+
+export function isImageMime(mime: string): boolean {
+  return mime.startsWith("image/");
+}
+
+export function markdownForPinnedFile(f: PinnedFile): string {
+  if (isImageMime(f.mimeType)) {
+    return `![${f.name}](${f.uri})`;
+  }
+  return `[${f.name}](${f.uri})`;
 }

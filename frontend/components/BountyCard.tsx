@@ -11,9 +11,18 @@ export type BountyMeta = {
   tags: readonly string[];
   agentId: bigint;
   agentOnly: boolean;
+  humanOnly: boolean;
+  whitelistedProvider: string;
   assignedProvider: string;
   submittedResultHash: string;
-  funded: boolean;
+  isTaken: boolean;
+  inDispute: boolean;
+  resolved: boolean;
+  disputeInitiator: string;
+  disputeRaisedAt: bigint;
+  disputeReasonHash: string;
+  disputeResponseHash: string;
+  disputeRulingHash: string;
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -52,6 +61,16 @@ export function BountyCard({ meta }: { meta: BountyMeta }) {
               {meta.agentOnly && (
                 <span className="text-xs px-2 py-0.5 rounded-full border border-violet-700 bg-violet-900/50 text-violet-300 font-medium">
                   Agent only
+                </span>
+              )}
+              {meta.humanOnly && (
+                <span className="text-xs px-2 py-0.5 rounded-full border border-orange-700 bg-orange-900/40 text-orange-300 font-medium">
+                  Human only
+                </span>
+              )}
+              {meta.inDispute && (
+                <span className="text-xs px-2 py-0.5 rounded-full border border-red-700 bg-red-900/40 text-red-300 font-medium">
+                  In dispute
                 </span>
               )}
               <span className={`text-xs font-medium ${status.color}`}>{status.text}</span>
