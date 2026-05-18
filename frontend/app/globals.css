@@ -22,6 +22,54 @@ html, body {
   font-family: Inter, system-ui, sans-serif;
   position: relative;
   overflow-x: hidden;
+  color-scheme: dark;
+}
+
+/* ─── Form controls: native dropdown + checkbox normalized to dark theme ──── */
+select {
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  padding-right: 2.25rem;
+}
+select option {
+  background: #0d0f1a;
+  color: #ededed;
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 0.375rem;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+  position: relative;
+  transition: all .15s ease;
+  flex-shrink: 0;
+}
+input[type="checkbox"]:hover {
+  border-color: rgba(168,85,247,0.6);
+}
+input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  border-color: transparent;
+}
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 body::before {

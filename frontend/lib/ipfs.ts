@@ -1,7 +1,10 @@
+/// Public IPFS gateways, tried in order. cloudflare-ipfs.com was retired in 2024,
+/// so we use ipfs.io as the primary fallback and dweb.link as a secondary one.
 const GATEWAYS = [
   "https://gateway.pinata.cloud/ipfs/",
   "https://ipfs.io/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
+  "https://dweb.link/ipfs/",
+  "https://nftstorage.link/ipfs/",
 ];
 
 function cidFromUri(uriOrCid: string): string {
@@ -16,9 +19,16 @@ export function ipfsUrl(uriOrCid: string, gatewayIndex = 0): string {
 
 export async function fetchIpfsText(uriOrCid: string): Promise<string> {
   const cid = cidFromUri(uriOrCid);
+  // Per-gateway timeout so a slow gateway doesn't block the chain.
   for (const gateway of GATEWAYS) {
     try {
-      const res = await fetch(`${gateway}${cid}`, { next: { revalidate: 3600 } });
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6000);
+      const res = await fetch(`${gateway}${cid}`, {
+        signal: ctrl.signal,
+        next: { revalidate: 3600 },
+      });
+      clearTimeout(t);
       if (res.ok) return res.text();
     } catch {
       // try next gateway
