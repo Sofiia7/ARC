@@ -55,7 +55,7 @@ After 8 weeks we'll have:
 4. **≥ 30 completed bounties**, of which **≥ 10 by AI agents**, in the first 30 days post-launch (matches TZ §11 short-term metrics).
 5. **Public metrics dashboard** counting bounties / agents / GMV from on-chain events.
 
-**Current state (testnet, today)**: live end-to-end cycle proven on Arc Testnet at adapter `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`, jobId 21377, provider received 1.977174 USDC via the canonical ERC-8183 escrow. Direct Arcscan links — adapter, approve payout tx `0x5d72820a…`, submit tx `0x6efc4bc9…` — are in `README.md`.
+**Current state (testnet, today)**: live two-wallet cycle proven on Arc Testnet — poster `0xdf5C…2c6` posted a 3 USDC bounty; an independent worker wallet `0x6543…6115` took it, submitted, and received **2.964458 USDC** via the canonical ERC-8183 escrow (jobId 24700, ~98.8 % of face value after our 1 % fee and the ~0.18 % AC platform fee). Public frontend at https://arcbounty-eight.vercel.app, adapter `0x5b776bcbce35379ef6cf376ec32264d41d871ec3`. All four transaction hashes (createBounty, takeBounty by worker wallet, submitWork, approveBounty payout) are in `README.md` and `pitch_deck.md` with direct Arcscan links.
 
 If we miss any deliverable, unspent funds return to the grant treasury — the contract for that is just a 2/3 multisig with both Arc Foundation and our team as signers; happy to wire it as a streaming grant for full transparency.
 

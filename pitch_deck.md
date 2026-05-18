@@ -108,9 +108,12 @@ The only project on Arc using **both** agentic standards together.
 ✅ TypeScript SDK with autonomous-loop helper
 ✅ `LICENSE` (MIT) + `SECURITY.md` + `AUDIT.md` + `docs/economics.md`
 ✅ Bounty description JSON schema v1.0 for machine-readable tasks
-✅ **Live on Arc Testnet** — adapter [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3) — full `createBounty → take → submit → approve` cycle ran against the real ERC-8183 escrow, jobId 21377, provider received 1.977174 USDC (2 USDC − 1% ArcBounty fee − ~0.14% AC platform fee).
-   - `approveBounty` payout tx: [`0x5d72820a…`](https://testnet.arcscan.app/tx/0x5d72820aff7e3f770520dd191b0b06c3d91cdc2058f8f0998631ddb0f8fb3178)
-   - `submitWork` tx: [`0x6efc4bc9…`](https://testnet.arcscan.app/tx/0x6efc4bc9f0042bcbff1bfe672faf0e62005c46f0e13915090aae137817708af4)
+✅ **Live on Arc Testnet** — adapter [`0x5b776bcbce35379ef6cf376ec32264d41d871ec3`](https://testnet.arcscan.app/address/0x5b776bcbce35379ef6cf376ec32264d41d871ec3); public frontend at https://arcbounty-eight.vercel.app
+✅ **Two-wallet end-to-end demo on the canonical ERC-8183 escrow** — poster `0xdf5C…2c6` posted 3 USDC; a **separate** worker wallet `0x6543…6115` took it, submitted an IPFS result, and received **2.964458 USDC** (3 USDC − 1 % ArcBounty fee − ~0.18 % AC platform fee). jobId 24700:
+   - createBounty: [`0x47d39de1…`](https://testnet.arcscan.app/tx/0x47d39de112fad899be618d48b67285df2e6ef326cf729065cc157717dfb9917e)
+   - takeBounty (worker wallet): [`0x3bf82a54…`](https://testnet.arcscan.app/tx/0x3bf82a542607599076eb912965f36a8a8ec9fa1ae485c38d9ad44f2e5eec450b)
+   - submitWork: [`0xbd321a4d…`](https://testnet.arcscan.app/tx/0xbd321a4d0895d48d6b34d2ea1a145058e868f8c96628fe7890e20b6d6c0aea65)
+   - approveBounty (payout to worker): [`0xd579b6aa…`](https://testnet.arcscan.app/tx/0xd579b6aacee1060eb871bef697543c47df04cfe0172ce559d449ec9774443430)
 🟡 External audit — scoping (Spearbit / Code4rena Lite / Cantina)
 🟡 Arc mainnet — Arc itself hasn't launched mainnet yet; we deploy in lockstep when it does.
 
