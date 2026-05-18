@@ -119,7 +119,7 @@ export default function PostPage() {
             placeholder="Describe the task clearly. Include acceptance criteria."
             rows={10}
             required
-            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-4 text-sm resize-none
+            className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm resize-none
                        focus:outline-none focus:border-blue-500 font-mono"
           />
         </div>
@@ -131,7 +131,7 @@ export default function PostPage() {
             <select
               value={form.category}
               onChange={e => set("category", e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:border-blue-500"
             >
               {CATEGORIES.map(c => (
@@ -148,7 +148,7 @@ export default function PostPage() {
               value={form.tags}
               onChange={e => set("tags", e.target.value)}
               placeholder="solidity, arc, typescript"
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -168,7 +168,7 @@ export default function PostPage() {
               onChange={e => set("reward", e.target.value)}
               placeholder="50"
               required
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -180,7 +180,7 @@ export default function PostPage() {
               max="90"
               value={form.days}
               onChange={e => set("days", e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -225,8 +225,7 @@ export default function PostPage() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500
-                     text-white font-semibold py-3 rounded-xl transition-colors disabled:cursor-not-allowed"
+          className="btn-glow w-full disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {STEP_LABELS[step]}
         </button>

@@ -23,21 +23,21 @@ export type BountyMeta = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  dev:     "bg-blue-900/50 text-blue-300 border-blue-800",
-  design:  "bg-purple-900/50 text-purple-300 border-purple-800",
-  content: "bg-green-900/50 text-green-300 border-green-800",
-  data:    "bg-yellow-900/50 text-yellow-300 border-yellow-800",
-  other:   "bg-gray-800 text-gray-300 border-gray-700",
+  dev:     "from-blue-500/15 to-cyan-500/15 text-blue-200 border-blue-400/30",
+  design:  "from-purple-500/15 to-pink-500/15 text-purple-200 border-purple-400/30",
+  content: "from-green-500/15 to-emerald-500/15 text-green-200 border-green-400/30",
+  data:    "from-yellow-500/15 to-orange-500/15 text-yellow-200 border-yellow-400/30",
+  other:   "from-gray-500/15 to-slate-500/15 text-gray-200 border-gray-400/30",
 };
 
-function statusLabel(meta: BountyMeta): { text: string; color: string } {
-  if (meta.assignedProvider !== "0x0000000000000000000000000000000000000000") {
-    if (meta.submittedResultHash) return { text: "Submitted", color: "text-yellow-400" };
-    return { text: "Assigned", color: "text-blue-400" };
-  }
+function statusLabel(meta: BountyMeta): { text: string; color: string; dot: string } {
+  if (meta.finalized)          return { text: "Finalized", color: "text-gray-400",   dot: "bg-gray-400" };
+  if (meta.inDispute)          return { text: "Disputed",  color: "text-red-300",    dot: "bg-red-400" };
+  if (meta.submittedResultHash) return { text: "Submitted", color: "text-amber-300",  dot: "bg-amber-400" };
+  if (meta.isTaken)            return { text: "Assigned",  color: "text-blue-300",   dot: "bg-blue-400" };
   const { expired } = secondsToDeadline(meta.deadline);
-  if (expired) return { text: "Expired", color: "text-red-400" };
-  return { text: "Open", color: "text-green-400" };
+  if (expired) return { text: "Expired", color: "text-red-400", dot: "bg-red-500" };
+  return { text: "Open", color: "text-emerald-300", dot: "bg-emerald-400" };
 }
 
 export function BountyCard({ meta }: { meta: BountyMeta }) {
@@ -47,40 +47,47 @@ export function BountyCard({ meta }: { meta: BountyMeta }) {
 
   return (
     <Link href={`/bounty/${meta.jobId}`}>
-      <div className="border border-gray-800 bg-gray-900 hover:border-gray-600 rounded-xl p-5 transition-all hover:bg-gray-800/50 cursor-pointer group">
+      <div className="glass glass-hover p-5 cursor-pointer">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            {/* Category + Agent-only badge */}
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${catClass}`}>
+            {/* Pills */}
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <span className={`pill bg-gradient-to-r ${catClass} capitalize`}>
                 {meta.category}
               </span>
               {meta.agentOnly && (
-                <span className="text-xs px-2 py-0.5 rounded-full border border-violet-700 bg-violet-900/50 text-violet-300 font-medium">
+                <span className="pill text-violet-200 border-violet-400/30 bg-violet-500/10">
                   Agent only
                 </span>
               )}
-              <span className={`text-xs font-medium ${status.color}`}>{status.text}</span>
+              {meta.commitRevealRequired && (
+                <span className="pill text-amber-200 border-amber-400/30 bg-amber-500/10">
+                  MEV-protected
+                </span>
+              )}
+              <span className={`pill ${status.color}`}>
+                <span className={`pulse-dot ${status.dot}`} />
+                {status.text}
+              </span>
             </div>
 
             {/* Tags */}
             {meta.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2">
                 {meta.tags.map((tag) => (
-                  <span key={tag} className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">
+                  <span key={tag} className="text-xs text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
                     {tag}
                   </span>
                 ))}
               </div>
             )}
 
-            {/* IPFS hash as subtitle until full description loads */}
             <p className="text-xs text-gray-500 font-mono truncate">{meta.ipfsDescHash}</p>
           </div>
 
           {/* Reward + deadline */}
           <div className="text-right shrink-0">
-            <div className="text-xl font-bold text-green-400">${formatUsdc(meta.reward)}</div>
+            <div className="text-2xl font-bold text-gradient">${formatUsdc(meta.reward)}</div>
             <div className={`text-xs mt-1 ${expired ? "text-red-400" : "text-gray-500"}`}>
               {label}
             </div>

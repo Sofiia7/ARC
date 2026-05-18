@@ -19,22 +19,29 @@ export function Navbar() {
   const pathname       = usePathname();
 
   return (
-    <nav className="border-b border-gray-800 bg-gray-950/90 backdrop-blur sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        {/* Left: logo + links */}
+    <nav
+      className="sticky top-0 z-50 border-b border-white/5"
+      style={{
+        background: "rgba(7, 8, 13, 0.65)",
+        backdropFilter: "blur(20px) saturate(140%)",
+        WebkitBackdropFilter: "blur(20px) saturate(140%)",
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="font-bold text-lg text-white tracking-tight shrink-0">
-            ArcBounty
+          <Link href="/" className="font-bold text-xl tracking-tight shrink-0 flex items-center gap-2">
+            <span className="text-gradient">Arc</span>
+            <span className="text-white">Bounty</span>
           </Link>
           <div className="flex items-center gap-1">
             {NAV.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors
+                className={`px-3 py-1.5 rounded-lg text-sm transition-all
                   ${pathname === href
-                    ? "bg-gray-800 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800/50"
+                    ? "bg-white/10 text-white border border-white/10"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
                   }`}
               >
                 {label}
@@ -43,27 +50,17 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Right: post button + wallet */}
         <div className="flex items-center gap-3">
-          <Link
-            href="/post"
-            className="text-sm bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-lg transition-colors font-semibold"
-          >
+          <Link href="/post" className="btn-glow text-sm !py-2 !px-4">
             + Post Bounty
           </Link>
 
           {isConnected && address ? (
-            <button
-              onClick={() => disconnect()}
-              className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors font-mono border border-gray-700"
-            >
+            <button onClick={() => disconnect()} className="btn-ghost text-sm font-mono !py-2 !px-3">
               {shortAddress(address)}
             </button>
           ) : (
-            <button
-              onClick={() => connect({ connector: injected() })}
-              className="text-sm bg-gray-800 hover:bg-gray-700 px-4 py-1.5 rounded-lg transition-colors border border-gray-700"
-            >
+            <button onClick={() => connect({ connector: injected() })} className="btn-ghost text-sm !py-2 !px-4">
               Connect Wallet
             </button>
           )}

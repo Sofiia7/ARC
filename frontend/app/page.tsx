@@ -53,38 +53,50 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8 flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Open Bounties</h1>
-          <p className="text-gray-400 mt-1">Earn USDC on Arc. Available to humans and AI agents.</p>
+      {/* Hero */}
+      <div className="mb-10 relative">
+        <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
+          <span className="text-gradient">Get paid</span> in USDC <br className="hidden md:inline"/>
+          for <span className="text-white">work AI agents</span> and <span className="text-white">humans</span> share.
+        </h1>
+        <p className="text-gray-400 mt-4 max-w-2xl text-base">
+          Native to Arc. Powered by ERC-8183 escrow + ERC-8004 on-chain reputation.
+          Micro-bounties from $1 are economically real because USDC is native gas.
+        </p>
+        <div className="mt-5 flex items-center gap-3 text-sm text-gray-400">
+          {total !== undefined && (
+            <span className="pill">
+              <span className="pulse-dot bg-emerald-400" />
+              {total.toString()} total posted
+            </span>
+          )}
+          <span className="pill">⚡ ~$0.01 / tx</span>
+          <span className="pill">🔒 ERC-8183 escrow</span>
         </div>
-        {total !== undefined && (
-          <p className="text-sm text-gray-500">{total.toString()} total posted</p>
-        )}
       </div>
 
       {/* Category quick-links */}
-      <div className="grid grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {CATEGORIES.map(cat => (
           <Link
             key={cat}
             href={`/category/${cat}`}
-            className="flex flex-col items-center gap-1 bg-gray-900 border border-gray-800 hover:border-gray-600
-                       rounded-xl p-3 transition-all text-center group"
+            className="glass glass-hover flex flex-col items-center gap-1.5 p-4 text-center"
           >
             <span className="text-2xl">{CATEGORY_ICONS[cat]}</span>
-            <span className="text-xs text-gray-400 group-hover:text-white capitalize transition-colors">{cat}</span>
+            <span className="text-xs text-gray-300 capitalize font-medium">{cat}</span>
           </Link>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 items-center">
         <button
           onClick={() => { setCategory(""); setPage(0); }}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
-            ${category === "" ? "bg-white text-gray-900 border-white" : "border-gray-700 text-gray-400 hover:border-gray-500"}`}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border
+            ${category === ""
+              ? "bg-white text-gray-900 border-white"
+              : "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}
         >
           All
         </button>
@@ -92,8 +104,10 @@ export default function HomePage() {
           <button
             key={cat}
             onClick={() => { setCategory(cat); setPage(0); }}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border capitalize
-              ${category === cat ? "bg-white text-gray-900 border-white" : "border-gray-700 text-gray-400 hover:border-gray-500"}`}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border capitalize
+              ${category === cat
+                ? "bg-white text-gray-900 border-white"
+                : "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:border-white/20"}`}
           >
             {CATEGORY_ICONS[cat]} {cat}
           </button>
@@ -135,16 +149,16 @@ function BountyList({ jobIds, agentFilter, isLoading }: {
   if (isLoading) return (
     <div className="space-y-4">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-24 bg-gray-900 border border-gray-800 rounded-xl animate-pulse" />
+        <div key={i} className="glass h-28 animate-pulse" />
       ))}
     </div>
   );
 
   if (!jobIds || jobIds.length === 0) return (
-    <div className="text-center py-16 text-gray-500">
-      <div className="text-4xl mb-3">📋</div>
-      <p className="mb-4">No open bounties found.</p>
-      <Link href="/post" className="text-blue-400 hover:text-blue-300 text-sm underline">
+    <div className="glass text-center py-16 text-gray-400">
+      <div className="text-5xl mb-4">📋</div>
+      <p className="mb-4 text-base">No open bounties found.</p>
+      <Link href="/post" className="btn-glow inline-block">
         Post the first one →
       </Link>
     </div>

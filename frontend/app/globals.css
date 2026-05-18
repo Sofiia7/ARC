@@ -2,26 +2,194 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme tokens ──────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-base: #07080d;
+  --bg-grad-1: #0d0f1a;
+  --bg-grad-2: #1a0e2e;
+  --bg-grad-3: #0a1428;
+  --accent-violet: 168 85 247;   /* tailwind violet-500 */
+  --accent-blue:   59 130 246;   /* blue-500 */
+  --accent-green:  34 197 94;    /* green-500 */
+  --accent-amber:  245 158 11;   /* amber-500 */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─── Body: animated gradient + radial accents ──────────────────────────────── */
+html, body {
+  background: var(--bg-base);
+  color: #ededed;
+  min-height: 100vh;
+  font-family: Inter, system-ui, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(900px circle at 12% -10%, rgba(var(--accent-violet) / 0.18), transparent 55%),
+    radial-gradient(800px circle at 88% 0%,  rgba(var(--accent-blue)   / 0.16), transparent 55%),
+    radial-gradient(700px circle at 50% 100%, rgba(var(--accent-green) / 0.10), transparent 55%);
+  animation: nebula 26s ease-in-out infinite alternate;
+}
+
+@keyframes nebula {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1;    }
+  50%  { transform: translate3d(0, -2%, 0) scale(1.04); opacity: 0.92; }
+  100% { transform: translate3d(0, 1%, 0) scale(1.02);  opacity: 0.98; }
+}
+
+body > * { position: relative; z-index: 1; }
+
+/* ─── Glassmorphism card ────────────────────────────────────────────────────── */
+@layer components {
+  .glass {
+    background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.10);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.06) inset,
+      0 24px 60px -28px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(255,255,255,0.02);
   }
-}
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  .glass-hover {
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  }
+  .glass-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.10) inset,
+      0 32px 80px -32px rgba(0,0,0,0.65),
+      0 0 0 1px rgba(168,85,247,0.18);
+  }
+
+  /* ─── Glow buttons — primary (violet→blue) ──────────────────────────────── */
+  .btn-glow {
+    position: relative;
+    isolation: isolate;
+    padding: 0.875rem 1.5rem;
+    border-radius: 0.875rem;
+    font-weight: 600;
+    color: white;
+    background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.08) inset,
+      0 8px 24px -8px rgba(124, 58, 237, 0.55),
+      0 0 32px -8px rgba(59, 130, 246, 0.40);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+  }
+  .btn-glow::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(from 0deg, #7c3aed, #3b82f6, #06b6d4, #7c3aed);
+    filter: blur(14px);
+    opacity: 0;
+    transition: opacity .25s ease;
+  }
+  .btn-glow:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+  }
+  .btn-glow:hover::before { opacity: 0.55; }
+  .btn-glow:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(0.4);
+  }
+
+  /* ─── Glow button — success variant (green) ─────────────────────────────── */
+  .btn-glow-success {
+    background: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.08) inset,
+      0 8px 24px -8px rgba(16, 185, 129, 0.55),
+      0 0 32px -8px rgba(34, 197, 94, 0.40);
+  }
+  .btn-glow-success::before {
+    background: conic-gradient(from 0deg, #10b981, #22c55e, #84cc16, #10b981);
+  }
+
+  /* ─── Glow button — danger variant (red) ────────────────────────────────── */
+  .btn-glow-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.08) inset,
+      0 8px 24px -8px rgba(220, 38, 38, 0.55),
+      0 0 32px -8px rgba(185, 28, 28, 0.40);
+  }
+  .btn-glow-danger::before {
+    background: conic-gradient(from 0deg, #dc2626, #ef4444, #f97316, #dc2626);
+  }
+
+  /* ─── Ghost/secondary glass button ──────────────────────────────────────── */
+  .btn-ghost {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.875rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10);
+    backdrop-filter: blur(12px);
+    transition: all .2s ease;
+  }
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.20);
+  }
+
+  /* ─── Gradient text accent ──────────────────────────────────────────────── */
+  .text-gradient {
+    background: linear-gradient(135deg, #c4b5fd 0%, #93c5fd 50%, #67e8f9 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* ─── Status pill ───────────────────────────────────────────────────────── */
+  .pill {
+    display: inline-flex; align-items: center; gap: .375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(8px);
+  }
+
+  /* ─── Animated dot for live status ──────────────────────────────────────── */
+  .pulse-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.8); }
+  }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-balance { text-wrap: balance; }
+
+  /* Scrollbar polish */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
   }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
 }

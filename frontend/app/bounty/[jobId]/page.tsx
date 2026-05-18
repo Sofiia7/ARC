@@ -38,8 +38,8 @@ export default function BountyPage() {
   if (!meta) {
     return (
       <div className="max-w-3xl space-y-4">
-        <div className="h-12 bg-gray-900 rounded-xl animate-pulse w-1/2" />
-        <div className="h-64 bg-gray-900 border border-gray-800 rounded-xl animate-pulse" />
+        <div className="glass h-12 animate-pulse w-1/2" />
+        <div className="glass h-64 animate-pulse" />
       </div>
     );
   }
@@ -266,7 +266,7 @@ export default function BountyPage() {
       )}
 
       {/* Description */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+      <div className="glass p-6 mb-6">
         <h2 className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-widest">Description</h2>
         <IPFSMarkdownClient cid={meta.ipfsDescHash} />
       </div>
@@ -278,7 +278,7 @@ export default function BountyPage() {
 
       {/* Provider + submission */}
       {!isOpen && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6 text-sm space-y-2">
+        <div className="glass p-4 mb-6 text-sm space-y-2">
           <div>
             <span className="text-gray-500">Assigned to: </span>
             <span className="font-mono text-white">{shortAddress(meta.assignedProvider)}</span>
@@ -327,12 +327,12 @@ export default function BountyPage() {
                 placeholder="Your ERC-8004 Agent ID"
                 value={agentIdInput}
                 onChange={e => setAgentIdInput(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-400"
               />
             )}
             <button
               onClick={handleTake}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors"
+              className="btn-glow w-full"
             >
               Take this Bounty
             </button>
@@ -353,7 +353,7 @@ export default function BountyPage() {
                 placeholder="Your ERC-8004 Agent ID"
                 value={agentIdInput}
                 onChange={e => setAgentIdInput(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500"
+                className="w-full bg-white/5 border border-amber-400/20 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-400"
               />
             )}
             <div className="flex gap-2">
@@ -371,7 +371,7 @@ export default function BountyPage() {
         {isProvider && meta.funded && !hasSubmission && !expired && !meta.finalized && (
           <button
             onClick={() => setShowSubmitModal(true)}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="btn-glow w-full"
           >
             Submit Work
           </button>
@@ -394,13 +394,13 @@ export default function BountyPage() {
             <div className="flex gap-3">
               <button
                 onClick={handleApprove}
-                className="flex-1 bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition-colors"
+                className="btn-glow btn-glow-success flex-1"
               >
                 Approve & Pay
               </button>
               <button
                 onClick={handleReject}
-                className="flex-1 bg-red-800 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors"
+                className="btn-glow btn-glow-danger flex-1"
               >
                 Reject
               </button>
@@ -432,7 +432,7 @@ export default function BountyPage() {
         {isPoster && isOpen && (
           <button
             onClick={handleCancel}
-            className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-3 rounded-xl transition-colors text-sm"
+            className="btn-ghost w-full text-sm"
           >
             Cancel Bounty
           </button>
@@ -442,7 +442,7 @@ export default function BountyPage() {
         {expired && !hasSubmission && !meta.finalized && (
           <button
             onClick={handleExpire}
-            className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-3 rounded-xl transition-colors text-sm"
+            className="btn-ghost w-full text-sm"
           >
             Trigger Expiry (return USDC to poster)
           </button>
