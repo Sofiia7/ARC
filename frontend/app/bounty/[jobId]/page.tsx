@@ -9,6 +9,8 @@ import { formatUsdc, shortAddress, secondsToDeadline } from "@/lib/format";
 import { WorkSubmitModal } from "@/components/WorkSubmitModal";
 import { DisputeOpenModal } from "@/components/DisputeOpenModal";
 import { DisputePanel } from "@/components/DisputePanel";
+import { RejectionProposeModal } from "@/components/RejectionProposeModal";
+import { PendingRejectionPanel } from "@/components/PendingRejectionPanel";
 import { AgentBadge } from "@/components/AgentBadge";
 import { IPFSMarkdownClient } from "@/components/IPFSMarkdownClient";
 import { useBountyMeta } from "@/hooks/useBountyMeta";
@@ -21,6 +23,7 @@ export default function BountyPage() {
   const { address } = useAccount();
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [agentIdInput, setAgentIdInput] = useState("0");
 
   const jobIdBig = BigInt(jobId);
@@ -42,6 +45,7 @@ export default function BountyPage() {
   const isOpen     = !meta.isTaken;
   const hasSubmission = meta.submittedResultHash.length > 0;
   const inDispute = meta.inDispute || (meta.resolved && meta.disputeRulingHash.length > 0);
+  const pendingRejection = meta.rejectedAt > 0n && !meta.resolved && !meta.inDispute;
 
   async function handleTake() {
     await send(
@@ -65,19 +69,6 @@ export default function BountyPage() {
         args: [jobIdBig, 95],
       },
       { pending: "Approving work…", success: "Work approved! USDC sent to provider.", error: "Approval failed" }
-    );
-    await refetch();
-  }
-
-  async function handleReject() {
-    await send(
-      {
-        address: CONTRACTS.BOUNTY_ADAPTER,
-        abi: BOUNTY_ADAPTER_ABI as never,
-        functionName: "rejectBounty",
-        args: [jobIdBig, "Rejected by poster"],
-      },
-      { pending: "Rejecting submission…", success: "Submission rejected. USDC returned.", error: "Rejection failed" }
     );
     await refetch();
   }
@@ -204,8 +195,13 @@ export default function BountyPage() {
         <DisputePanel meta={meta} address={address} refetch={refetch} />
       )}
 
-      {/* Actions — hidden once dispute is open (handled by panel) */}
-      {!meta.inDispute && !meta.resolved && (
+      {/* Pending-rejection panel */}
+      {pendingRejection && (
+        <PendingRejectionPanel meta={meta} address={address} refetch={refetch} />
+      )}
+
+      {/* Actions — hidden once dispute is open / rejection pending */}
+      {!meta.inDispute && !meta.resolved && !pendingRejection && (
         <div className="space-y-3">
           {canTake && (
             <div className="space-y-2">
@@ -252,7 +248,7 @@ export default function BountyPage() {
                   Approve &amp; Pay
                 </button>
                 <button
-                  onClick={handleReject}
+                  onClick={() => setShowRejectModal(true)}
                   className="bg-red-800 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors"
                 >
                   Reject
@@ -323,6 +319,13 @@ export default function BountyPage() {
           onClose={() => setShowDisputeModal(false)}
         />
       )}
+      {showRejectModal && (
+        <RejectionProposeModal
+          jobId={jobIdBig}
+          onSuccess={() => refetch()}
+          onClose={() => setShowRejectModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -331,7 +334,7 @@ function StatusBadge({
   meta,
   expired,
 }: {
-  meta: { isTaken: boolean; submittedResultHash: string; inDispute: boolean; resolved: boolean };
+  meta: { isTaken: boolean; submittedResultHash: string; inDispute: boolean; resolved: boolean; rejectedAt: bigint };
   expired: boolean;
 }) {
   if (meta.inDispute) {
@@ -339,6 +342,9 @@ function StatusBadge({
   }
   if (meta.resolved) {
     return <span className="text-xs font-semibold text-gray-300">Resolved</span>;
+  }
+  if (meta.rejectedAt > 0n) {
+    return <span className="text-xs font-semibold text-amber-200 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse inline-block" />Pending rejection</span>;
   }
   if (meta.submittedResultHash) {
     return <span className="text-xs font-semibold text-yellow-300 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block" />Submitted</span>;

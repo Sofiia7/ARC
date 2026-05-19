@@ -357,13 +357,107 @@ contract BountyAdapterTest is Test {
         assertEq(a, agentId); assertEq(s, 95);
     }
 
-    function testReject_refundsPoster() public {
+    function testReject_pendingThenFinalize() public {
         uint256 jobId = _create();
         vm.prank(worker); adapter.takeBounty(jobId, 0);
         vm.prank(worker); adapter.submitWork(jobId, RESULT);
+
         uint256 before = usdc.balanceOf(poster);
-        vm.prank(poster); adapter.rejectBounty(jobId, "bad");
+        vm.prank(poster); adapter.rejectBounty(jobId, REASON);
+        // Funds must NOT move yet — pending state only.
+        assertEq(usdc.balanceOf(poster), before, "poster paid too early");
+        assertEq(adapter.getBountyMeta(jobId).resolved, false);
+
+        // Window must elapse first.
+        vm.expectRevert("challenge window open");
+        adapter.finalizeRejection(jobId);
+
+        vm.warp(block.timestamp + 48 hours + 1);
+        vm.prank(stranger); adapter.finalizeRejection(jobId); // permissionless
         assertEq(usdc.balanceOf(poster), before + (reward - reward/100));
+        assertTrue(adapter.getBountyMeta(jobId).resolved);
+    }
+
+    function testReject_revertEmptyReason() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); vm.expectRevert("empty reason");
+        adapter.rejectBounty(jobId, "");
+    }
+
+    function testReject_doubleRejectReverts() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.rejectBounty(jobId, REASON);
+        vm.prank(poster); vm.expectRevert("already rejected");
+        adapter.rejectBounty(jobId, REASON);
+    }
+
+    function testReject_approveBlockedDuringPending() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.rejectBounty(jobId, REASON);
+        vm.prank(poster); vm.expectRevert("rejection pending");
+        adapter.approveBounty(jobId, 95);
+    }
+
+    function testChallengeRejection_workerOpensDispute() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.rejectBounty(jobId, REASON);
+
+        vm.prank(worker); adapter.challengeRejection(jobId, RESP);
+
+        BountyAdapter.BountyMeta memory m = adapter.getBountyMeta(jobId);
+        assertTrue(m.inDispute);
+        assertEq(m.disputeInitiator, worker);
+        assertEq(m.disputeReasonHash, RESP);
+
+        // finalizeRejection now blocked.
+        vm.warp(block.timestamp + 48 hours + 1);
+        vm.expectRevert("in dispute");
+        adapter.finalizeRejection(jobId);
+    }
+
+    function testChallengeRejection_revertNotWorker() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.rejectBounty(jobId, REASON);
+        vm.prank(stranger); vm.expectRevert("only worker");
+        adapter.challengeRejection(jobId, RESP);
+    }
+
+    function testChallengeRejection_revertNoPending() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(worker); vm.expectRevert("no pending rejection");
+        adapter.challengeRejection(jobId, RESP);
+    }
+
+    function testChallengeRejection_revertWindowClosed() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.rejectBounty(jobId, REASON);
+
+        vm.warp(block.timestamp + 48 hours + 1);
+        vm.prank(worker); vm.expectRevert("challenge window closed");
+        adapter.challengeRejection(jobId, RESP);
+    }
+
+    function testDispute_blockedWhenRejectionPending() public {
+        uint256 jobId = _create();
+        vm.prank(worker); adapter.takeBounty(jobId, 0);
+        vm.prank(worker); adapter.submitWork(jobId, RESULT);
+        vm.prank(poster); adapter.rejectBounty(jobId, REASON);
+        vm.prank(poster); vm.expectRevert("use challengeRejection");
+        adapter.disputeBounty(jobId, REASON);
     }
 
     function testCancel_beforeTake() public {

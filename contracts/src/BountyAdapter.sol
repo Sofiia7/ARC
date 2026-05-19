@@ -27,6 +27,7 @@ contract BountyAdapter is ReentrancyGuard {
     uint256 public constant  BPS_DENOMINATOR = 10_000;
     uint256 public constant  MIN_REWARD = 1e6;
     uint256 public constant  DISPUTE_RESPONSE_WINDOW = 48 hours;
+    uint256 public constant  REJECTION_CHALLENGE_WINDOW = 48 hours;
 
     struct CreateParams {
         address  provider;     // 0x0 = open. If non-zero, only this address (or owner of agentId) can take.
@@ -54,6 +55,9 @@ contract BountyAdapter is ReentrancyGuard {
         address  assignedProvider;
         string   submittedResultHash;
         bool     isTaken;
+        // Pending-rejection state (poster rejected, worker has 48h to challenge)
+        uint256  rejectedAt;
+        string   rejectionReasonHash;
         // Dispute state
         bool     inDispute;
         bool     resolved;
@@ -74,6 +78,9 @@ contract BountyAdapter is ReentrancyGuard {
     event BountyCancelled(uint256 indexed jobId, string reason);
     event BountyExpired(uint256 indexed jobId);
 
+    event RejectionProposed(uint256 indexed jobId, address indexed poster, string reasonHash);
+    event RejectionFinalized(uint256 indexed jobId);
+    event RejectionChallenged(uint256 indexed jobId, address indexed worker, string reasonHash);
     event DisputeRaised(uint256 indexed jobId, address indexed initiator, string reasonHash);
     event DisputeResponded(uint256 indexed jobId, address indexed responder, string responseHash);
     event DisputeResolved(uint256 indexed jobId, bool payProvider, string rulingHash, bool defaultRuling);
@@ -200,6 +207,7 @@ contract BountyAdapter is ReentrancyGuard {
         require(bytes(meta.submittedResultHash).length > 0, "no submission");
         require(!meta.inDispute, "in dispute");
         require(!meta.resolved, "resolved");
+        require(meta.rejectedAt == 0, "rejection pending");
         require(reputationScore <= 100, "score>100");
 
         meta.resolved = true;
@@ -215,16 +223,62 @@ contract BountyAdapter is ReentrancyGuard {
         emit BountyCompleted(jobId, meta.agentId, reputationScore);
     }
 
-    function rejectBounty(uint256 jobId, string calldata reason) external nonReentrant {
+    /// @notice Poster proposes rejecting a submission. Does NOT refund yet —
+    ///         worker has REJECTION_CHALLENGE_WINDOW to call challengeRejection.
+    ///         After the window, anyone may call finalizeRejection to refund poster.
+    function rejectBounty(uint256 jobId, string calldata ipfsReasonHash) external nonReentrant {
         BountyMeta storage meta = _bounties[jobId];
         require(meta.poster == msg.sender, "only poster");
         require(bytes(meta.submittedResultHash).length > 0, "no submission");
         require(!meta.inDispute, "in dispute");
         require(!meta.resolved, "resolved");
+        require(meta.rejectedAt == 0, "already rejected");
+        require(bytes(ipfsReasonHash).length > 0, "empty reason");
+
+        meta.rejectedAt          = block.timestamp;
+        meta.rejectionReasonHash = ipfsReasonHash;
+        emit RejectionProposed(jobId, msg.sender, ipfsReasonHash);
+    }
+
+    /// @notice Worker challenges a proposed rejection within the window.
+    ///         Flips the bounty into the standard dispute flow with worker as initiator.
+    function challengeRejection(uint256 jobId, string calldata ipfsReasonHash) external nonReentrant {
+        BountyMeta storage meta = _bounties[jobId];
+        require(meta.rejectedAt != 0, "no pending rejection");
+        require(!meta.resolved, "resolved");
+        require(!meta.inDispute, "already in dispute");
+        require(msg.sender == meta.assignedProvider, "only worker");
+        require(
+            block.timestamp <= meta.rejectedAt + REJECTION_CHALLENGE_WINDOW,
+            "challenge window closed"
+        );
+        require(bytes(ipfsReasonHash).length > 0, "empty reason");
+
+        meta.inDispute         = true;
+        meta.disputeInitiator  = msg.sender;
+        meta.disputeRaisedAt   = block.timestamp;
+        meta.disputeReasonHash = ipfsReasonHash;
+
+        emit RejectionChallenged(jobId, msg.sender, ipfsReasonHash);
+        emit DisputeRaised(jobId, msg.sender, ipfsReasonHash);
+    }
+
+    /// @notice After the challenge window expires without a challenge, anyone may
+    ///         finalize the rejection — funds are refunded to the poster.
+    function finalizeRejection(uint256 jobId) external nonReentrant {
+        BountyMeta storage meta = _bounties[jobId];
+        require(meta.rejectedAt != 0, "no pending rejection");
+        require(!meta.resolved, "resolved");
+        require(!meta.inDispute, "in dispute");
+        require(
+            block.timestamp > meta.rejectedAt + REJECTION_CHALLENGE_WINDOW,
+            "challenge window open"
+        );
 
         meta.resolved = true;
-        _rejectAndRefund(jobId, reason);
-        emit BountyCancelled(jobId, reason);
+        _rejectAndRefund(jobId, "rejection_finalized");
+        emit RejectionFinalized(jobId);
+        emit BountyCancelled(jobId, meta.rejectionReasonHash);
     }
 
     function cancelBounty(uint256 jobId) external nonReentrant {
@@ -266,6 +320,7 @@ contract BountyAdapter is ReentrancyGuard {
         require(bytes(meta.submittedResultHash).length > 0, "no submission");
         require(!meta.inDispute, "already in dispute");
         require(!meta.resolved, "resolved");
+        require(meta.rejectedAt == 0, "use challengeRejection");
         require(bytes(ipfsReasonHash).length > 0, "empty reason");
 
         meta.inDispute         = true;

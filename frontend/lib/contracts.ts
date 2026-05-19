@@ -25,6 +25,8 @@ const BOUNTY_META_TUPLE = {
     { name: "assignedProvider",     type: "address" },
     { name: "submittedResultHash",  type: "string"  },
     { name: "isTaken",              type: "bool"    },
+    { name: "rejectedAt",           type: "uint256" },
+    { name: "rejectionReasonHash",  type: "string"  },
     { name: "inDispute",            type: "bool"    },
     { name: "resolved",             type: "bool"    },
     { name: "disputeInitiator",     type: "address" },
@@ -81,9 +83,22 @@ export const BOUNTY_ADAPTER_ABI = [
   {
     name: "rejectBounty", type: "function", stateMutability: "nonpayable",
     inputs: [
-      { name: "jobId",  type: "uint256" },
-      { name: "reason", type: "string"  },
+      { name: "jobId",          type: "uint256" },
+      { name: "ipfsReasonHash", type: "string"  },
     ],
+    outputs: [],
+  },
+  {
+    name: "challengeRejection", type: "function", stateMutability: "nonpayable",
+    inputs: [
+      { name: "jobId",          type: "uint256" },
+      { name: "ipfsReasonHash", type: "string"  },
+    ],
+    outputs: [],
+  },
+  {
+    name: "finalizeRejection", type: "function", stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
   {
@@ -174,6 +189,10 @@ export const BOUNTY_ADAPTER_ABI = [
   },
   {
     name: "DISPUTE_RESPONSE_WINDOW", type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "REJECTION_CHALLENGE_WINDOW", type: "function", stateMutability: "view",
     inputs: [], outputs: [{ name: "", type: "uint256" }],
   },
   // ── Events ──

@@ -16,6 +16,8 @@ export type BountyMeta = {
   assignedProvider: string;
   submittedResultHash: string;
   isTaken: boolean;
+  rejectedAt: bigint;
+  rejectionReasonHash: string;
   inDispute: boolean;
   resolved: boolean;
   disputeInitiator: string;
