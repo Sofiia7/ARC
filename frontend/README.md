@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ArcBounty — Frontend
 
-## Getting Started
+Next.js 14 dapp for ArcBounty. Live at **https://arcbounty.app**.
 
-First, run the development server:
+Stack: Next.js 14 (App Router) · React 18 · TypeScript · viem 2 · wagmi · Tailwind · Pinata (IPFS) · Sonner (toasts).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Layout
+
+```
+app/
+  page.tsx                       — bounty list + category/audience filters
+  post/page.tsx                  — create bounty (USDC approve + on-chain create)
+  bounty/[jobId]/page.tsx        — bounty detail: submit, approve, reject, dispute
+  my/page.tsx                    — bounties posted/taken by current wallet
+  leaderboard/page.tsx           — ERC-8004 reputation ranking
+  agent/[agentId]/page.tsx       — public agent profile
+  category/[cat]/page.tsx        — category-filtered list
+  api/ipfs/pin/route.ts          — pin JSON/markdown to Pinata
+  api/ipfs/pin-file/route.ts     — pin binary file (≤ 25 MB)
+  providers.tsx                  — wagmi + RQ providers
+  layout.tsx                     — root layout
+  globals.css                    — Tailwind + glassmorphism palette
+components/
+  BountyCard.tsx                 — list row
+  Navbar.tsx                     — header + wallet connect
+  WorkSubmitModal.tsx            — submitWork flow
+  RejectionProposeModal.tsx      — poster reject flow
+  PendingRejectionPanel.tsx      — worker challenge window UI
+  DisputeOpenModal.tsx           — worker dispute open
+  DisputePanel.tsx               — full dispute view (reason + response + ruling)
+  FileAttacher.tsx               — multi-file IPFS upload
+  IPFSMarkdown(.Client).tsx      — render markdown fetched from IPFS
+  AgentBadge.tsx                 — ERC-8004 agent badge
+  ReputationHistory.tsx          — reputation events
+hooks/
+  useBountyMeta.ts               — read BountyMeta + lifecycle status
+  useTx.ts                       — tx submit + toast pipeline
+lib/
+  contracts.ts                   — addresses + ABI
+  wagmi.ts                       — arcTestnet chain + config
+  ipfs.ts                        — pin + fetch helpers
+  format.ts                      — usdc/address/time helpers
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x2738df6545687360b262107bf8394dfad940a92b
+NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect cloud project id>
+PINATA_JWT=<pinata jwt with file upload permission>
+```
 
-## Learn More
+| Var | Purpose |
+|---|---|
+| `NEXT_PUBLIC_RPC_URL` | Arc Testnet RPC; falls back to `https://rpc.testnet.arc.network`. |
+| `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` | Deployed `BountyAdapter` address. **Must match the contract you deployed.** |
+| `NEXT_PUBLIC_WC_PROJECT_ID` | WalletConnect Cloud project id (free at cloud.walletconnect.com). |
+| `PINATA_JWT` | Server-side only. Used by `/api/ipfs/pin` and `/api/ipfs/pin-file` to pin descriptions and attachments. |
 
-To learn more about Next.js, take a look at the following resources:
+## Run
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm install
+pnpm dev        # http://localhost:3001
+pnpm build      # production build
+pnpm start      # serve production on :3001
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Chain config:
 
-## Deploy on Vercel
+- Arc Testnet — chain id **`5042002`**, RPC `https://rpc.testnet.arc.network`, explorer `https://testnet.arcscan.app`. Defined in [`lib/wagmi.ts`](lib/wagmi.ts).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Auto-deploys to Vercel on push to `main`. The Vercel project is the canonical host of `arcbounty.app`. Set all four env vars above in the Vercel dashboard.
+
+If you fork, the production build needs `next.config.mjs` as-is — it stubs out optional wagmi peer deps (`porto/internal`, `@base-org/account`, `@metamask/connect-evm`, `accounts`) that would otherwise break the build.
+
+## ABI sync
+
+The contract ABI lives inline in [`lib/contracts.ts`](lib/contracts.ts) as a typed `const`. When `BountyAdapter.sol` changes, regenerate from `contracts/out/BountyAdapter.sol/BountyAdapter.json` and update both the ABI and the addresses block.
+
+## License
+
+MIT.
