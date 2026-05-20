@@ -1,7 +1,7 @@
 import type { Address } from "viem";
 
 export const ARC_TESTNET_RPC = "https://rpc.testnet.arc.network";
-export const ARC_TESTNET_CHAIN_ID = 1768;
+export const ARC_TESTNET_CHAIN_ID = 5_042_002;
 
 export const CONTRACTS = {
   AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583" as Address,
