@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
+import { BackgroundShader } from "@/components/BackgroundShader";
 import { Toaster } from "sonner";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "ArcBounty — Decentralized Bounty Board on Arc",
@@ -15,10 +13,21 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} text-gray-100 min-h-screen antialiased`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
         <Providers>
-          <Navbar />
-          <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
+          <BackgroundShader />
+          <div className="page">
+            <Navbar />
+            <main>{children}</main>
+          </div>
           <Toaster position="bottom-right" theme="dark" richColors />
         </Providers>
       </body>

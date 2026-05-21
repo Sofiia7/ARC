@@ -11,7 +11,12 @@ import { useOpenBounties } from "@/hooks/useBountyMeta";
 const PAGE_SIZE = 20n;
 
 const CATEGORY_ICONS: Record<string, string> = {
-  dev: "💻", design: "🎨", content: "✍️", data: "📊", other: "🔧",
+  all:     "✦",
+  dev:     "⌘",
+  design:  "◐",
+  content: "✎",
+  data:    "▤",
+  other:   "◯",
 };
 
 export default function HomePage() {
@@ -31,74 +36,79 @@ export default function HomePage() {
   });
 
   return (
-    <div>
+    <>
       {/* Hero */}
-      <section className="mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight">
-          <span className="bg-gradient-to-r from-pink-300 via-violet-200 to-blue-200 bg-clip-text text-transparent">
-            Get paid
-          </span>{" "}
-          in USDC
+      <section className="hero">
+        <h1 className="title">
+          <span className="grad">Get paid in USDC</span>
           <br />
           for work AI agents and humans share.
         </h1>
-        <p className="mt-4 text-gray-300 max-w-2xl">
+        <p className="lede">
           Native to Arc. Powered by ERC-8183 escrow + ERC-8004 on-chain reputation.
           Micro-bounties from $1 are economically real because USDC is native gas.
         </p>
-        <div className="flex flex-wrap gap-2 mt-5">
-          <Badge dot="bg-green-400">{total !== undefined ? `${total.toString()} total posted` : "—"}</Badge>
-          <Badge dot="bg-yellow-300">⚡ ~$0.01 / tx</Badge>
-          <Badge dot="bg-blue-300">🔒 ERC-8183 escrow</Badge>
-          <Badge dot="bg-violet-300">⭐ ERC-8004 reputation</Badge>
-          <Badge dot="bg-emerald-300">💵 native USDC gas</Badge>
+
+        <div className="stats">
+          <span className="pill green">
+            <span className="dot" />
+            {total !== undefined ? `${total.toString()} total posted` : "— total posted"}
+          </span>
+          <span className="pill"><span className="dot" /><span className="ico">⚡</span>~$0.01 / tx</span>
+          <span className="pill"><span className="dot" /><span className="ico">🔒</span>ERC-8183 escrow</span>
+          <span className="pill"><span className="dot" /><span className="ico">★</span>ERC-8004 reputation</span>
+          <span className="pill"><span className="dot" /><span className="ico">⛽</span>native USDC gas</span>
         </div>
       </section>
 
       {/* Filters */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-xs uppercase tracking-widest text-gray-400">Filter by category</div>
-          <div className="flex items-center gap-5">
-            <label className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={agentOnly}
-                disabled={humanOnly}
-                onChange={e => { setAgentOnly(e.target.checked); setPage(0); }}
-              />
-              Agent only
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={humanOnly}
-                disabled={agentOnly}
-                onChange={e => { setHumanOnly(e.target.checked); setPage(0); }}
-              />
-              Human only
-            </label>
-          </div>
+      <div className="filters-head">
+        <div className="label">FILTER BY CATEGORY</div>
+        <div className="toggles">
+          <button
+            type="button"
+            className="toggle"
+            data-on={agentOnly}
+            onClick={() => { if (!humanOnly) { setAgentOnly(v => !v); setPage(0); } }}
+            disabled={humanOnly}
+          >
+            <span className="check" />
+            Agent only
+          </button>
+          <button
+            type="button"
+            className="toggle"
+            data-on={humanOnly}
+            onClick={() => { if (!agentOnly) { setHumanOnly(v => !v); setPage(0); } }}
+            disabled={agentOnly}
+          >
+            <span className="check" />
+            Human only
+          </button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          <CategoryTile
-            label="All"
-            icon="✨"
-            active={category === ""}
-            onClick={() => { setCategory(""); setPage(0); }}
-          />
-          {CATEGORIES.map(cat => (
-            <CategoryTile
-              key={cat}
-              label={cat}
-              icon={CATEGORY_ICONS[cat]}
-              active={category === cat}
-              onClick={() => { setCategory(cat); setPage(0); }}
-            />
-          ))}
-        </div>
-      </section>
+      <div className="cats">
+        <button
+          type="button"
+          className={`cat${category === "" ? " active" : ""}`}
+          onClick={() => { setCategory(""); setPage(0); }}
+        >
+          <span className="ico">{CATEGORY_ICONS.all}</span>
+          <span className="name">All</span>
+        </button>
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat}
+            type="button"
+            className={`cat${category === cat ? " active" : ""}`}
+            onClick={() => { setCategory(cat); setPage(0); }}
+          >
+            <span className="ico">{CATEGORY_ICONS[cat]}</span>
+            <span className="name" style={{ textTransform: "capitalize" }}>{cat}</span>
+          </button>
+        ))}
+      </div>
 
       <BountyList
         jobIds={jobIds}
@@ -107,60 +117,21 @@ export default function HomePage() {
         isLoading={isLoading}
       />
 
-      <div className="flex gap-3 mt-8 justify-center">
+      <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "center" }}>
         {page > 0 && (
-          <button
-            onClick={() => setPage(p => p - 1)}
-            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm"
-          >
+          <button onClick={() => setPage(p => p - 1)} className="btn">
             ← Prev
           </button>
         )}
         {jobIds && jobIds.length === Number(PAGE_SIZE) && (
-          <button
-            onClick={() => setPage(p => p + 1)}
-            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm"
-          >
+          <button onClick={() => setPage(p => p + 1)} className="btn">
             Next →
           </button>
         )}
       </div>
-    </div>
-  );
-}
 
-function Badge({ children, dot }: { children: React.ReactNode; dot: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-200 backdrop-blur-sm">
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-      {children}
-    </span>
-  );
-}
-
-function CategoryTile({
-  label,
-  icon,
-  active,
-  onClick,
-}: {
-  label: string;
-  icon: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={
-        active
-          ? "flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl bg-white text-gray-900 border border-white shadow-lg transition-all"
-          : "flex flex-col items-center justify-center gap-1.5 py-5 rounded-2xl glass glass-hover transition-all"
-      }
-    >
-      <span className="text-2xl">{icon}</span>
-      <span className="text-sm font-medium capitalize">{label}</span>
-    </button>
+      <footer className="spacer" />
+    </>
   );
 }
 
@@ -176,25 +147,29 @@ function BountyList({
   isLoading: boolean;
 }) {
   if (isLoading) return (
-    <div className="space-y-4">
+    <div className="list">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-24 bg-white/5 border border-white/10 rounded-xl animate-pulse" />
+        <div
+          key={i}
+          className="row"
+          style={{ height: 92, opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite" }}
+        />
       ))}
     </div>
   );
 
   if (!jobIds || jobIds.length === 0) return (
-    <div className="text-center py-16 text-gray-300">
-      <div className="text-4xl mb-3">📋</div>
-      <p className="mb-4">No open bounties found.</p>
-      <Link href="/post" className="text-blue-300 hover:text-blue-200 text-sm underline">
+    <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-soft)" }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+      <p style={{ marginBottom: 16 }}>No open bounties found.</p>
+      <Link href="/post" style={{ color: "var(--honey)", textDecoration: "underline", fontSize: 14 }}>
         Post the first one →
       </Link>
     </div>
   );
 
   return (
-    <div className="space-y-4">
+    <div className="list">
       {jobIds.map(jobId => (
         <BountyMetaLoader
           key={jobId.toString()}
@@ -224,7 +199,7 @@ function BountyMetaLoader({
     query: { refetchInterval: 8_000 },
   });
 
-  if (!meta) return <div className="h-24 bg-white/5 border border-white/10 rounded-xl animate-pulse" />;
+  if (!meta) return <div className="row" style={{ height: 92, opacity: 0.5 }} />;
   const m = meta as BountyMeta;
   if (agentFilter && !m.agentOnly) return null;
   if (humanFilter && !m.humanOnly) return null;

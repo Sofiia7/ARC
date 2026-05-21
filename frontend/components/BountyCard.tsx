@@ -27,81 +27,60 @@ export type BountyMeta = {
   disputeRulingHash: string;
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  dev:     "bg-blue-900/50 text-blue-300 border-blue-800",
-  design:  "bg-purple-900/50 text-purple-300 border-purple-800",
-  content: "bg-green-900/50 text-green-300 border-green-800",
-  data:    "bg-yellow-900/50 text-yellow-300 border-yellow-800",
-  other:   "bg-gray-800 text-gray-300 border-gray-700",
-};
+type Status = "open" | "submitted" | "in-review" | "paid" | "expired";
 
-function statusLabel(meta: BountyMeta): { text: string; color: string } {
-  if (meta.assignedProvider !== "0x0000000000000000000000000000000000000000") {
-    if (meta.submittedResultHash) return { text: "Submitted", color: "text-yellow-400" };
-    return { text: "Assigned", color: "text-blue-400" };
-  }
+function statusFor(meta: BountyMeta): { kind: Status; label: string } {
   const { expired } = secondsToDeadline(meta.deadline);
-  if (expired) return { text: "Expired", color: "text-red-400" };
-  return { text: "Open", color: "text-green-400" };
+  if (meta.resolved && !meta.inDispute && meta.submittedResultHash) {
+    return { kind: "paid", label: "Paid" };
+  }
+  if (meta.inDispute) {
+    return { kind: "in-review", label: "In Dispute" };
+  }
+  if (meta.submittedResultHash) {
+    return { kind: "submitted", label: "Submitted" };
+  }
+  if (meta.isTaken) {
+    return { kind: "in-review", label: "In Progress" };
+  }
+  if (expired) return { kind: "expired", label: "Expired" };
+  return { kind: "open", label: "Open" };
 }
 
+const KNOWN_CATS = new Set(["dev", "design", "content", "data", "other"]);
+
 export function BountyCard({ meta }: { meta: BountyMeta }) {
-  const { label, expired } = secondsToDeadline(meta.deadline);
-  const catClass = CATEGORY_COLORS[meta.category] ?? CATEGORY_COLORS.other;
-  const status = statusLabel(meta);
+  const { label: timeLabel } = secondsToDeadline(meta.deadline);
+  const catClass = KNOWN_CATS.has(meta.category) ? `cat-${meta.category}` : "cat-other";
+  const status = statusFor(meta);
 
   return (
-    <Link href={`/bounty/${meta.jobId}`}>
-      <div className="glass glass-hover rounded-2xl p-5 transition-all cursor-pointer group">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            {/* Category + Agent-only badge */}
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${catClass}`}>
-                {meta.category}
-              </span>
-              {meta.agentOnly && (
-                <span className="text-xs px-2 py-0.5 rounded-full border border-violet-700 bg-violet-900/50 text-violet-300 font-medium">
-                  Agent only
-                </span>
-              )}
-              {meta.humanOnly && (
-                <span className="text-xs px-2 py-0.5 rounded-full border border-orange-700 bg-orange-900/40 text-orange-300 font-medium">
-                  Human only
-                </span>
-              )}
-              {meta.inDispute && (
-                <span className="text-xs px-2 py-0.5 rounded-full border border-red-700 bg-red-900/40 text-red-300 font-medium">
-                  In dispute
-                </span>
-              )}
-              <span className={`text-xs font-medium ${status.color}`}>{status.text}</span>
-            </div>
-
-            {/* Tags */}
-            {meta.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {meta.tags.map((tag) => (
-                  <span key={tag} className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* IPFS hash as subtitle until full description loads */}
-            <p className="text-xs text-gray-500 font-mono truncate">{meta.ipfsDescHash}</p>
+    <Link href={`/bounty/${meta.jobId}`} style={{ textDecoration: "none", color: "inherit" }}>
+      <article className="row">
+        <div>
+          <div className="top-line">
+            <span className={`tag ${catClass}`}>{meta.category}</span>
+            {meta.agentOnly && <span className="tag agent-only">Agent only</span>}
+            {meta.humanOnly && <span className="tag human-only">Human only</span>}
+            <span className={`status ${status.kind}`}>{status.label}</span>
           </div>
 
-          {/* Reward + deadline */}
-          <div className="text-right shrink-0">
-            <div className="text-xl font-bold text-green-400">${formatUsdc(meta.reward)}</div>
-            <div className={`text-xs mt-1 ${expired ? "text-red-400" : "text-gray-500"}`}>
-              {label}
+          {meta.tags.length > 0 && (
+            <div className="subtags">
+              {meta.tags.map(tag => (
+                <span key={tag} className="subtag">{tag}</span>
+              ))}
             </div>
-          </div>
+          )}
+
+          <div className="hash">{meta.ipfsDescHash}</div>
         </div>
-      </div>
+
+        <div className="right">
+          <div className="price">${formatUsdc(meta.reward)}</div>
+          <div className="time">{timeLabel}</div>
+        </div>
+      </article>
     </Link>
   );
 }

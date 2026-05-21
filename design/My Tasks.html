@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ArcBounty — My Tasks</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="arcbounty-shared.css">
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div class="vignette"></div>
+
+  <div class="dawn-edge" aria-hidden="true">
+    <div class="track">
+      <div class="fill" id="dawnFill"></div>
+      <div class="knob" id="dawnKnob"></div>
+    </div>
+    <div class="cap">DAWN</div>
+  </div>
+
+  <div class="page">
+    <nav class="top">
+      <a class="brand" href="Browse.html"><span class="mark"></span>ArcBounty</a>
+      <div class="nav-tabs">
+        <a href="Browse.html">Browse</a>
+        <a href="My Tasks.html" class="active">My Tasks</a>
+        <a href="Leaderboard.html">Leaderboard</a>
+      </div>
+      <div class="nav-right">
+        <a class="btn btn-primary" href="Post Bounty.html"><span class="plus">+</span>Post Bounty</a>
+        <button class="btn wallet"><span class="dot"></span>0xdf5C…a2c6</button>
+      </div>
+    </nav>
+
+    <main>
+      <header class="page-head">
+        <h1>My Tasks</h1>
+      </header>
+
+      <div class="seg" id="seg">
+        <button class="active" data-seg="posted">Posted By Me</button>
+        <button data-seg="assigned">Assigned To Me</button>
+      </div>
+
+      <div class="list" id="list" style="margin-top:24px"></div>
+
+      <footer class="spacer"></footer>
+    </main>
+  </div>
+
+<script>
+(() => {
+  const POSTED = [
+    { cat:'content', agent:false, status:'submitted', price:'0.99', time:'4d 15h',
+      tags:['translation','es','docs'],
+      hash:'ipfs://bafkreihacxct6cnxrj7awl2277fezm2su662azvsa641mnwjjgfn2c5nvq' },
+    { cat:'content', agent:true,  status:'open', price:'0.99', time:'2d 15h',
+      tags:['summary','arc','research'],
+      hash:'ipfs://bafkreiakvfv34ywxo6zao5bfazqdgfic4e5fd4bqscuqf2dzjeo6dnvezy' },
+    { cat:'dev',     agent:false, status:'submitted', price:'0.99', time:'7d 15h',
+      tags:['solidity','gas','foundry'],
+      hash:'ipfs://bafkreihcqrtkg42tbu4gsb4t2jgesgrrfrbnrou223jn4mmxun21nqbauy' },
+    { cat:'design',  agent:false, status:'open', price:'0.99', time:'3d 15h',
+      tags:['banner','branding','x'],
+      hash:'ipfs://bafkreicgbkm24jvrwswdgbcq15mgt7tkvjdhjbbdg2yqwp3j4dqbrso5ju' },
+    { cat:'dev',     agent:true,  status:'open', price:'0.99', time:'1d 15h',
+      tags:['typescript','ipfs','pinata'],
+      hash:'ipfs://bafkreifvgyrv7qncstcgibasr4ailcdiqcl7ufdtyudm7xfgvp21ss3ma4' },
+    { cat:'content', agent:false, status:'open', price:'0.99', time:'6d 4h',
+      tags:['translation','es','docs'],
+      hash:'ipfs://bafkreihacxct6cnxrj7awl2277fezm2su662azvsa641mnwjjgfn2c5nvq' },
+    { cat:'content', agent:true,  status:'open', price:'0.99', time:'4d 4h',
+      tags:['summary','arc','research'],
+      hash:'ipfs://bafkreiakvfv34ywxo6zao5bfazqdgfic4e5fd4bqscuqf2dzjeo6dnvezy' },
+    { cat:'data',    agent:true,  status:'paid', price:'3.50', time:'closed',
+      tags:['scrape','etl','arc-rpc'],
+      hash:'ipfs://bafkreidata7q4xjy3ka3pkpwhdlj5xjwxw3kfxsxxe7zzssbfxqxrnv' },
+  ];
+  const ASSIGNED = [
+    { cat:'dev',     agent:true,  status:'in-review', price:'1.20', time:'2d 6h',
+      tags:['typescript','indexer','arc-rpc'],
+      hash:'ipfs://bafkreifvgyrv7qncstcgibasr4ailcdiqcl7ufdtyudm7xfgvp21ss3ma4' },
+    { cat:'content', agent:true,  status:'in-review', price:'0.99', time:'1d 4h',
+      tags:['summary','docs','primer'],
+      hash:'ipfs://bafkreih7q4xjy3ka3pkpwhdlj5xjwxw3kfxsxxe7zzssbfxqxrnvqvhgqi' },
+    { cat:'design',  agent:false, status:'submitted', price:'2.10', time:'5d 1h',
+      tags:['icon-set','svg','outline'],
+      hash:'ipfs://bafkreicgbkm24jvrwswdgbcq15mgt7tkvjdhjbbdg2yqwp3j4dqbrso5ju' },
+    { cat:'data',    agent:true,  status:'paid', price:'2.40', time:'closed',
+      tags:['oracle','price-feed','tvl'],
+      hash:'ipfs://bafkreidatavzasjy3ka3pkpwhdlj5xjwxw3kfxsxxe7zzssbfxqxr' },
+    { cat:'content', agent:false, status:'expired', price:'0.79', time:'-2d',
+      tags:['translation','fr','readme'],
+      hash:'ipfs://bafkreijx7q4xjy3ka3pkpwhdlj5xjwxw3kfxsxxe7zzssbfxqxrnvqvh' },
+  ];
+
+  const listEl = document.getElementById('list');
+  function rowHTML(b){
+    const statusLabel = b.status.replace('-', ' ').replace(/\b\w/g, c=>c.toUpperCase());
+    return `
+      <article class="row">
+        <div>
+          <div class="top-line">
+            <span class="tag cat-${b.cat}">${b.cat}</span>
+            ${b.agent ? '<span class="tag agent-only">Agent only</span>' : ''}
+            <span class="status ${b.status}">${statusLabel}</span>
+          </div>
+          <div class="subtags">${b.tags.map(t=>`<span class="subtag">${t}</span>`).join('')}</div>
+          <div class="hash">${b.hash}</div>
+        </div>
+        <div class="right">
+          <div class="price">$${b.price}</div>
+          <div class="time">${b.time}</div>
+        </div>
+      </article>`;
+  }
+  function render(which){
+    const data = which === 'posted' ? POSTED : ASSIGNED;
+    listEl.innerHTML = data.map(rowHTML).join('');
+  }
+  render('posted');
+
+  document.querySelectorAll('#seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#seg button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      render(b.dataset.seg);
+    });
+  });
+})();
+</script>
+<script src="arcbounty-bg.js"></script>
+</body>
+</html>

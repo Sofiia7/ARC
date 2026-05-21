@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* ====================================================================
    ArcBounty — shared styles (glassmorphic UI on sunrise shader)
    ==================================================================== */
@@ -42,6 +38,7 @@
   --warm-tag-fg: #FFD3A3;
 }
 
+* { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
   background: var(--sky-deep);
@@ -205,7 +202,7 @@ nav.top {
 }
 
 /* ---------------- MAIN LAYOUT ---------------- */
-.page main { padding: 56px 64px 80px; max-width: 1480px; margin: 0 auto; }
+main { padding: 56px 64px 80px; max-width: 1480px; margin: 0 auto; }
 
 /* Page titles */
 .page-head { margin-top: 24px; margin-bottom: 28px; }
@@ -571,11 +568,12 @@ p.lede {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 13px;
 }
+/* hide native number-input spinners */
 .input[type="number"]::-webkit-outer-spin-button,
 .input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
-/* custom select */
+/* custom select — glass dropdown that matches the rest of the system */
 .select-wrap { position: relative; }
 .select-trigger {
   width: 100%;
@@ -637,6 +635,7 @@ p.lede {
   transform: translateY(0);
   pointer-events: auto;
 }
+.select-menu[hidden] { display: flex !important; } /* keep layout, just animate */
 .select-option {
   appearance: none;
   border: 0;
@@ -827,6 +826,7 @@ p.lede {
   margin-top: 4px;
 }
 
+/* leaderboard filter bar */
 .lb-controls {
   margin: 22px 0 18px;
   display: flex;
@@ -957,6 +957,7 @@ p.lede {
 }
 .action-bar > * { flex: 1; }
 
+/* destructive variant — warm-aligned, not jarring red */
 .btn-danger {
   background: linear-gradient(180deg, rgba(255,140,120,0.16), rgba(255,90,75,0.08));
   border-color: rgba(255,140,120,0.32);
@@ -993,7 +994,7 @@ footer.spacer { height: 200px; }
 /* ---------------- RESPONSIVE ---------------- */
 @media (max-width: 1000px) {
   .cats { grid-template-columns: repeat(3, 1fr); }
-  .page main { padding: 32px 24px 60px; }
+  main { padding: 32px 24px 60px; }
   nav.top { margin: 12px 12px 0; }
   .dawn-edge { display: none; }
   .form-grid-2 { grid-template-columns: 1fr; }

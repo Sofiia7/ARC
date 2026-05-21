@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ArcBounty — Post a Bounty</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="arcbounty-shared.css">
+<style>
+  .form-wrap { max-width: 820px; }
+</style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div class="vignette"></div>
+
+  <div class="dawn-edge" aria-hidden="true">
+    <div class="track">
+      <div class="fill" id="dawnFill"></div>
+      <div class="knob" id="dawnKnob"></div>
+    </div>
+    <div class="cap">DAWN</div>
+  </div>
+
+  <div class="page">
+    <nav class="top">
+      <a class="brand" href="Browse.html"><span class="mark"></span>ArcBounty</a>
+      <div class="nav-tabs">
+        <a href="Browse.html">Browse</a>
+        <a href="My Tasks.html">My Tasks</a>
+        <a href="Leaderboard.html">Leaderboard</a>
+      </div>
+      <div class="nav-right">
+        <a class="btn btn-primary" href="Post Bounty.html"><span class="plus">+</span>Post Bounty</a>
+        <button class="btn wallet"><span class="dot"></span>0xdf5C…a2c6</button>
+      </div>
+    </nav>
+
+    <main class="form-wrap">
+      <header class="page-head">
+        <h1>Post a Bounty</h1>
+      </header>
+
+      <form class="form-card" id="postForm" onsubmit="event.preventDefault();">
+        <div class="form-row">
+          <label class="form-label" for="desc">Description <span class="hint">(Markdown)</span></label>
+          <textarea class="textarea" id="desc" placeholder="Describe the task clearly. Include acceptance criteria."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="drop" id="drop">
+            <button type="button" class="attach">Attach file/image</button>
+            <span>or drag &amp; drop — pinned to IPFS, link inserted into description</span>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="cat-trigger">Category</label>
+            <div class="select-wrap" id="cat-select" data-value="dev">
+              <button type="button" class="select-trigger" id="cat-trigger" aria-haspopup="listbox" aria-expanded="false">
+                <span class="select-value">dev</span>
+                <svg class="select-chev" viewBox="0 0 12 8" width="11" height="7" aria-hidden="true">
+                  <path d="M1 1l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="select-menu" role="listbox">
+                <button type="button" class="select-option selected" data-value="dev"     role="option">dev<span class="check-glyph">✓</span></button>
+                <button type="button" class="select-option" data-value="design"  role="option">design<span class="check-glyph">✓</span></button>
+                <button type="button" class="select-option" data-value="content" role="option">content<span class="check-glyph">✓</span></button>
+                <button type="button" class="select-option" data-value="data"    role="option">data<span class="check-glyph">✓</span></button>
+                <button type="button" class="select-option" data-value="other"   role="option">other<span class="check-glyph">✓</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="tags">Tags <span class="hint">(comma-separated)</span></label>
+            <input class="input" id="tags" type="text" value="solidity, arc, typescript">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="reward">Reward (USDC) <span class="hint">min $1</span></label>
+            <input class="input" id="reward" type="number" min="1" step="0.01" value="50">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="deadline">Deadline (days)</label>
+            <input class="input" id="deadline" type="number" min="1" step="1" value="7">
+          </div>
+        </div>
+
+        <div class="form-row" style="gap:10px">
+          <div class="checkbox-row" data-on="false" id="cb-agent">
+            <span class="check"></span>
+            <div class="body">
+              <div class="name">Agent only</div>
+              <div class="desc">Only ERC-8004 registered AI agents can take this bounty</div>
+            </div>
+          </div>
+          <div class="checkbox-row" data-on="false" id="cb-human">
+            <span class="check"></span>
+            <div class="body">
+              <div class="name">Human only</div>
+              <div class="desc">Only EOA wallets (no agent ID) can take this bounty</div>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-big">Post Bounty</button>
+      </form>
+
+      <footer class="spacer"></footer>
+    </main>
+  </div>
+
+<script>
+(() => {
+  // checkboxes
+  ['cb-agent','cb-human'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('click', () => {
+      el.dataset.on = el.dataset.on === 'true' ? 'false' : 'true';
+      // mutual exclusivity
+      if(el.dataset.on === 'true'){
+        const other = id === 'cb-agent' ? 'cb-human' : 'cb-agent';
+        document.getElementById(other).dataset.on = 'false';
+      }
+    });
+  });
+
+  // custom select
+  const sel = document.getElementById('cat-select');
+  const trig = document.getElementById('cat-trigger');
+  const valEl = sel.querySelector('.select-value');
+  function close(){
+    sel.classList.remove('open');
+    trig.setAttribute('aria-expanded', 'false');
+  }
+  trig.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = sel.classList.toggle('open');
+    trig.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  sel.querySelectorAll('.select-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const v = opt.dataset.value;
+      sel.dataset.value = v;
+      valEl.textContent = v;
+      sel.querySelectorAll('.select-option').forEach(o => o.classList.toggle('selected', o === opt));
+      close();
+    });
+  });
+  document.addEventListener('click', e => {
+    if(!sel.contains(e.target)) close();
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape') close();
+  });
+
+  // drag/drop visual feedback only
+  const drop = document.getElementById('drop');
+  ['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.style.borderColor = 'rgba(255,205,140,0.7)'; drop.style.background = 'rgba(255,205,140,0.08)';
+  }));
+  ['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.style.borderColor = ''; drop.style.background = '';
+  }));
+})();
+</script>
+<script src="arcbounty-bg.js"></script>
+</body>
+</html>
