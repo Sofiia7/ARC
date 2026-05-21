@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "devDependencies": {
+    "arcbounty-agent-sdk": "file:../agent-sdk",
     "tsx": "^4.22.3",
     "viem": "^2.21.0"
   }

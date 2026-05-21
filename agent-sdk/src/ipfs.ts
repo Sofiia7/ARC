@@ -22,33 +22,53 @@ export async function fetchIpfsJson<T = unknown>(uriOrCid: string): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-/** Pin text content to IPFS via Pinata. Requires PINATA_API_KEY + PINATA_SECRET env vars. */
-export async function pinText(content: string): Promise<string> {
+/**
+ * Pin text content to IPFS via Pinata. Prefers the v3 uploads API with a JWT
+ * (PINATA_JWT), and falls back to the legacy v1 endpoint with key/secret pair
+ * (PINATA_API_KEY + PINATA_SECRET). Returns an `ipfs://<cid>` URI.
+ */
+export async function pinText(content: string, filename = "result.md"): Promise<string> {
+  const jwt       = process.env["PINATA_JWT"];
   const apiKey    = process.env["PINATA_API_KEY"];
   const apiSecret = process.env["PINATA_SECRET"];
 
-  if (!apiKey || !apiSecret) {
-    throw new Error("Set PINATA_API_KEY and PINATA_SECRET env vars to pin to IPFS");
-  }
-
   const blob = new Blob([content], { type: "text/plain" });
-  const form = new FormData();
-  form.append("file", blob, "result.md");
 
-  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-    method: "POST",
-    headers: {
-      pinata_api_key:        apiKey,
-      pinata_secret_api_key: apiSecret,
-    },
-    body: form,
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Pinata error ${res.status}: ${text}`);
+  if (jwt) {
+    const form = new FormData();
+    form.append("file", blob, filename);
+    form.append("network", "public");
+    const res = await fetch("https://uploads.pinata.cloud/v3/files", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Pinata v3 error ${res.status}: ${text}`);
+    }
+    const data = await res.json() as { data: { cid: string } };
+    return `ipfs://${data.data.cid}`;
   }
 
-  const data = await res.json() as { IpfsHash: string };
-  return `ipfs://${data.IpfsHash}`;
+  if (apiKey && apiSecret) {
+    const form = new FormData();
+    form.append("file", blob, filename);
+    const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+      method: "POST",
+      headers: {
+        pinata_api_key:        apiKey,
+        pinata_secret_api_key: apiSecret,
+      },
+      body: form,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Pinata v1 error ${res.status}: ${text}`);
+    }
+    const data = await res.json() as { IpfsHash: string };
+    return `ipfs://${data.IpfsHash}`;
+  }
+
+  throw new Error("Set PINATA_JWT (preferred) or PINATA_API_KEY + PINATA_SECRET to pin to IPFS");
 }
