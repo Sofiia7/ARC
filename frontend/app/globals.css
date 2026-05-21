@@ -6,23 +6,27 @@ html, body {
   min-height: 100%;
 }
 
+/* Gradient spans the full document height — sunrise actually appears as you
+   scroll to the bottom (no background-attachment:fixed, so it's not pinned
+   to the viewport). The dark navy fallback covers any overscroll on Safari. */
+html { background: #04091e; }
+
 body {
   color: #ededed;
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
   background: linear-gradient(
     to bottom,
     #04091e 0%,
-    #061030 30%,
-    #0a1a44 52%,
-    #143476 78%,
-    #1c3e88 88%,
-    #5a4470 92%,
-    #c8633a 97%,
+    #061030 35%,
+    #0a1a44 60%,
+    #143476 80%,
+    #1c3e88 90%,
+    #5a4470 94%,
+    #c8633a 98%,
     #ffb672 100%
   );
-  background-attachment: fixed;
   background-repeat: no-repeat;
-  min-height: 100vh;
 }
 
 @layer utilities {
