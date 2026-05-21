@@ -1,0 +1,9 @@
+{
+  "name": "arcbounty-scripts",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "tsx": "^4.22.3",
+    "viem": "^2.21.0"
+  }
+}

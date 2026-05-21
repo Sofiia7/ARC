@@ -4,9 +4,12 @@ export type {
   BountyMeta,
   ReputationScore,
   OpenBountiesFilter,
+  CreateBountyOptions,
   SubmitWorkOptions,
+  DisputeEvidenceOptions,
   AgentInfo,
   TxResult,
 } from "./types.js";
 export { CONTRACTS, ARC_TESTNET_RPC, ARC_TESTNET_CHAIN_ID } from "./constants.js";
+export { BOUNTY_ADAPTER_ABI, IDENTITY_REGISTRY_ABI, ERC20_ABI } from "./abi.js";
 export { pinText, fetchIpfsText, fetchIpfsJson } from "./ipfs.js";

@@ -1,4 +1,4 @@
-import type { Address, Hash, PublicClient, WalletClient } from "viem";
+import type { Address, Hash } from "viem";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ export type ArcBountyAgentConfig = {
   bountyAdapterAddress?: Address;
 };
 
-// ─── On-chain structs ─────────────────────────────────────────────────────────
+// ─── On-chain structs (mirror BountyAdapter.sol BountyMeta) ──────────────────
 
 export type BountyMeta = {
   jobId:               bigint;
@@ -22,12 +22,25 @@ export type BountyMeta = {
   deadline:            bigint;
   ipfsDescHash:        string;
   category:            string;
-  tags:                string[];
+  tags:                readonly string[];
   agentId:             bigint;
   agentOnly:           boolean;
+  humanOnly:           boolean;
+  whitelistedProvider: Address;
   assignedProvider:    Address;
   submittedResultHash: string;
-  funded:              boolean;
+  isTaken:             boolean;
+  // Pending-rejection state
+  rejectedAt:          bigint;
+  rejectionReasonHash: string;
+  // Dispute state
+  inDispute:           boolean;
+  resolved:            boolean;
+  disputeInitiator:    Address;
+  disputeRaisedAt:     bigint;
+  disputeReasonHash:   string;
+  disputeResponseHash: string;
+  disputeRulingHash:   string;
 };
 
 export type ReputationScore = {
@@ -39,17 +52,30 @@ export type ReputationScore = {
 // ─── SDK-level types ──────────────────────────────────────────────────────────
 
 export type OpenBountiesFilter = {
-  category?: string;
+  category?:  string;
   agentOnly?: boolean;
+  humanOnly?: boolean;
   maxReward?: number;        // in USDC dollars
   minReward?: number;
-  offset?: number;
-  limit?: number;
+  offset?:    number;
+  limit?:     number;
 };
 
-export type TakeBountyOptions = {
-  /** ERC-8004 agentId to use. If omitted, uses the registered agentId. */
-  agentId?: bigint;
+export type CreateBountyOptions = {
+  /** Reward in USDC dollars (will be scaled by 1e6) */
+  rewardUsdc: number;
+  /** Unix seconds OR a Date OR seconds-from-now (if < 1e9 treated as duration) */
+  deadline: number | Date;
+  /** Pre-pinned IPFS CID for the description (ipfs://... or bafy...) */
+  descriptionCid?: string;
+  /** Or raw markdown — will be pinned for you */
+  descriptionText?: string;
+  category: "dev" | "design" | "content" | "data" | "other";
+  tags?: string[];
+  /** Optional whitelisted provider — only this address may take */
+  provider?: Address;
+  agentOnly?: boolean;
+  humanOnly?: boolean;
 };
 
 export type SubmitWorkOptions = {
@@ -59,11 +85,18 @@ export type SubmitWorkOptions = {
   cid?: string;
 };
 
+export type DisputeEvidenceOptions = {
+  /** Raw evidence text — will be pinned to IPFS */
+  text?: string;
+  /** Pre-computed IPFS CID — skips pinning */
+  cid?: string;
+};
+
 export type AgentInfo = {
-  agentId: bigint;
-  address: Address;
+  agentId:     bigint;
+  address:     Address;
   metadataURI: string;
-  reputation: ReputationScore;
+  reputation:  ReputationScore;
 };
 
 export type TxResult = {

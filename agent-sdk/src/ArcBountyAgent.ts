@@ -1,6 +1,7 @@
 import {
   createPublicClient,
   createWalletClient,
+  decodeEventLog,
   http,
   defineChain,
   type Address,
@@ -27,7 +28,9 @@ import type {
   BountyMeta,
   ReputationScore,
   OpenBountiesFilter,
+  CreateBountyOptions,
   SubmitWorkOptions,
+  DisputeEvidenceOptions,
   AgentInfo,
   TxResult,
 } from "./types.js";
@@ -47,7 +50,6 @@ export class ArcBountyAgent {
   private readonly metadataURI: string;
   private readonly chain: ReturnType<typeof defineChain>;
 
-  // Cached after register()
   private _agentId: bigint | null = null;
 
   constructor(config: ArcBountyAgentConfig) {
@@ -70,13 +72,7 @@ export class ArcBountyAgent {
 
   // ─── Identity ───────────────────────────────────────────────────────────────
 
-  /**
-   * Register this agent in the ERC-8004 IdentityRegistry.
-   * Call once at agent startup — saves agentId locally.
-   * If already registered, discovers the existing agentId from Transfer events.
-   */
   async register(): Promise<bigint> {
-    // Check if already registered by scanning Transfer events
     const existing = await this._findExistingAgentId();
     if (existing !== null) {
       this._agentId = existing;
@@ -94,7 +90,6 @@ export class ArcBountyAgent {
 
     await this._waitForTx(hash);
 
-    // Discover agentId from Transfer event (minted to this.address)
     const agentId = await this._findExistingAgentId();
     if (agentId === null) throw new Error("Registration succeeded but agentId not found in events");
 
@@ -102,13 +97,11 @@ export class ArcBountyAgent {
     return agentId;
   }
 
-  /** Returns cached agentId. Must call register() first. */
   get agentId(): bigint {
     if (this._agentId === null) throw new Error("Agent not registered. Call register() first.");
     return this._agentId;
   }
 
-  /** Set agentId manually (if already registered in a previous session). */
   setAgentId(id: bigint): void {
     this._agentId = id;
   }
@@ -119,6 +112,7 @@ export class ArcBountyAgent {
     const {
       category = "",
       agentOnly,
+      humanOnly,
       maxReward,
       minReward,
       offset = 0,
@@ -132,12 +126,13 @@ export class ArcBountyAgent {
       args: [category, BigInt(offset), BigInt(limit)],
     });
 
-    const metas = await Promise.all(
-      jobIds.map(jobId => this.getBounty(jobId))
-    );
+    const metas = await Promise.all(jobIds.map(jobId => this.getBounty(jobId)));
 
     return metas.filter(m => {
-      if (agentOnly && !m.agentOnly) return false;
+      if (agentOnly === true  && !m.agentOnly)  return false;
+      if (humanOnly === true  && !m.humanOnly)  return false;
+      if (agentOnly === false && m.agentOnly)   return false;
+      if (humanOnly === false && m.humanOnly)   return false;
       if (maxReward !== undefined && m.reward > this._parseUsdc(maxReward)) return false;
       if (minReward !== undefined && m.reward < this._parseUsdc(minReward)) return false;
       return true;
@@ -151,16 +146,14 @@ export class ArcBountyAgent {
       functionName: "getBountyMeta",
       args: [jobId],
     });
-    return raw as BountyMeta;
+    return raw as unknown as BountyMeta;
   }
 
-  /** Fetch full description text from IPFS for a bounty. */
   async getBountyDescription(jobId: bigint): Promise<string> {
     const meta = await this.getBounty(jobId);
     return fetchIpfsText(meta.ipfsDescHash);
   }
 
-  /** Get all bounties currently assigned to this agent's address. */
   async getMyBounties(): Promise<BountyMeta[]> {
     const jobIds = await this.publicClient.readContract({
       address: this.bountyAdapter,
@@ -171,15 +164,75 @@ export class ArcBountyAgent {
     return Promise.all(jobIds.map(id => this.getBounty(id)));
   }
 
-  // ─── Take a bounty ──────────────────────────────────────────────────────────
+  async getPostedBounties(): Promise<BountyMeta[]> {
+    const jobIds = await this.publicClient.readContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "getMyPostedBounties",
+      args: [this.address],
+    });
+    return Promise.all(jobIds.map(id => this.getBounty(id)));
+  }
 
-  /**
-   * Atomically reserve a bounty. On-chain — no race conditions.
-   * Uses registered agentId if agent is registered, otherwise takes as human (agentId=0).
-   */
+  // ─── Post a bounty ──────────────────────────────────────────────────────────
+
+  async createBounty(opts: CreateBountyOptions): Promise<{ hash: Hash; jobId?: bigint }> {
+    if (opts.agentOnly && opts.humanOnly) {
+      throw new Error("agentOnly and humanOnly are mutually exclusive");
+    }
+    if (!opts.descriptionCid && !opts.descriptionText) {
+      throw new Error("Provide either descriptionCid or descriptionText");
+    }
+
+    const reward = this._parseUsdc(opts.rewardUsdc);
+    const deadline = this._resolveDeadline(opts.deadline);
+    const descCid = opts.descriptionCid ?? await pinText(opts.descriptionText!);
+
+    await this._ensureUsdcAllowance(reward);
+
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "createBounty",
+      args: [{
+        provider:     opts.provider ?? ZERO_ADDRESS,
+        reward,
+        deadline,
+        ipfsDescHash: descCid,
+        category:     opts.category,
+        tags:         opts.tags ?? [],
+        agentOnly:    opts.agentOnly ?? false,
+        humanOnly:    opts.humanOnly ?? false,
+      }],
+      chain: null,
+      account: this.account,
+    });
+
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    let jobId: bigint | undefined;
+    for (const log of receipt.logs) {
+      if (log.address.toLowerCase() !== this.bountyAdapter.toLowerCase()) continue;
+      try {
+        const decoded = decodeEventLog({
+          abi: BOUNTY_ADAPTER_ABI,
+          data: log.data,
+          topics: log.topics,
+        });
+        if (decoded.eventName === "BountyCreated") {
+          jobId = (decoded.args as { jobId: bigint }).jobId;
+          break;
+        }
+      } catch {
+        // not a BountyAdapter event we know about
+      }
+    }
+    return { hash, jobId };
+  }
+
+  // ─── Take / submit ──────────────────────────────────────────────────────────
+
   async takeBounty(jobId: bigint): Promise<TxResult> {
     const agentId = this._agentId ?? 0n;
-
     const hash = await this.walletClient.writeContract({
       address: this.bountyAdapter,
       abi: BOUNTY_ADAPTER_ABI,
@@ -188,22 +241,14 @@ export class ArcBountyAgent {
       chain: null,
       account: this.account,
     });
-
     await this._waitForTx(hash);
     return { hash };
   }
 
-  // ─── Submit work ────────────────────────────────────────────────────────────
-
-  /**
-   * Upload result to IPFS and submit on-chain.
-   * Provide either `text` (will be pinned) or a pre-computed `cid`.
-   */
   async submitWork(jobId: bigint, options: SubmitWorkOptions): Promise<TxResult> {
     if (!options.text && !options.cid) {
       throw new Error("Provide either text or cid");
     }
-
     const cid = options.cid ?? await pinText(options.text!);
 
     const hash = await this.walletClient.writeContract({
@@ -214,18 +259,59 @@ export class ArcBountyAgent {
       chain: null,
       account: this.account,
     });
+    await this._waitForTx(hash);
+    return { hash };
+  }
 
+  // ─── Dispute flow (worker-side) ─────────────────────────────────────────────
+
+  /** Worker challenges a pending rejection — flips bounty into dispute with worker as initiator. */
+  async challengeRejection(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
+    const cid = await this._resolveEvidenceCid(evidence);
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "challengeRejection",
+      args: [jobId, cid],
+      chain: null,
+      account: this.account,
+    });
+    await this._waitForTx(hash);
+    return { hash };
+  }
+
+  /** Open a dispute (either party — after submission, before resolution). */
+  async disputeBounty(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
+    const cid = await this._resolveEvidenceCid(evidence);
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "disputeBounty",
+      args: [jobId, cid],
+      chain: null,
+      account: this.account,
+    });
+    await this._waitForTx(hash);
+    return { hash };
+  }
+
+  /** Respond to an open dispute (only the non-initiator may call). */
+  async respondToDispute(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
+    const cid = await this._resolveEvidenceCid(evidence);
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "respondToDispute",
+      args: [jobId, cid],
+      chain: null,
+      account: this.account,
+    });
     await this._waitForTx(hash);
     return { hash };
   }
 
   // ─── Expire stale bounties ──────────────────────────────────────────────────
 
-  /**
-   * Scan all open bounties and expire any that have passed their deadline.
-   * Permissionless — anyone can call. Useful as a background maintenance task.
-   * Returns list of expired jobIds.
-   */
   async expireStale(category = "", limit = 100): Promise<bigint[]> {
     const jobIds = await this.publicClient.readContract({
       address: this.bountyAdapter,
@@ -252,11 +338,10 @@ export class ArcBountyAgent {
           await this._waitForTx(hash);
           expired.push(jobId);
         } catch {
-          // Already expired or other error — skip
+          // already expired or other error — skip
         }
       }
     }
-
     return expired;
   }
 
@@ -299,16 +384,8 @@ export class ArcBountyAgent {
     return (Number(raw) / 10 ** USDC_DECIMALS).toFixed(2);
   }
 
-  // ─── Convenience: full autonomous loop ──────────────────────────────────────
+  // ─── Autonomous loop ────────────────────────────────────────────────────────
 
-  /**
-   * High-level loop: scan open bounties, pick the first matching one,
-   * take it, run your task, submit the result.
-   *
-   * @param filter   - Filter for which bounties to consider
-   * @param runTask  - Your async function that receives description and returns result text
-   * @returns The jobId that was completed, or null if no bounties found
-   */
   async runOnce(
     filter: OpenBountiesFilter,
     runTask: (description: string, meta: BountyMeta) => Promise<string>
@@ -354,6 +431,38 @@ export class ArcBountyAgent {
     } catch {
       return null;
     }
+  }
+
+  private async _ensureUsdcAllowance(amount: bigint): Promise<void> {
+    const current = await this.publicClient.readContract({
+      address: CONTRACTS.USDC,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [this.address, this.bountyAdapter],
+    });
+    if (current >= amount) return;
+
+    const hash = await this.walletClient.writeContract({
+      address: CONTRACTS.USDC,
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [this.bountyAdapter, amount],
+      chain: null,
+      account: this.account,
+    });
+    await this._waitForTx(hash);
+  }
+
+  private async _resolveEvidenceCid(e: DisputeEvidenceOptions): Promise<string> {
+    if (!e.text && !e.cid) throw new Error("Provide either text or cid");
+    return e.cid ?? await pinText(e.text!);
+  }
+
+  private _resolveDeadline(d: number | Date): bigint {
+    if (d instanceof Date) return BigInt(Math.floor(d.getTime() / 1000));
+    // < 1e9 is interpreted as duration-in-seconds from now (~30 years cutoff)
+    if (d < 1_000_000_000) return BigInt(Math.floor(Date.now() / 1000) + d);
+    return BigInt(d);
   }
 
   private _parseUsdc(dollars: number): bigint {

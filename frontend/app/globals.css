@@ -11,12 +11,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   background: linear-gradient(
     to bottom,
-    #060a1f 0%,
-    #08102a 40%,
-    #0b1638 75%,
-    #0e1a3e 94%,
-    #2b2818 99%,
-    #4a3e1a 100%
+    #04091e 0%,
+    #061030 30%,
+    #0a1a44 52%,
+    #143476 78%,
+    #1c3e88 88%,
+    #5a4470 92%,
+    #c8633a 97%,
+    #ffb672 100%
   );
   background-attachment: fixed;
   background-repeat: no-repeat;
