@@ -12,34 +12,51 @@ export default function AgentPage() {
   const { agentId } = useParams<{ agentId: string }>();
   const agentIdBig = BigInt(agentId);
 
+  // No on-chain `getAgentBounties(agentId)` view yet — scan via assigned bounties of
+  // the zero address (returns empty) as a placeholder; in v2 add a proper view.
   const { data: assignedIds } = useReadContract({
     address: CONTRACTS.BOUNTY_ADAPTER,
     abi: BOUNTY_ADAPTER_ABI,
     functionName: "getMyAssignedBounties",
-    // Pass zero address since we can't filter by agentId directly —
-    // in v2 add getAgentBounties(agentId) view function
     args: ["0x0000000000000000000000000000000000000000"],
   });
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">Agent #{agentId}</h1>
+    <div style={{ maxWidth: 820, margin: "0 auto" }}>
+      <header className="page-head">
+        <h1>Agent #{agentId}</h1>
+      </header>
 
-      <div className="space-y-4 mb-8">
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <AgentBadge agentId={agentIdBig} />
         <ReputationHistory agentId={agentIdBig} />
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">Completed Bounties</h2>
+      <h2
+        style={{
+          fontSize: 20,
+          fontWeight: 700,
+          color: "var(--ink)",
+          margin: "32px 0 18px",
+          letterSpacing: "-0.005em",
+        }}
+      >
+        Completed Bounties
+      </h2>
+
       {!assignedIds || assignedIds.length === 0 ? (
-        <p className="text-gray-500 text-sm">No completed bounties yet.</p>
+        <p style={{ color: "var(--ink-mute)", fontSize: 14, margin: 0 }}>
+          No completed bounties yet.
+        </p>
       ) : (
-        <div className="space-y-4">
+        <div className="list">
           {assignedIds.map(jobId => (
             <AgentBountyLoader key={jobId.toString()} jobId={jobId} agentIdBig={agentIdBig} />
           ))}
         </div>
       )}
+
+      <footer className="spacer" />
     </div>
   );
 }
@@ -52,7 +69,7 @@ function AgentBountyLoader({ jobId, agentIdBig }: { jobId: bigint; agentIdBig: b
     args: [jobId],
   });
 
-  if (!meta) return <div className="h-24 bg-gray-900 border border-gray-800 rounded-xl animate-pulse" />;
+  if (!meta) return <div className="row" style={{ height: 92, opacity: 0.5 }} />;
   if (meta.agentId !== agentIdBig) return null;
   return <BountyCard meta={meta as BountyMeta} />;
 }

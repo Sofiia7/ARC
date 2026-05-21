@@ -44,21 +44,22 @@ export function FileAttacher({ label = "Attach file/image", accept, multiple = t
         setDragOver(false);
         if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
       }}
-      className={`flex items-center gap-3 rounded-xl border border-dashed px-3 py-2.5 text-sm transition-colors ${
-        dragOver ? "border-orange-400 bg-orange-500/10" : "border-white/20 bg-white/5"
-      }`}
+      className="drop"
+      style={dragOver ? {
+        borderColor: "rgba(255,205,140,0.70)",
+        background: "rgba(255,205,140,0.08)",
+        color: "var(--ink-soft)",
+      } : undefined}
     >
       <button
         type="button"
         disabled={busy}
         onClick={() => inputRef.current?.click()}
-        className="rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 px-3 py-1.5 text-xs font-medium"
+        className="attach"
       >
         {busy ? "Uploading…" : label}
       </button>
-      <span className="text-xs text-gray-300/80">
-        or drag &amp; drop — pinned to IPFS, link inserted into description
-      </span>
+      <span>or drag &amp; drop — pinned to IPFS, link inserted into description</span>
       <input
         ref={inputRef}
         type="file"

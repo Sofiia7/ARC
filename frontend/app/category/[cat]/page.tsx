@@ -11,12 +11,12 @@ import { useOpenBounties } from "@/hooks/useBountyMeta";
 
 const PAGE_SIZE = 20n;
 
-const CATEGORY_META: Record<string, { emoji: string; description: string }> = {
-  dev:     { emoji: "💻", description: "Smart contracts, frontend, backend, tooling" },
-  design:  { emoji: "🎨", description: "UI/UX, branding, graphics, motion" },
-  content: { emoji: "✍️",  description: "Writing, translation, documentation, research" },
-  data:    { emoji: "📊", description: "Data analysis, labeling, scraping, ML datasets" },
-  other:   { emoji: "🔧", description: "Everything else" },
+const CATEGORY_META: Record<string, { icon: string; description: string }> = {
+  dev:     { icon: "⌘", description: "Smart contracts, frontend, backend, tooling" },
+  design:  { icon: "◐", description: "UI/UX, branding, graphics, motion" },
+  content: { icon: "✎", description: "Writing, translation, documentation, research" },
+  data:    { icon: "▤", description: "Data analysis, labeling, scraping, ML datasets" },
+  other:   { icon: "◯", description: "Everything else" },
 };
 
 export default function CategoryPage() {
@@ -28,87 +28,82 @@ export default function CategoryPage() {
   }
 
   const catMeta = CATEGORY_META[cat]!;
-  const offset = BigInt(page) * PAGE_SIZE;
-
+  const offset  = BigInt(page) * PAGE_SIZE;
   const { jobIds, isLoading } = useOpenBounties(cat, offset, PAGE_SIZE);
 
   return (
-    <div>
+    <>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-        <Link href="/" className="hover:text-white transition-colors">All Bounties</Link>
-        <span>/</span>
-        <span className="text-white capitalize">{cat}</span>
-      </div>
+      <nav className="breadcrumb" aria-label="Breadcrumb">
+        <Link href="/">Browse</Link>
+        <span className="sep">/</span>
+        <span className="current" style={{ textTransform: "capitalize", fontFamily: "inherit", fontSize: 13 }}>
+          {cat}
+        </span>
+      </nav>
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">
-          {catMeta.emoji} <span className="capitalize">{cat}</span>
+      <header className="page-head">
+        <h1>
+          <span style={{ marginRight: 12, fontWeight: 600 }}>{catMeta.icon}</span>
+          <span style={{ textTransform: "capitalize" }}>{cat}</span>
         </h1>
-        <p className="text-gray-400 mt-1">{catMeta.description}</p>
-      </div>
+        <p className="sub">{catMeta.description}</p>
+      </header>
 
-      {/* Category nav */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      {/* Category nav as small glass pills */}
+      <div className="cats" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
         {CATEGORIES.map(c => (
           <Link
             key={c}
             href={`/category/${c}`}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border capitalize
-              ${c === cat
-                ? "bg-white text-gray-900 border-white"
-                : "border-gray-700 text-gray-400 hover:border-gray-500"
-              }`}
+            style={{ textDecoration: "none", color: "inherit" }}
           >
-            {CATEGORY_META[c]!.emoji} {c}
+            <button type="button" className={`cat${c === cat ? " active" : ""}`}>
+              <span className="ico">{CATEGORY_META[c]!.icon}</span>
+              <span className="name" style={{ textTransform: "capitalize" }}>{c}</span>
+            </button>
           </Link>
         ))}
       </div>
 
       {/* Bounty list */}
       {isLoading ? (
-        <div className="space-y-4">
+        <div className="list" style={{ marginTop: 24 }}>
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-24 bg-gray-900 border border-gray-800 rounded-xl animate-pulse" />
+            <div key={i} className="row" style={{ height: 92, opacity: 0.5 }} />
           ))}
         </div>
       ) : !jobIds || jobIds.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <div className="text-4xl mb-3">{catMeta.emoji}</div>
-          <p className="mb-4">No open bounties in this category.</p>
-          <Link href="/post" className="text-blue-400 hover:text-blue-300 text-sm underline">
+        <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-soft)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>{catMeta.icon}</div>
+          <p style={{ marginBottom: 16 }}>No open bounties in this category.</p>
+          <Link href="/post" style={{ color: "var(--honey)", textDecoration: "underline", fontSize: 14 }}>
             Post the first one →
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="list">
           {jobIds.map(jobId => (
             <CategoryBountyLoader key={jobId.toString()} jobId={jobId} />
           ))}
         </div>
       )}
 
-      {/* Pagination */}
-      <div className="flex gap-3 mt-8 justify-center">
+      <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "center" }}>
         {page > 0 && (
-          <button
-            onClick={() => setPage(p => p - 1)}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm"
-          >
+          <button onClick={() => setPage(p => p - 1)} className="btn">
             ← Prev
           </button>
         )}
         {jobIds && jobIds.length === Number(PAGE_SIZE) && (
-          <button
-            onClick={() => setPage(p => p + 1)}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm"
-          >
+          <button onClick={() => setPage(p => p + 1)} className="btn">
             Next →
           </button>
         )}
       </div>
-    </div>
+
+      <footer className="spacer" />
+    </>
   );
 }
 
@@ -121,6 +116,6 @@ function CategoryBountyLoader({ jobId }: { jobId: bigint }) {
     query: { refetchInterval: 8_000 },
   });
 
-  if (!meta) return <div className="h-24 bg-gray-900 border border-gray-800 rounded-xl animate-pulse" />;
+  if (!meta) return <div className="row" style={{ height: 92, opacity: 0.5 }} />;
   return <BountyCard meta={meta as BountyMeta} />;
 }

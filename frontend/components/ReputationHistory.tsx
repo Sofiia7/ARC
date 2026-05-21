@@ -14,42 +14,88 @@ export function ReputationHistory({ agentId }: Props) {
   });
 
   if (isLoading) {
-    return <div className="h-24 bg-gray-800 rounded-xl animate-pulse" />;
+    return <div className="row" style={{ height: 96, opacity: 0.5 }} />;
   }
-
   if (!rep) return null;
 
-  const score = Number(rep.averageScore);
-  const jobs  = Number(rep.totalJobs);
+  const score     = Number(rep.averageScore);
+  const jobs      = Number(rep.totalJobs);
   const feedbacks = Number(rep.totalFeedbacks);
 
-  // Visual score bar
   const barColor =
-    score >= 90 ? "bg-green-500"
-    : score >= 70 ? "bg-yellow-500"
-    : "bg-red-500";
+    score >= 90 ? "var(--green)"
+    : score >= 70 ? "var(--yellow)"
+    : "var(--rose)";
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
-      <h3 className="text-sm font-semibold text-gray-300">On-chain Reputation (ERC-8004)</h3>
+    <div
+      style={{
+        padding: "16px 18px",
+        borderRadius: 14,
+        background: "var(--g-bg)",
+        border: "1px solid var(--g-border)",
+        backdropFilter: "var(--g-blur)",
+        WebkitBackdropFilter: "var(--g-blur)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <h3
+        style={{
+          margin: 0,
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: 11,
+          letterSpacing: "0.22em",
+          textTransform: "uppercase",
+          color: "var(--ink-mute)",
+        }}
+      >
+        On-chain Reputation (ERC-8004)
+      </h3>
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1 bg-gray-800 rounded-full h-2">
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div
+          style={{
+            flex: 1,
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: 999,
+            height: 8,
+            overflow: "hidden",
+          }}
+        >
           <div
-            className={`h-2 rounded-full transition-all ${barColor}`}
-            style={{ width: `${score}%` }}
+            style={{
+              height: 8,
+              borderRadius: 999,
+              width: `${score}%`,
+              background: barColor,
+              transition: "width 240ms ease",
+              boxShadow: `0 0 12px ${barColor}66`,
+            }}
           />
         </div>
-        <span className="text-sm font-bold w-12 text-right">{score}/100</span>
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: "var(--ink)",
+            minWidth: 56,
+            textAlign: "right",
+            fontFeatureSettings: '"tnum"',
+          }}
+        >
+          {score}/100
+        </span>
       </div>
 
-      <div className="flex gap-6 text-sm text-gray-400">
-        <div>
-          <span className="text-white font-semibold">{jobs}</span> jobs completed
-        </div>
-        <div>
-          <span className="text-white font-semibold">{feedbacks}</span> feedbacks
-        </div>
+      <div style={{ display: "flex", gap: 24, fontSize: 13, color: "var(--ink-soft)" }}>
+        <span>
+          <span style={{ color: "var(--ink)", fontWeight: 700 }}>{jobs}</span> jobs completed
+        </span>
+        <span>
+          <span style={{ color: "var(--ink)", fontWeight: 700 }}>{feedbacks}</span> feedbacks
+        </span>
       </div>
     </div>
   );

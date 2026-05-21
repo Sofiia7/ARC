@@ -12,8 +12,6 @@ import { IPFSMarkdownClient } from "./IPFSMarkdownClient";
 import { FileAttacher } from "./FileAttacher";
 import type { BountyMeta } from "./BountyCard";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-
 type Role = "poster" | "provider" | "arbitrator" | "observer";
 
 function roleFor(address: string | undefined, meta: BountyMeta, arbitrator: string | undefined): Role {
@@ -61,7 +59,6 @@ export function DisputePanel({
   const hoursLeft = Math.floor(secondsLeft / 3600);
   const minutesLeft = Math.floor((secondsLeft % 3600) / 60);
 
-  // ─── Response form (visible to the respondent when no response yet) ─────────
   const canRespond = role === respondentRole && !hasResponse && !windowClosed && !meta.resolved;
   const [respText, setRespText] = useState("");
   const respRef = useRef<HTMLTextAreaElement>(null);
@@ -108,7 +105,6 @@ export function DisputePanel({
     await refetch();
   }
 
-  // ─── Arbitrator ruling form ─────────────────────────────────────────────────
   const canRule = role === "arbitrator" && !meta.resolved && (hasResponse || windowClosed);
   const [rulingText, setRulingText] = useState("");
   const [rulingPayProvider, setRulingPayProvider] = useState(true);
@@ -160,7 +156,6 @@ export function DisputePanel({
     await refetch();
   }
 
-  // ─── Default ruling (anyone, after window closed, no response) ──────────────
   const canClaimDefault = !meta.resolved && !hasResponse && windowClosed;
   async function handleDefaultRuling() {
     await send(
@@ -175,17 +170,17 @@ export function DisputePanel({
     await refetch();
   }
 
-  const initiatorLabel = initiatorIsPoster ? "Poster" : initiatorIsProvider ? "Provider" : "?";
+  const initiatorLabel  = initiatorIsPoster ? "Poster" : initiatorIsProvider ? "Provider" : "?";
   const respondentLabel = initiatorIsPoster ? "Provider" : "Poster";
 
   return (
-    <div className="border border-red-900/50 bg-red-950/20 rounded-xl p-5 mb-6 space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-red-300 uppercase tracking-widest">
-          {meta.resolved ? "Dispute — Resolved" : "Dispute — In progress"}
-        </h2>
+    <div className="panel danger">
+      <div className="panel-head">
+        <span className="title">
+          {meta.resolved ? "Dispute — Resolved" : "Dispute — In Progress"}
+        </span>
         {!meta.resolved && (
-          <span className="text-xs text-red-300/80 font-mono">
+          <span className="meta">
             {hasResponse
               ? "Awaiting arbitrator ruling"
               : windowClosed
@@ -195,135 +190,134 @@ export function DisputePanel({
         )}
       </div>
 
-      {/* Two-column layout: claim vs response */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Initiator claim */}
-        <div className="bg-black/30 border border-white/10 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-widest">
-              {initiatorLabel}&apos;s claim
-            </h3>
-            <span className="text-xs text-gray-500 font-mono">{shortAddress(meta.disputeInitiator)}</span>
+      {/* Two-column claim vs response */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div className="sub-card">
+          <div className="sub-card-head">
+            <span className="label">{initiatorLabel}&apos;s claim</span>
+            <span className="addr">{shortAddress(meta.disputeInitiator)}</span>
           </div>
-          <div className="text-sm">
-            <IPFSMarkdownClient cid={meta.disputeReasonHash} />
-          </div>
+          <IPFSMarkdownClient cid={meta.disputeReasonHash} />
         </div>
 
-        {/* Respondent reply */}
-        <div className="bg-black/30 border border-white/10 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-widest">
-              {respondentLabel}&apos;s response
-            </h3>
+        <div className="sub-card">
+          <div className="sub-card-head">
+            <span className="label">{respondentLabel}&apos;s response</span>
             {hasResponse && (
-              <span className="text-xs text-gray-500 font-mono">
+              <span className="addr">
                 {shortAddress(initiatorIsPoster ? meta.assignedProvider : meta.poster)}
               </span>
             )}
           </div>
           {hasResponse ? (
-            <div className="text-sm">
-              <IPFSMarkdownClient cid={meta.disputeResponseHash} />
-            </div>
+            <IPFSMarkdownClient cid={meta.disputeResponseHash} />
           ) : canRespond ? (
-            <div className="space-y-2">
-              <p className="text-xs text-gray-400">
+            <>
+              <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "0 0 8px", lineHeight: 1.5 }}>
                 You are the {respondentLabel.toLowerCase()}. Make your case — text + files are pinned to IPFS.
               </p>
               <textarea
                 ref={respRef}
+                className="textarea"
                 value={respText}
                 onChange={e => setRespText(e.target.value)}
                 placeholder="Explain your side of the dispute…"
-                rows={6}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm font-mono resize-none focus:outline-none focus:border-blue-500"
+                style={{ minHeight: 140 }}
               />
-              <FileAttacher onPinned={(snippet) => insertIntoResp(snippet)} />
+              <div style={{ marginTop: 10 }}>
+                <FileAttacher onPinned={(snippet) => insertIntoResp(snippet)} />
+              </div>
               <button
+                type="button"
                 onClick={handleSubmitResponse}
                 disabled={!respText.trim()}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+                className="btn btn-primary btn-big"
+                style={{ marginTop: 12 }}
               >
                 Submit response
               </button>
-            </div>
+            </>
           ) : windowClosed ? (
-            <p className="text-xs text-gray-500 italic">
+            <p style={{ fontSize: 12, color: "var(--ink-mute)", fontStyle: "italic", margin: 0 }}>
               {respondentLabel} did not respond within the 48h window.
             </p>
           ) : role === respondentRole ? (
-            <p className="text-xs text-gray-500 italic">…</p>
+            <p style={{ fontSize: 12, color: "var(--ink-mute)", fontStyle: "italic", margin: 0 }}>…</p>
           ) : (
-            <p className="text-xs text-gray-500 italic">Awaiting {respondentLabel.toLowerCase()}&apos;s response.</p>
+            <p style={{ fontSize: 12, color: "var(--ink-mute)", fontStyle: "italic", margin: 0 }}>
+              Awaiting {respondentLabel.toLowerCase()}&apos;s response.
+            </p>
           )}
         </div>
       </div>
 
-      {/* Arbitrator ruling — show when resolved, or arbitrator-input form */}
+      {/* Ruling — once resolved */}
       {meta.resolved && (
-        <div className="bg-black/30 border border-white/10 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-widest">Arbitrator ruling</h3>
-            <span className="text-xs text-gray-500 font-mono">{arbitrator && shortAddress(arbitrator)}</span>
+        <div className="sub-card">
+          <div className="sub-card-head">
+            <span className="label">Arbitrator ruling</span>
+            <span className="addr">{arbitrator && shortAddress(arbitrator)}</span>
           </div>
           {meta.disputeRulingHash === "default:no-response" ? (
-            <p className="text-sm text-gray-300">
+            <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: 0 }}>
               Default ruling — {respondentLabel} did not respond within 48h, funds awarded to {initiatorLabel.toLowerCase()}.
             </p>
           ) : (
-            <div className="text-sm">
-              <IPFSMarkdownClient cid={meta.disputeRulingHash} />
-            </div>
+            <IPFSMarkdownClient cid={meta.disputeRulingHash} />
           )}
         </div>
       )}
 
+      {/* Arbitrator ruling form */}
       {canRule && (
-        <div className="bg-black/30 border border-yellow-900/50 rounded-lg p-4 space-y-3">
-          <h3 className="text-xs font-semibold text-yellow-300 uppercase tracking-widest">
-            Arbitrator: cast ruling
-          </h3>
+        <div className="sub-card" style={{ borderColor: "rgba(255,205,140,0.32)" }}>
+          <div className="sub-card-head">
+            <span className="label" style={{ color: "var(--honey)" }}>Arbitrator: cast ruling</span>
+          </div>
           {!hasResponse && windowClosed && (
-            <p className="text-xs text-amber-300/80">
+            <p style={{ fontSize: 12, color: "var(--honey)", margin: "0 0 10px", lineHeight: 1.5 }}>
               No response received within 48h. You may resolve in favor of the initiator,
               or anyone can trigger the default ruling below.
             </p>
           )}
           <textarea
             ref={rulingRef}
+            className="textarea"
             value={rulingText}
             onChange={e => setRulingText(e.target.value)}
             placeholder="Ruling notes — required. Reference both sides' arguments."
-            rows={5}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-sm font-mono resize-none focus:outline-none focus:border-yellow-500"
+            style={{ minHeight: 120 }}
           />
-          <FileAttacher onPinned={(snippet) => insertIntoRuling(snippet)} />
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center gap-2 text-sm">
+          <div style={{ marginTop: 10 }}>
+            <FileAttacher onPinned={(snippet) => insertIntoRuling(snippet)} />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-soft)", cursor: "pointer" }}>
               <input
                 type="radio"
                 name="ruling"
                 checked={rulingPayProvider}
                 onChange={() => setRulingPayProvider(true)}
-                className="accent-green-500"
+                style={{ accentColor: "var(--green)" }}
               />
               Pay provider
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-soft)", cursor: "pointer" }}>
               <input
                 type="radio"
                 name="ruling"
                 checked={!rulingPayProvider}
                 onChange={() => setRulingPayProvider(false)}
-                className="accent-red-500"
+                style={{ accentColor: "var(--rose)" }}
               />
               Refund poster
             </label>
           </div>
+
           {!rulingPayProvider && meta.agentId > 0n && (
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">
+            <div style={{ marginTop: 12 }}>
+              <label className="form-label">
                 Reputation penalty for agent (0–100)
               </label>
               <input
@@ -332,29 +326,30 @@ export function DisputePanel({
                 max="100"
                 value={rulingPenalty}
                 onChange={e => setRulingPenalty(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-yellow-500"
+                className="input"
               />
             </div>
           )}
+
           <button
+            type="button"
             onClick={handleResolve}
             disabled={!rulingText.trim()}
-            className="w-full bg-yellow-600 hover:bg-yellow-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+            className="btn btn-primary btn-big"
+            style={{ marginTop: 14 }}
           >
             Resolve dispute
           </button>
         </div>
       )}
 
+      {/* Default ruling — anyone after window closed */}
       {canClaimDefault && (
-        <div className="bg-black/30 border border-orange-900/50 rounded-lg p-4 text-sm space-y-2">
-          <p className="text-orange-300">
+        <div className="sub-card" style={{ borderColor: "rgba(255,179,106,0.32)" }}>
+          <p style={{ color: "var(--amber)", fontSize: 13, margin: "0 0 10px", lineHeight: 1.5 }}>
             48h passed with no response — anyone can apply the default ruling in favor of {initiatorLabel.toLowerCase()}.
           </p>
-          <button
-            onClick={handleDefaultRuling}
-            className="w-full bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
-          >
+          <button type="button" onClick={handleDefaultRuling} className="btn btn-primary btn-big">
             Claim default ruling
           </button>
         </div>
