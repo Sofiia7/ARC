@@ -30,48 +30,60 @@ export default function MyPage() {
   });
 
   if (!isConnected) {
-    return <div className="text-center py-20 text-gray-400">Connect your wallet to see your tasks.</div>;
+    return (
+      <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-mute)" }}>
+        Connect your wallet to see your tasks.
+      </div>
+    );
   }
 
   const activeIds = tab === "posted" ? postedIds : assignedIds;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">My Tasks</h1>
+    <>
+      <header className="page-head">
+        <h1>My Tasks</h1>
+      </header>
 
-      <div className="flex gap-1 mb-6 bg-gray-900 rounded-xl p-1 w-fit border border-gray-800">
-        {(["posted", "assigned"] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors capitalize
-              ${tab === t ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"}`}
-          >
-            {t === "posted" ? "Posted by me" : "Assigned to me"}
-          </button>
-        ))}
+      <div className="seg">
+        <button
+          type="button"
+          className={tab === "posted" ? "active" : undefined}
+          onClick={() => setTab("posted")}
+        >
+          Posted By Me
+        </button>
+        <button
+          type="button"
+          className={tab === "assigned" ? "active" : undefined}
+          onClick={() => setTab("assigned")}
+        >
+          Assigned To Me
+        </button>
       </div>
 
       {!activeIds || activeIds.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <div className="text-4xl mb-3">📭</div>
-          <p className="mb-4">
+        <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-soft)", marginTop: 24 }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+          <p style={{ marginBottom: 16 }}>
             {tab === "posted" ? "You haven't posted any bounties yet." : "You haven't taken any bounties yet."}
           </p>
           {tab === "posted" && (
-            <Link href="/post" className="text-blue-400 hover:text-blue-300 text-sm underline">
+            <Link href="/post" style={{ color: "var(--honey)", textDecoration: "underline", fontSize: 14 }}>
               Post your first bounty →
             </Link>
           )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="list" style={{ marginTop: 24 }}>
           {activeIds.map(jobId => (
             <MyBountyLoader key={jobId.toString()} jobId={jobId} />
           ))}
         </div>
       )}
-    </div>
+
+      <footer className="spacer" />
+    </>
   );
 }
 
@@ -83,6 +95,6 @@ function MyBountyLoader({ jobId }: { jobId: bigint }) {
     args: [jobId],
   });
 
-  if (!meta) return <div className="h-24 bg-gray-900 border border-gray-800 rounded-xl animate-pulse" />;
+  if (!meta) return <div className="row" style={{ height: 92, opacity: 0.5 }} />;
   return <BountyCard meta={meta as BountyMeta} />;
 }

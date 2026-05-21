@@ -17,14 +17,33 @@ import { useBountyMeta } from "@/hooks/useBountyMeta";
 import { useTx } from "@/hooks/useTx";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const KNOWN_CATS = new Set(["dev", "design", "content", "data", "other"]);
+
+type StatusKind = "open" | "submitted" | "in-review" | "paid" | "expired";
+
+function statusOf(meta: {
+  isTaken: boolean;
+  submittedResultHash: string;
+  inDispute: boolean;
+  resolved: boolean;
+  rejectedAt: bigint;
+}, expired: boolean): { kind: StatusKind; label: string } {
+  if (meta.inDispute) return { kind: "in-review", label: "In Dispute" };
+  if (meta.resolved) return { kind: "paid", label: "Resolved" };
+  if (meta.rejectedAt > 0n) return { kind: "submitted", label: "Pending Rejection" };
+  if (meta.submittedResultHash) return { kind: "submitted", label: "Submitted" };
+  if (meta.isTaken) return { kind: "in-review", label: "Assigned" };
+  if (expired) return { kind: "expired", label: "Expired" };
+  return { kind: "open", label: "Open" };
+}
 
 export default function BountyPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const { address } = useAccount();
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal]   = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [agentIdInput, setAgentIdInput] = useState("0");
+  const [showRejectModal, setShowRejectModal]   = useState(false);
+  const [agentIdInput, setAgentIdInput]         = useState("0");
 
   const jobIdBig = BigInt(jobId);
   const { meta, refetch } = useBountyMeta(jobIdBig);
@@ -32,20 +51,22 @@ export default function BountyPage() {
 
   if (!meta) {
     return (
-      <div className="max-w-3xl space-y-4">
-        <div className="h-12 bg-white/5 rounded-xl animate-pulse w-1/2" />
-        <div className="h-64 bg-white/5 border border-white/10 rounded-xl animate-pulse" />
+      <div style={{ maxWidth: 920, margin: "0 auto" }}>
+        <div className="row" style={{ height: 60, opacity: 0.5, marginBottom: 18 }} />
+        <div className="row" style={{ height: 280, opacity: 0.5 }} />
       </div>
     );
   }
 
   const { label: timeLeft, expired } = secondsToDeadline(meta.deadline);
-  const isPoster   = address?.toLowerCase() === meta.poster.toLowerCase();
-  const isProvider = address?.toLowerCase() === meta.assignedProvider.toLowerCase();
-  const isOpen     = !meta.isTaken;
-  const hasSubmission = meta.submittedResultHash.length > 0;
-  const inDispute = meta.inDispute || (meta.resolved && meta.disputeRulingHash.length > 0);
+  const isPoster        = address?.toLowerCase() === meta.poster.toLowerCase();
+  const isProvider      = address?.toLowerCase() === meta.assignedProvider.toLowerCase();
+  const isOpen          = !meta.isTaken;
+  const hasSubmission   = meta.submittedResultHash.length > 0;
+  const inDispute       = meta.inDispute || (meta.resolved && meta.disputeRulingHash.length > 0);
   const pendingRejection = meta.rejectedAt > 0n && !meta.resolved && !meta.inDispute;
+  const catClass        = KNOWN_CATS.has(meta.category) ? `cat-${meta.category}` : "cat-other";
+  const status          = statusOf(meta, expired);
 
   async function handleTake() {
     await send(
@@ -99,200 +120,212 @@ export default function BountyPage() {
     await refetch();
   }
 
-  // Whitelist gate for take button
   const whitelisted = meta.whitelistedProvider !== ZERO_ADDRESS;
   const isWhitelistedCaller = address && whitelisted && address.toLowerCase() === meta.whitelistedProvider.toLowerCase();
   const canTake = isOpen && !isPoster && !expired && !meta.resolved && (!whitelisted || isWhitelistedCaller);
 
   return (
-    <div className="max-w-3xl">
-      <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-        <Link href="/" className="hover:text-white transition-colors">Browse</Link>
-        <span>/</span>
-        <Link href={`/category/${meta.category}`} className="hover:text-white transition-colors capitalize">
-          {meta.category}
-        </Link>
-        <span>/</span>
-        <span className="text-gray-300">#{jobId}</span>
-      </div>
+    <div style={{ maxWidth: 920, margin: "0 auto" }}>
+      {/* Breadcrumb */}
+      <nav className="breadcrumb" aria-label="Breadcrumb">
+        <Link href="/">Browse</Link>
+        <span className="sep">/</span>
+        <Link href={`/category/${meta.category}`} style={{ textTransform: "capitalize" }}>{meta.category}</Link>
+        <span className="sep">/</span>
+        <span className="current">#{jobId}</span>
+      </nav>
 
-      <div className="flex items-start justify-between gap-4 mb-6">
+      {/* Head */}
+      <header className="bounty-head">
         <div>
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <Link href={`/category/${meta.category}`}>
-              <span className="text-xs px-2 py-0.5 rounded-full border border-white/20 text-gray-200 hover:border-white/40 capitalize cursor-pointer transition-colors">
-                {meta.category}
-              </span>
-            </Link>
-            {meta.agentOnly && (
-              <span className="text-xs px-2 py-0.5 rounded-full border border-violet-700 bg-violet-900/50 text-violet-300">
-                Agent only
-              </span>
-            )}
-            {meta.humanOnly && (
-              <span className="text-xs px-2 py-0.5 rounded-full border border-orange-700 bg-orange-900/40 text-orange-300">
-                Human only
-              </span>
-            )}
-            <StatusBadge meta={meta} expired={expired} />
+          <div className="top-line">
+            <span className={`tag ${catClass}`}>{meta.category}</span>
+            {meta.agentOnly && <span className="tag agent-only">Agent only</span>}
+            {meta.humanOnly && <span className="tag human-only">Human only</span>}
+            <span className={`status ${status.kind}`}>{status.label}</span>
           </div>
-          <h1 className="text-2xl font-bold">Bounty #{jobId}</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Posted by <span className="font-mono text-gray-200">{shortAddress(meta.poster)}</span>
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="text-3xl font-bold text-green-300 drop-shadow">${formatUsdc(meta.reward)}</div>
-          <div className={`text-sm mt-1 font-mono ${expired ? "text-red-300" : "text-gray-300"}`}>
-            {timeLeft}
+          <h1>Bounty #{jobId}</h1>
+          <div className="posted-by">
+            Posted by <code>{shortAddress(meta.poster)}</code>
           </div>
+          {meta.tags.length > 0 && (
+            <div className="subtags">
+              {meta.tags.map(tag => (
+                <span key={tag} className="subtag">{tag}</span>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-
-      {meta.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {meta.tags.map(tag => (
-            <span key={tag} className="text-xs text-gray-200 bg-white/5 border border-white/10 px-2 py-1 rounded">{tag}</span>
-          ))}
+        <div className="bounty-price">
+          <div className="price">${formatUsdc(meta.reward)}</div>
+          <div className="time">{timeLeft}</div>
         </div>
-      )}
+      </header>
 
-      <div className="glass rounded-xl p-6 mb-6">
-        <h2 className="text-xs font-semibold text-gray-300 mb-3 uppercase tracking-widest">Description</h2>
+      {/* Description */}
+      <section className="desc-card">
+        <div className="label">Description</div>
         <IPFSMarkdownClient cid={meta.ipfsDescHash} />
-      </div>
+      </section>
 
+      {/* Agent badge */}
       {meta.agentId > 0n && (
-        <div className="mb-6"><AgentBadge agentId={meta.agentId} /></div>
-      )}
-
-      {!isOpen && (
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 mb-6 text-sm">
-          <span className="text-gray-300">Assigned to: </span>
-          <span className="font-mono text-white">{shortAddress(meta.assignedProvider)}</span>
+        <div style={{ marginTop: 18 }}>
+          <AgentBadge agentId={meta.agentId} />
         </div>
       )}
 
+      {/* Assignment info */}
+      {!isOpen && (
+        <div
+          style={{
+            marginTop: 18,
+            padding: "12px 18px",
+            borderRadius: 14,
+            background: "var(--g-bg)",
+            border: "1px solid var(--g-border)",
+            backdropFilter: "var(--g-blur)",
+            WebkitBackdropFilter: "var(--g-blur)",
+            fontSize: 13,
+            color: "var(--ink-soft)",
+          }}
+        >
+          <span style={{ color: "var(--ink-mute)" }}>Assigned to: </span>
+          <code style={{ fontFamily: '"JetBrains Mono", monospace', color: "var(--ink)" }}>
+            {shortAddress(meta.assignedProvider)}
+          </code>
+        </div>
+      )}
+
+      {/* Submitted work */}
       {hasSubmission && (
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-widest">Submitted work</h2>
+        <section className="desc-card" style={{ marginTop: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <span className="label" style={{ marginBottom: 0 }}>Submitted work</span>
             <a
               href={`https://ipfs.io/ipfs/${meta.submittedResultHash.replace("ipfs://", "")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-gray-400 hover:text-gray-200 underline font-mono"
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: 11,
+                color: "var(--ink-mute)",
+                textDecoration: "underline",
+              }}
             >
               raw ↗
             </a>
           </div>
           <IPFSMarkdownClient cid={meta.submittedResultHash} />
+        </section>
+      )}
+
+      {/* Dispute panel — unchanged component */}
+      {inDispute && (
+        <div style={{ marginTop: 22 }}>
+          <DisputePanel meta={meta} address={address} refetch={refetch} />
         </div>
       )}
 
-      {/* Dispute panel — visible to everyone once a dispute exists */}
-      {inDispute && (
-        <DisputePanel meta={meta} address={address} refetch={refetch} />
-      )}
-
-      {/* Pending-rejection panel */}
+      {/* Pending rejection panel — unchanged component */}
       {pendingRejection && (
-        <PendingRejectionPanel meta={meta} address={address} refetch={refetch} />
+        <div style={{ marginTop: 22 }}>
+          <PendingRejectionPanel meta={meta} address={address} refetch={refetch} />
+        </div>
       )}
 
-      {/* Actions — hidden once dispute is open / rejection pending */}
+      {/* Action bar */}
       {!meta.inDispute && !meta.resolved && !pendingRejection && (
-        <div className="space-y-3">
+        <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 12 }}>
           {canTake && (
-            <div className="space-y-2">
+            <>
               {meta.agentOnly && (
                 <input
+                  className="input"
                   type="text"
                   placeholder="Your ERC-8004 Agent ID"
                   value={agentIdInput}
                   onChange={e => setAgentIdInput(e.target.value)}
-                  className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400"
                 />
               )}
-              <button
-                onClick={handleTake}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors"
-              >
+              <button onClick={handleTake} className="btn btn-primary btn-big">
                 Take this Bounty
               </button>
-            </div>
+            </>
           )}
 
           {!canTake && isOpen && whitelisted && !isWhitelistedCaller && !isPoster && (
-            <div className="text-sm text-gray-300 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+            <div
+              style={{
+                padding: "12px 18px",
+                borderRadius: 14,
+                background: "var(--g-bg)",
+                border: "1px solid var(--g-border)",
+                backdropFilter: "var(--g-blur)",
+                WebkitBackdropFilter: "var(--g-blur)",
+                fontSize: 13,
+                color: "var(--ink-soft)",
+              }}
+            >
               This bounty is whitelisted to {shortAddress(meta.whitelistedProvider)} — only that wallet can take it.
             </div>
           )}
 
           {isProvider && !hasSubmission && !expired && (
-            <button
-              onClick={() => setShowSubmitModal(true)}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors"
-            >
+            <button onClick={() => setShowSubmitModal(true)} className="btn btn-primary btn-big">
               Submit Work
             </button>
           )}
 
           {isPoster && hasSubmission && (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleApprove}
-                  className="bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition-colors"
-                >
+            <>
+              <div className="action-bar">
+                <button onClick={handleApprove} className="btn btn-primary btn-big">
                   Approve &amp; Pay
                 </button>
-                <button
-                  onClick={() => setShowRejectModal(true)}
-                  className="bg-red-800 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors"
-                >
+                <button onClick={() => setShowRejectModal(true)} className="btn btn-danger btn-big">
                   Reject
                 </button>
               </div>
               <button
                 onClick={() => setShowDisputeModal(true)}
-                title="Hand the decision to a third-party arbitrator instead of approving/rejecting yourself. Rare — usually you just Approve or Reject."
-                className="w-full text-xs text-gray-400 hover:text-gray-200 underline underline-offset-2 py-1 transition-colors"
+                title="Hand the decision to a third-party arbitrator instead of approving/rejecting yourself."
+                style={{
+                  appearance: "none",
+                  background: "transparent",
+                  border: 0,
+                  color: "var(--ink-mute)",
+                  fontSize: 12,
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  padding: "4px 0",
+                }}
               >
                 Escalate to arbitrator instead →
               </button>
-            </div>
+            </>
           )}
 
           {isProvider && hasSubmission && (
-            <div className="space-y-2">
-              <button
-                onClick={() => setShowDisputeModal(true)}
-                className="w-full bg-red-900/80 hover:bg-red-800 border border-red-700 text-red-100 font-semibold py-3 rounded-xl transition-colors"
-              >
+            <>
+              <button onClick={() => setShowDisputeModal(true)} className="btn btn-danger btn-big">
                 Open dispute
               </button>
-              <p className="text-xs text-gray-400 px-1">
+              <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: 0, lineHeight: 1.5 }}>
                 Use this if you think the poster will reject your work unfairly, or hasn&apos;t responded.
                 Opening a dispute blocks unilateral approve/reject — an arbitrator decides instead.
               </p>
-            </div>
+            </>
           )}
 
           {isPoster && isOpen && (
-            <button
-              onClick={handleCancel}
-              className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 py-3 rounded-xl transition-colors text-sm"
-            >
+            <button onClick={handleCancel} className="btn">
               Cancel Bounty
             </button>
           )}
 
           {expired && !hasSubmission && (
-            <button
-              onClick={handleExpire}
-              className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 py-3 rounded-xl transition-colors text-sm"
-            >
+            <button onClick={handleExpire} className="btn">
               Trigger Expiry (return USDC to poster)
             </button>
           )}
@@ -300,10 +333,24 @@ export default function BountyPage() {
       )}
 
       {meta.resolved && !inDispute && (
-        <div className="bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-gray-200">
+        <div
+          style={{
+            marginTop: 22,
+            padding: "12px 18px",
+            borderRadius: 14,
+            background: "rgba(10,14,28,0.42)",
+            border: "1px solid var(--g-border)",
+            backdropFilter: "var(--g-blur)",
+            WebkitBackdropFilter: "var(--g-blur)",
+            fontSize: 13,
+            color: "var(--ink-soft)",
+          }}
+        >
           This bounty has been resolved.
         </div>
       )}
+
+      <footer className="spacer" />
 
       {showSubmitModal && (
         <WorkSubmitModal
@@ -328,32 +375,4 @@ export default function BountyPage() {
       )}
     </div>
   );
-}
-
-function StatusBadge({
-  meta,
-  expired,
-}: {
-  meta: { isTaken: boolean; submittedResultHash: string; inDispute: boolean; resolved: boolean; rejectedAt: bigint };
-  expired: boolean;
-}) {
-  if (meta.inDispute) {
-    return <span className="text-xs font-semibold text-red-300 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />In dispute</span>;
-  }
-  if (meta.resolved) {
-    return <span className="text-xs font-semibold text-gray-300">Resolved</span>;
-  }
-  if (meta.rejectedAt > 0n) {
-    return <span className="text-xs font-semibold text-amber-200 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse inline-block" />Pending rejection</span>;
-  }
-  if (meta.submittedResultHash) {
-    return <span className="text-xs font-semibold text-yellow-300 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block" />Submitted</span>;
-  }
-  if (meta.isTaken) {
-    return <span className="text-xs font-semibold text-blue-300 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />Assigned</span>;
-  }
-  if (expired) {
-    return <span className="text-xs font-semibold text-red-300">Expired</span>;
-  }
-  return <span className="text-xs font-semibold text-green-300 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block" />Open</span>;
 }

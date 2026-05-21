@@ -7,6 +7,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI, ERC20_ABI, CATEGORIES, type Category } f
 import { parseUsdc } from "@/lib/format";
 import { pinText } from "@/lib/ipfs";
 import { FileAttacher } from "@/components/FileAttacher";
+import { GlassSelect } from "@/components/GlassSelect";
 
 type Step = "idle" | "pinning" | "approving" | "creating" | "done";
 
@@ -16,6 +17,22 @@ export default function PostPage() {
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [form, setForm] = useState({
+    description: "",
+    category:    "dev" as Category,
+    tags:        "",
+    reward:      "",
+    days:        "7",
+    agentOnly:   false,
+    humanOnly:   false,
+  });
+  const [step, setStep]   = useState<Step>("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
+    setForm(f => ({ ...f, [key]: value }));
+  }
 
   function insertIntoDescription(snippet: string) {
     setForm(f => {
@@ -36,20 +53,11 @@ export default function PostPage() {
     });
   }
 
-  const [form, setForm] = useState({
-    description: "",
-    category:    "dev" as Category,
-    tags:        "",
-    reward:      "",
-    days:        "7",
-    agentOnly:   false,
-    humanOnly:   false,
-  });
-  const [step, setStep]   = useState<Step>("idle");
-  const [error, setError] = useState<string | null>(null);
-
-  function set(key: keyof typeof form, value: string | boolean) {
-    setForm(f => ({ ...f, [key]: value }));
+  function toggleAgentOnly() {
+    setForm(f => ({ ...f, agentOnly: !f.agentOnly, humanOnly: !f.agentOnly ? false : f.humanOnly }));
+  }
+  function toggleHumanOnly() {
+    setForm(f => ({ ...f, humanOnly: !f.humanOnly, agentOnly: !f.humanOnly ? false : f.agentOnly }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -97,7 +105,6 @@ export default function PostPage() {
       }
 
       setStep("done");
-      // Navigate to home after short delay
       setTimeout(() => router.push("/"), 1500);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -113,79 +120,79 @@ export default function PostPage() {
     creating:  "Creating bounty (tx 2/2)…",
     done:      "Posted! Redirecting…",
   };
-
   const busy = step !== "idle" && step !== "done";
 
   if (!isConnected) {
     return (
-      <div className="text-center py-20 text-gray-400">
+      <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-mute)" }}>
         Connect your wallet to post a bounty.
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">Post a Bounty</h1>
+    <div style={{ maxWidth: 820, margin: "0 auto" }}>
+      <header className="page-head">
+        <h1>Post a Bounty</h1>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form className="form-card" onSubmit={handleSubmit}>
         {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1.5">
-            Description (Markdown)
+        <div className="form-row">
+          <label className="form-label" htmlFor="desc">
+            Description <span className="hint">(Markdown)</span>
           </label>
           <textarea
             ref={textareaRef}
+            id="desc"
+            className="textarea"
             value={form.description}
             onChange={e => set("description", e.target.value)}
             placeholder="Describe the task clearly. Include acceptance criteria."
-            rows={10}
             required
-            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-4 text-sm resize-none
-                       focus:outline-none focus:border-blue-500 font-mono"
           />
-          <div className="mt-2">
-            <FileAttacher onPinned={(snippet) => insertIntoDescription(snippet)} />
-          </div>
+        </div>
+
+        {/* File attach */}
+        <div className="form-row">
+          <FileAttacher onPinned={(snippet) => insertIntoDescription(snippet)} />
         </div>
 
         {/* Category + Tags */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Category</label>
-            <select
+        <div className="form-grid-2">
+          <div className="form-row">
+            <label className="form-label">Category</label>
+            <GlassSelect
               value={form.category}
-              onChange={e => set("category", e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
-                         focus:outline-none focus:border-blue-500"
-            >
-              {CATEGORIES.map(c => (
-                <option key={c} value={c} className="capitalize">{c}</option>
-              ))}
-            </select>
+              onChange={(v) => set("category", v as Category)}
+              options={CATEGORIES}
+              ariaLabel="Category"
+            />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              Tags <span className="text-gray-500">(comma-separated)</span>
+          <div className="form-row">
+            <label className="form-label" htmlFor="tags">
+              Tags <span className="hint">(comma-separated)</span>
             </label>
             <input
+              id="tags"
+              className="input"
               type="text"
               value={form.tags}
               onChange={e => set("tags", e.target.value)}
               placeholder="solidity, arc, typescript"
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
-                         focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
 
         {/* Reward + Deadline */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              Reward (USDC) <span className="text-gray-500">min $1</span>
+        <div className="form-grid-2">
+          <div className="form-row">
+            <label className="form-label" htmlFor="reward">
+              Reward (USDC) <span className="hint">min $1</span>
             </label>
             <input
+              id="reward"
+              className="input"
               type="number"
               min="1"
               step="0.01"
@@ -193,75 +200,68 @@ export default function PostPage() {
               onChange={e => set("reward", e.target.value)}
               placeholder="50"
               required
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
-                         focus:outline-none focus:border-blue-500"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Deadline (days)</label>
+          <div className="form-row">
+            <label className="form-label" htmlFor="days">Deadline (days)</label>
             <input
+              id="days"
+              className="input"
               type="number"
               min="1"
               max="90"
+              step="1"
               value={form.days}
               onChange={e => set("days", e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm
-                         focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
 
-        {/* Agent only / Human only toggles (mutually exclusive) */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={form.agentOnly}
-              disabled={form.humanOnly}
-              onChange={e => set("agentOnly", e.target.checked)}
-              className="accent-violet-500 w-4 h-4 disabled:opacity-40"
-            />
-            <div>
-              <span className="text-sm font-medium">Agent only</span>
-              <span className="ml-2 text-xs text-gray-500">Only ERC-8004 registered AI agents can take this bounty</span>
+        {/* Audience */}
+        <div className="form-row" style={{ gap: 10 }}>
+          <div className="checkbox-row" data-on={form.agentOnly} onClick={toggleAgentOnly} role="button">
+            <span className="check" />
+            <div className="body">
+              <div className="name">Agent only</div>
+              <div className="desc">Only ERC-8004 registered AI agents can take this bounty</div>
             </div>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={form.humanOnly}
-              disabled={form.agentOnly}
-              onChange={e => set("humanOnly", e.target.checked)}
-              className="accent-orange-400 w-4 h-4 disabled:opacity-40"
-            />
-            <div>
-              <span className="text-sm font-medium">Human only</span>
-              <span className="ml-2 text-xs text-gray-500">Only EOA wallets (no agent ID) can take this bounty</span>
+          </div>
+          <div className="checkbox-row" data-on={form.humanOnly} onClick={toggleHumanOnly} role="button">
+            <span className="check" />
+            <div className="body">
+              <div className="name">Human only</div>
+              <div className="desc">Only EOA wallets (no agent ID) can take this bounty</div>
             </div>
-          </label>
+          </div>
         </div>
 
         {error && (
-          <div className="bg-red-900/30 border border-red-800 rounded-xl p-3 text-sm text-red-400">
+          <div
+            style={{
+              background: "rgba(255,90,75,0.10)",
+              border: "1px solid rgba(255,140,120,0.32)",
+              borderRadius: 12,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#FFC9BC",
+            }}
+          >
             {error}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500
-                     text-white font-semibold py-3 rounded-xl transition-colors disabled:cursor-not-allowed"
-        >
+        <button type="submit" disabled={busy} className="btn btn-primary btn-big">
           {STEP_LABELS[step]}
         </button>
 
         {busy && (
-          <p className="text-xs text-center text-gray-500">
+          <p style={{ fontSize: 12, textAlign: "center", color: "var(--ink-mute)", margin: 0 }}>
             This requires 2 transactions: USDC approval + bounty creation.
           </p>
         )}
       </form>
+
+      <footer className="spacer" />
     </div>
   );
 }
