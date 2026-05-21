@@ -6,6 +6,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { useTx } from "@/hooks/useTx";
 import { pinText } from "@/lib/ipfs";
 import { FileAttacher } from "./FileAttacher";
+import { AttachmentPreview } from "./AttachmentPreview";
 import { Modal } from "./Modal";
 
 type Props = {
@@ -88,6 +89,7 @@ export function RejectionProposeModal({ jobId, onSuccess, onClose }: Props) {
         placeholder="What's missing? What was promised vs delivered? Be specific."
       />
       <FileAttacher onPinned={(snippet) => insertSnippet(snippet)} />
+      <AttachmentPreview text={text} />
       <div className="modal-actions">
         <button type="button" onClick={onClose} className="btn">Cancel</button>
         <button

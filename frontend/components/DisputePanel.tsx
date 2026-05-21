@@ -10,6 +10,7 @@ import { shortAddress } from "@/lib/format";
 import { pinText } from "@/lib/ipfs";
 import { IPFSMarkdownClient } from "./IPFSMarkdownClient";
 import { FileAttacher } from "./FileAttacher";
+import { AttachmentPreview } from "./AttachmentPreview";
 import type { BountyMeta } from "./BountyCard";
 
 type Role = "poster" | "provider" | "arbitrator" | "observer";
@@ -227,6 +228,7 @@ export function DisputePanel({
               <div style={{ marginTop: 10 }}>
                 <FileAttacher onPinned={(snippet) => insertIntoResp(snippet)} />
               </div>
+              <AttachmentPreview text={respText} />
               <button
                 type="button"
                 onClick={handleSubmitResponse}
@@ -291,6 +293,7 @@ export function DisputePanel({
           <div style={{ marginTop: 10 }}>
             <FileAttacher onPinned={(snippet) => insertIntoRuling(snippet)} />
           </div>
+          <AttachmentPreview text={rulingText} />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-soft)", cursor: "pointer" }}>

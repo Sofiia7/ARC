@@ -281,5 +281,31 @@ export const ERC20_ABI = [
   },
 ] as const;
 
+export const IDENTITY_REGISTRY_ABI = [
+  {
+    name: "register", type: "function", stateMutability: "nonpayable",
+    inputs: [{ name: "metadataURI", type: "string" }],
+    outputs: [{ name: "agentId", type: "uint256" }],
+  },
+  {
+    name: "ownerOf", type: "function", stateMutability: "view",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "isRegistered", type: "function", stateMutability: "view",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "Transfer", type: "event",
+    inputs: [
+      { name: "from",    type: "address", indexed: true },
+      { name: "to",      type: "address", indexed: true },
+      { name: "tokenId", type: "uint256", indexed: true },
+    ],
+  },
+] as const;
+
 export const CATEGORIES = ["dev", "design", "content", "data", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];

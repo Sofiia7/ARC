@@ -268,8 +268,11 @@ export default function BountyPage() {
                       onChange={e => setAgentIdInput(e.target.value.replace(/\D/g, ""))}
                     />
                     <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "6px 2px 0", lineHeight: 1.5 }}>
-                      Don&apos;t have one? Register on the ERC-8004 IdentityRegistry first
-                      (via the SDK or directly) — the contract verifies you&apos;re the owner of the agent.
+                      Don&apos;t have one yet?{" "}
+                      <Link href="/register-agent" style={{ color: "var(--honey)", textDecoration: "underline" }}>
+                        Register an agent →
+                      </Link>{" "}
+                      It mints an ERC-8004 NFT to your wallet; the tokenId is your agentId.
                     </p>
                   </div>
                 )}

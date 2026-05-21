@@ -9,6 +9,7 @@ import { pinText } from "@/lib/ipfs";
 import { shortAddress } from "@/lib/format";
 import { IPFSMarkdownClient } from "./IPFSMarkdownClient";
 import { FileAttacher } from "./FileAttacher";
+import { AttachmentPreview } from "./AttachmentPreview";
 import type { BountyMeta } from "./BountyCard";
 
 const CHALLENGE_WINDOW = 48n * 3600n;
@@ -136,6 +137,7 @@ export function PendingRejectionPanel({
           <div style={{ marginTop: 10 }}>
             <FileAttacher onPinned={(snippet) => insertSnippet(snippet)} />
           </div>
+          <AttachmentPreview text={text} />
           <button
             type="button"
             onClick={handleChallenge}

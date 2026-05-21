@@ -6,6 +6,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { useTx } from "@/hooks/useTx";
 import { pinText } from "@/lib/ipfs";
 import { FileAttacher } from "./FileAttacher";
+import { AttachmentPreview } from "./AttachmentPreview";
 import { Modal } from "./Modal";
 
 type Props = {
@@ -82,6 +83,7 @@ export function DisputeOpenModal({ jobId, onSuccess, onClose }: Props) {
         placeholder="Explain why the submitted work does not (or does) meet the bounty requirements…"
       />
       <FileAttacher onPinned={(snippet) => insertSnippet(snippet)} />
+      <AttachmentPreview text={text} />
       <div className="modal-actions">
         <button type="button" onClick={onClose} className="btn">Cancel</button>
         <button

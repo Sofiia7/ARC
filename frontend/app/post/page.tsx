@@ -7,6 +7,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI, ERC20_ABI, CATEGORIES, type Category } f
 import { parseUsdc } from "@/lib/format";
 import { pinText } from "@/lib/ipfs";
 import { FileAttacher } from "@/components/FileAttacher";
+import { AttachmentPreview } from "@/components/AttachmentPreview";
 import { GlassSelect } from "@/components/GlassSelect";
 
 type Step = "idle" | "pinning" | "approving" | "creating" | "done";
@@ -156,6 +157,7 @@ export default function PostPage() {
         {/* File attach */}
         <div className="form-row">
           <FileAttacher onPinned={(snippet) => insertIntoDescription(snippet)} />
+          <AttachmentPreview text={form.description} />
         </div>
 
         {/* Category + Tags */}
