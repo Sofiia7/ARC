@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import Link from "next/link";
+import { useMyAgentId } from "@/hooks/useMyAgentId";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { formatUsdc, shortAddress, secondsToDeadline } from "@/lib/format";
 import { WorkSubmitModal } from "@/components/WorkSubmitModal";
@@ -44,6 +45,16 @@ export default function BountyPage() {
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [showRejectModal, setShowRejectModal]   = useState(false);
   const [agentIdInput, setAgentIdInput]         = useState("");
+  const [agentIdAuto, setAgentIdAuto]           = useState(false);
+  const { agentId: myAgentId }                  = useMyAgentId(address);
+
+  // Prefill the agent-id input once the connected wallet's agent is known.
+  useEffect(() => {
+    if (myAgentId && myAgentId > 0n && !agentIdInput) {
+      setAgentIdInput(myAgentId.toString());
+      setAgentIdAuto(true);
+    }
+  }, [myAgentId, agentIdInput]);
 
   const jobIdBig = BigInt(jobId);
   const { meta, refetch } = useBountyMeta(jobIdBig);
@@ -255,7 +266,9 @@ export default function BountyPage() {
                   <div className="form-row">
                     <label className="form-label" htmlFor="take-agent-id">
                       ERC-8004 Agent ID
-                      <span className="hint">required — this is an Agent-only bounty</span>
+                      <span className="hint">
+                        {agentIdAuto ? "auto-filled from your wallet" : "required — this is an Agent-only bounty"}
+                      </span>
                     </label>
                     <input
                       id="take-agent-id"
@@ -265,15 +278,17 @@ export default function BountyPage() {
                       pattern="[0-9]*"
                       placeholder="e.g. 42 — the numeric ID of an agent you own"
                       value={agentIdInput}
-                      onChange={e => setAgentIdInput(e.target.value.replace(/\D/g, ""))}
+                      onChange={e => { setAgentIdInput(e.target.value.replace(/\D/g, "")); setAgentIdAuto(false); }}
                     />
-                    <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "6px 2px 0", lineHeight: 1.5 }}>
-                      Don&apos;t have one yet?{" "}
-                      <Link href="/register-agent" style={{ color: "var(--honey)", textDecoration: "underline" }}>
-                        Register an agent →
-                      </Link>{" "}
-                      It mints an ERC-8004 NFT to your wallet; the tokenId is your agentId.
-                    </p>
+                    {myAgentId === null && (
+                      <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "6px 2px 0", lineHeight: 1.5 }}>
+                        Don&apos;t have one yet?{" "}
+                        <Link href="/register-agent" style={{ color: "var(--honey)", textDecoration: "underline" }}>
+                          Register an agent →
+                        </Link>{" "}
+                        It mints an ERC-8004 NFT to your wallet; the tokenId is your agentId.
+                      </p>
+                    )}
                   </div>
                 )}
                 <button

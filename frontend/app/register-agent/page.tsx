@@ -115,6 +115,14 @@ export default function RegisterAgentPage() {
 
       setNewAgentId(agentId);
       setStep("done");
+      // Persist to the same localStorage key useMyAgentId reads so the
+      // Navbar badge updates immediately.
+      try {
+        window.localStorage.setItem(
+          `arcbounty:agentId:${address.toLowerCase()}`,
+          agentId.toString(),
+        );
+      } catch { /* ignore */ }
       toast.success(`Registered! Your agent ID is #${agentId.toString()}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

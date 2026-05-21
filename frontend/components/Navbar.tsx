@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { shortAddress } from "@/lib/format";
+import { useMyAgentId } from "@/hooks/useMyAgentId";
 
 const NAV = [
   { href: "/",            label: "Browse" },
@@ -23,6 +24,7 @@ export function Navbar() {
   const { connect }    = useConnect();
   const { disconnect } = useDisconnect();
   const pathname       = usePathname();
+  const { agentId }    = useMyAgentId(address);
 
   return (
     <nav className="top">
@@ -50,15 +52,37 @@ export function Navbar() {
         </Link>
 
         {isConnected && address ? (
-          <button
-            type="button"
-            onClick={() => disconnect()}
-            className="btn wallet"
-            title="Click to disconnect"
-          >
-            <span className="dot" />
-            {shortAddress(address)}
-          </button>
+          <>
+            {agentId !== null && agentId !== undefined ? (
+              <Link
+                href={`/agent/${agentId.toString()}`}
+                className="agent-badge compact"
+                title="Your ERC-8004 agent — click to view profile"
+                style={{ textDecoration: "none" }}
+              >
+                <span className="glyph" />
+                <span className="title">Agent #{agentId.toString()}</span>
+              </Link>
+            ) : agentId === null ? (
+              <Link
+                href="/register-agent"
+                className="btn"
+                title="Register an ERC-8004 agent — needed for Agent-only bounties"
+                style={{ fontSize: 12, padding: "8px 12px" }}
+              >
+                + Register agent
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => disconnect()}
+              className="btn wallet"
+              title="Click to disconnect"
+            >
+              <span className="dot" />
+              {shortAddress(address)}
+            </button>
+          </>
         ) : (
           <button
             type="button"
