@@ -43,7 +43,7 @@ export default function BountyPage() {
   const [showSubmitModal, setShowSubmitModal]   = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [showRejectModal, setShowRejectModal]   = useState(false);
-  const [agentIdInput, setAgentIdInput]         = useState("0");
+  const [agentIdInput, setAgentIdInput]         = useState("");
 
   const jobIdBig = BigInt(jobId);
   const { meta, refetch } = useBountyMeta(jobIdBig);
@@ -69,12 +69,14 @@ export default function BountyPage() {
   const status          = statusOf(meta, expired);
 
   async function handleTake() {
+    const trimmed = agentIdInput.trim();
+    const agentIdBig = trimmed && /^\d+$/.test(trimmed) ? BigInt(trimmed) : 0n;
     await send(
       {
         address: CONTRACTS.BOUNTY_ADAPTER,
         abi: BOUNTY_ADAPTER_ABI as never,
         functionName: "takeBounty",
-        args: [jobIdBig, BigInt(agentIdInput || "0")],
+        args: [jobIdBig, agentIdBig],
       },
       { pending: "Taking bounty…", success: "Bounty taken! USDC locked in escrow.", error: "Failed to take bounty" }
     );
@@ -237,22 +239,50 @@ export default function BountyPage() {
       {/* Action bar */}
       {!meta.inDispute && !meta.resolved && !pendingRejection && (
         <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 12 }}>
-          {canTake && (
-            <>
-              {meta.agentOnly && (
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="Your ERC-8004 Agent ID"
-                  value={agentIdInput}
-                  onChange={e => setAgentIdInput(e.target.value)}
-                />
-              )}
-              <button onClick={handleTake} className="btn btn-primary btn-big">
-                Take this Bounty
-              </button>
-            </>
-          )}
+          {canTake && (() => {
+            const parsedId = (() => {
+              const s = agentIdInput.trim();
+              if (!s) return null;
+              if (!/^\d+$/.test(s)) return null;
+              try { return BigInt(s); } catch { return null; }
+            })();
+            const agentIdValid = parsedId !== null && parsedId > 0n;
+            const canSubmit = meta.agentOnly ? agentIdValid : true;
+
+            return (
+              <>
+                {meta.agentOnly && (
+                  <div className="form-row">
+                    <label className="form-label" htmlFor="take-agent-id">
+                      ERC-8004 Agent ID
+                      <span className="hint">required — this is an Agent-only bounty</span>
+                    </label>
+                    <input
+                      id="take-agent-id"
+                      className="input"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="e.g. 42 — the numeric ID of an agent you own"
+                      value={agentIdInput}
+                      onChange={e => setAgentIdInput(e.target.value.replace(/\D/g, ""))}
+                    />
+                    <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "6px 2px 0", lineHeight: 1.5 }}>
+                      Don&apos;t have one? Register on the ERC-8004 IdentityRegistry first
+                      (via the SDK or directly) — the contract verifies you&apos;re the owner of the agent.
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={handleTake}
+                  disabled={!canSubmit}
+                  className="btn btn-primary btn-big"
+                >
+                  {meta.agentOnly && !agentIdValid ? "Enter a valid Agent ID" : "Take this Bounty"}
+                </button>
+              </>
+            );
+          })()}
 
           {!canTake && isOpen && whitelisted && !isWhitelistedCaller && !isPoster && (
             <div
