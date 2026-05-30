@@ -394,12 +394,10 @@ contract BountyAdapter is ReentrancyGuard {
         emit DisputeResponded(jobId, msg.sender, ipfsResponseHash);
     }
 
-    function resolveDispute(
-        uint256 jobId,
-        bool payProvider,
-        string calldata ipfsRulingHash,
-        uint8 reputationPenalty
-    ) external nonReentrant {
+    function resolveDispute(uint256 jobId, bool payProvider, string calldata ipfsRulingHash, uint8 reputationPenalty)
+        external
+        nonReentrant
+    {
         require(msg.sender == arbitrator, "only arbitrator");
         BountyMeta storage meta = _bounties[jobId];
         require(meta.inDispute, "not in dispute");
