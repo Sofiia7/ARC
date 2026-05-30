@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useReadContract } from "wagmi";
 import Link from "next/link";
-import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { shortAddress } from "@/lib/format";
 import { useCompletedBounties, aggregateAgentStats, type AgentStats } from "@/hooks/useCompletedBounties";
 
@@ -17,25 +15,16 @@ export default function LeaderboardPage() {
   const [period, setPeriod] = useState<Period>("all");
   const [kind,   setKind]   = useState<Kind>("all");
 
-  const { data: head } = useReadContract({
-    address: CONTRACTS.BOUNTY_ADAPTER,
-    abi: BOUNTY_ADAPTER_ABI,
-    functionName: "totalBounties",
-    query: { staleTime: 60_000 },
-  });
-
   const { data: records, isLoading } = useCompletedBounties();
 
-  // Period → block cutoff. `head` here is just used as a "now" anchor for tests;
-  // we approximate from current ts in the browser if no head available.
+  // Period → block cutoff, anchored on the latest completion we know about.
   const cutoffBlock = useMemo(() => {
     if (period === "all") return 0n;
     const days = period === "7d" ? 7n : period === "30d" ? 30n : 90n;
     // Compare against blockNumber of the latest known record.
     const latest = records?.reduce((m, r) => r.blockNumber > m ? r.blockNumber : m, 0n) ?? 0n;
     return latest > days * BLOCKS_PER_DAY ? latest - days * BLOCKS_PER_DAY : 0n;
-    // `head` intentionally unused — we anchor on the data we actually have.
-  }, [period, records, head]);
+  }, [period, records]);
 
   const stats = useMemo<AgentStats[]>(() => {
     if (!records) return [];
