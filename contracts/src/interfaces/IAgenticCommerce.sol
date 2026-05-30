@@ -2,7 +2,15 @@
 pragma solidity ^0.8.30;
 
 interface IAgenticCommerce {
-    enum JobStatus { OPEN, ASSIGNED, FUNDED, SUBMITTED, COMPLETED, EXPIRED, REJECTED }
+    enum JobStatus {
+        OPEN,
+        ASSIGNED,
+        FUNDED,
+        SUBMITTED,
+        COMPLETED,
+        EXPIRED,
+        REJECTED
+    }
 
     struct Job {
         address poster;
@@ -13,8 +21,10 @@ interface IAgenticCommerce {
         bytes32 deliverable;
     }
 
-    function createJob(address provider, address evaluator, uint256 deadline, string calldata description, address hook) external returns (uint256 jobId);
-    
+    function createJob(address provider, address evaluator, uint256 deadline, string calldata description, address hook)
+        external
+        returns (uint256 jobId);
+
     function setProvider(uint256 jobId, address provider) external;
     function setBudget(uint256 jobId, uint256 amount, bytes calldata data) external;
     function fund(uint256 jobId, bytes calldata data) external;

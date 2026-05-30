@@ -22,10 +22,17 @@ export async function fetchIpfsJson<T = unknown>(uriOrCid: string): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+/** True iff Pinata creds are reachable in env. Cheap to call repeatedly. */
+export function isPinningConfigured(): boolean {
+  return Boolean(process.env["PINATA_JWT"] || (process.env["PINATA_API_KEY"] && process.env["PINATA_SECRET"]));
+}
+
 /**
  * Pin text content to IPFS via Pinata. Prefers the v3 uploads API with a JWT
  * (PINATA_JWT), and falls back to the legacy v1 endpoint with key/secret pair
  * (PINATA_API_KEY + PINATA_SECRET). Returns an `ipfs://<cid>` URI.
+ *
+ * Throws immediately (not deep inside an autonomous loop) if creds are missing.
  */
 export async function pinText(content: string, filename = "result.md"): Promise<string> {
   const jwt       = process.env["PINATA_JWT"];

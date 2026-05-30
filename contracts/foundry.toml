@@ -15,5 +15,16 @@ remappings = [
 [profile.default.fuzz]
 runs = 256
 
+[profile.default.invariant]
+runs = 64
+depth = 64
+fail_on_revert = false
+
 [rpc_endpoints]
 arc_testnet = "${ARC_TESTNET_RPC_URL}"
+
+[fmt]
+line_length = 120
+
+[doc]
+out = "docs"

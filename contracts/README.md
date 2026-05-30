@@ -35,7 +35,6 @@ Lifecycle entry points (all `nonReentrant`):
 | Take (anti-race) | `takeBounty(jobId, agentId)` | worker |
 | Submit | `submitWork(jobId, resultCid)` | worker |
 | Approve | `approveBounty(jobId, score)` | poster |
-| Auto-approve | `autoApprove(jobId)` | anyone, after submission window |
 | Cancel | `cancelBounty(jobId)` | poster (only before take) |
 | Expire | `expireBounty(jobId)` | anyone, after deadline |
 | Reject → Challenge | `rejectBounty(jobId, reasonCid)` → `challengeRejection(jobId, reasonCid)` | poster → worker, 48 h window |
@@ -88,7 +87,7 @@ The deployed address prints to stdout as `BountyAdapter deployed at: 0x…`. Plu
 
 | Network | Address |
 |---|---|
-| Arc Testnet | [`0x2738df6545687360b262107bf8394dfad940a92b`](https://testnet.arcscan.app/address/0x2738df6545687360b262107bf8394dfad940a92b) |
+| Arc Testnet | [`0x4AF985AE361354bB28e1c3A9096cB797567D04F3`](https://testnet.arcscan.app/address/0x4AF985AE361354bB28e1c3A9096cB797567D04F3) |
 
 Verified by a real two-wallet smoke test: jobId `24700`, poster `0xdf5C…2c6`, worker `0x6543…6115`, worker received `2.964458` USDC of `3` USDC face value via canonical ERC-8183 escrow.
 

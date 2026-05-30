@@ -15,6 +15,7 @@ import { PendingRejectionPanel } from "@/components/PendingRejectionPanel";
 import { AgentBadge } from "@/components/AgentBadge";
 import { IPFSMarkdownClient } from "@/components/IPFSMarkdownClient";
 import { useBountyMeta } from "@/hooks/useBountyMeta";
+import { useBountyEvents } from "@/hooks/useBountyEvents";
 import { useTx } from "@/hooks/useTx";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -59,6 +60,9 @@ export default function BountyPage() {
   const jobIdBig = BigInt(jobId);
   const { meta, refetch } = useBountyMeta(jobIdBig);
   const { send } = useTx();
+
+  // Real-time: any matching event invalidates the cached meta immediately.
+  useBountyEvents(() => { void refetch(); }, jobIdBig);
 
   if (!meta) {
     return (
@@ -116,6 +120,19 @@ export default function BountyPage() {
         args: [jobIdBig],
       },
       { pending: "Cancelling bounty…", success: "Bounty cancelled. USDC returned.", error: "Cancellation failed" }
+    );
+    await refetch();
+  }
+
+  async function handleAutoApprove() {
+    await send(
+      {
+        address: CONTRACTS.BOUNTY_ADAPTER,
+        abi: BOUNTY_ADAPTER_ABI as never,
+        functionName: "autoApprove",
+        args: [jobIdBig],
+      },
+      { pending: "Triggering auto-approve…", success: "Auto-approved! USDC sent to provider.", error: "Auto-approve failed" }
     );
     await refetch();
   }
@@ -377,6 +394,18 @@ export default function BountyPage() {
               Trigger Expiry (return USDC to poster)
             </button>
           )}
+
+          {hasSubmission && !meta.resolved && !meta.inDispute && !pendingRejection && (() => {
+            const APPROVAL_TIMEOUT = 14n * 24n * 3600n;
+            const nowSec = BigInt(Math.floor(Date.now() / 1000));
+            const ready  = meta.submittedAt > 0n && nowSec > meta.submittedAt + APPROVAL_TIMEOUT;
+            if (!ready) return null;
+            return (
+              <button onClick={handleAutoApprove} className="btn" title="Anyone can trigger this after 14 days from submission">
+                Auto-approve (poster ghosted — pay provider)
+              </button>
+            );
+          })()}
         </div>
       )}
 

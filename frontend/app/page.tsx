@@ -7,6 +7,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI, CATEGORIES, type Category } from "@/lib/
 import { BountyCard } from "@/components/BountyCard";
 import type { BountyMeta } from "@/components/BountyCard";
 import { useOpenBounties } from "@/hooks/useBountyMeta";
+import { useBountyEvents } from "@/hooks/useBountyEvents";
 
 const PAGE_SIZE = 20n;
 
@@ -26,7 +27,8 @@ export default function HomePage() {
   const [page, setPage]           = useState(0);
 
   const offset = BigInt(page) * PAGE_SIZE;
-  const { jobIds, isLoading } = useOpenBounties(category, offset, PAGE_SIZE);
+  const { jobIds, isLoading, refetch } = useOpenBounties(category, offset, PAGE_SIZE);
+  useBountyEvents(() => { void refetch(); });
 
   const { data: total } = useReadContract({
     address: CONTRACTS.BOUNTY_ADAPTER,

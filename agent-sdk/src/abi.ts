@@ -18,6 +18,7 @@ const BOUNTY_META_TUPLE = {
     { name: "whitelistedProvider",  type: "address" },
     { name: "assignedProvider",     type: "address" },
     { name: "submittedResultHash",  type: "string"  },
+    { name: "submittedAt",          type: "uint256" },
     { name: "isTaken",              type: "bool"    },
     { name: "rejectedAt",           type: "uint256" },
     { name: "rejectionReasonHash",  type: "string"  },
@@ -81,6 +82,13 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "jobId",           type: "uint256" },
       { name: "reputationScore", type: "uint8"   },
     ],
+    outputs: [],
+  },
+  {
+    name: "autoApprove",
+    type: "function" as const,
+    stateMutability: "nonpayable" as const,
+    inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
   {
@@ -195,6 +203,19 @@ export const BOUNTY_ADAPTER_ABI = [
     stateMutability: "view" as const,
     inputs: [{ name: "provider", type: "address" }],
     outputs: [{ name: "", type: "uint256[]" }],
+  },
+  {
+    name: "getAgentBounties",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256[]" }],
+  },
+  {
+    name: "APPROVAL_TIMEOUT",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [], outputs: [{ name: "", type: "uint256" }],
   },
   {
     name: "getAgentReputation",

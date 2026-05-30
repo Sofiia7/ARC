@@ -4,6 +4,7 @@ import {
   decodeEventLog,
   http,
   defineChain,
+  isAddress,
   type Address,
   type Hash,
   type PublicClient,
@@ -58,9 +59,18 @@ export class ArcBountyAgent {
 
     this.account = privateKeyToAccount(config.privateKey);
     this.metadataURI = config.metadataURI ?? "";
-    this.bountyAdapter = config.bountyAdapterAddress ??
-      (process.env["BOUNTY_ADAPTER_ADDRESS"] as Address | undefined) ??
-      ZERO_ADDRESS;
+    const rawAdapter = config.bountyAdapterAddress ??
+      (process.env["BOUNTY_ADAPTER_ADDRESS"] as Address | undefined);
+    if (!rawAdapter) {
+      throw new Error(
+        "ArcBountyAgent: bountyAdapterAddress is required (constructor option or BOUNTY_ADAPTER_ADDRESS env). " +
+        "See agent-sdk/.env.example. Source of truth: contracts/DEPLOYMENTS.md.",
+      );
+    }
+    if (!isAddress(rawAdapter) || rawAdapter.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
+      throw new Error(`ArcBountyAgent: invalid bountyAdapterAddress: ${rawAdapter}`);
+    }
+    this.bountyAdapter = rawAdapter as Address;
 
     this.publicClient = createPublicClient({ chain: this.chain, transport: http(rpcUrl) }) as PublicClient;
     this.walletClient = createWalletClient({ account: this.account, chain: this.chain, transport: http(rpcUrl) });
@@ -263,6 +273,59 @@ export class ArcBountyAgent {
     return { hash };
   }
 
+  // ─── Poster cycle ───────────────────────────────────────────────────────────
+  // These let a protocol/DAO agent run the full poster side end-to-end.
+
+  /** Approve a submission and pay the worker. Records on-chain reputation. */
+  async approveBounty(jobId: bigint, reputationScore = 95): Promise<TxResult> {
+    return this._writeAdapter("approveBounty", [jobId, reputationScore]);
+  }
+
+  /**
+   * Permissionless payout after APPROVAL_TIMEOUT (14d) from submission.
+   * Use this from a watchdog agent to unstick ghosted posters.
+   */
+  async autoApprove(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("autoApprove", [jobId]);
+  }
+
+  /** Propose rejection. Triggers a 48h challenge window for the worker. */
+  async rejectBounty(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
+    const cid = await this._resolveEvidenceCid(evidence);
+    return this._writeAdapter("rejectBounty", [jobId, cid]);
+  }
+
+  /** After the challenge window expires unchallenged, anyone may finalize. */
+  async finalizeRejection(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("finalizeRejection", [jobId]);
+  }
+
+  /** Cancel a bounty (only valid before takeBounty). Full USDC refund. */
+  async cancelBounty(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("cancelBounty", [jobId]);
+  }
+
+  /** Permissionless expiry after deadline. Refunds poster if no submission. */
+  async expireBounty(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("expireBounty", [jobId]);
+  }
+
+  /** Arbitrator-only ruling. `payProvider` true → worker wins, false → refund. */
+  async resolveDispute(
+    jobId: bigint,
+    payProvider: boolean,
+    ruling: DisputeEvidenceOptions,
+    reputationPenalty = 0,
+  ): Promise<TxResult> {
+    const cid = await this._resolveEvidenceCid(ruling);
+    return this._writeAdapter("resolveDispute", [jobId, payProvider, cid, reputationPenalty]);
+  }
+
+  /** After 48h with no response, anyone may claim the default ruling. */
+  async claimDefaultRuling(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("claimDefaultRuling", [jobId]);
+  }
+
   // ─── Dispute flow (worker-side) ─────────────────────────────────────────────
 
   /** Worker challenges a pending rejection — flips bounty into dispute with worker as initiator. */
@@ -384,6 +447,59 @@ export class ArcBountyAgent {
     return (Number(raw) / 10 ** USDC_DECIMALS).toFixed(2);
   }
 
+  // ─── Event subscriptions ────────────────────────────────────────────────────
+
+  /**
+   * Watch `BountyCreated` events and invoke `onMatch` for each new bounty that
+   * passes the filter. Returns an `unwatch()` function — call it to stop.
+   *
+   * Idempotency: each jobId is delivered to `onMatch` at most once per process
+   * lifetime, even if the chain emits a duplicate event (re-org, RPC retry).
+   * If you need durable dedup across restarts, persist `seenJobIds` yourself.
+   */
+  subscribeToNewBounties(
+    filter: OpenBountiesFilter,
+    onMatch: (meta: BountyMeta) => void | Promise<void>,
+  ): () => void {
+    const seen = new Set<string>();
+    const unwatch = this.publicClient.watchContractEvent({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      eventName: "BountyCreated",
+      onLogs: async logs => {
+        for (const log of logs) {
+          const args = (log as { args?: { jobId?: bigint } }).args;
+          const jobId = args?.jobId;
+          if (jobId === undefined) continue;
+          const key = jobId.toString();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          try {
+            const meta = await this.getBounty(jobId);
+            if (!this._matchesFilter(meta, filter)) continue;
+            await onMatch(meta);
+          } catch (err) {
+            // Swallow per-event errors so one bad bounty doesn't kill the loop.
+            console.error(`[ArcBountyAgent] onMatch error for #${key}:`, err);
+          }
+        }
+      },
+      pollingInterval: 4_000,
+    });
+    return unwatch;
+  }
+
+  private _matchesFilter(m: BountyMeta, f: OpenBountiesFilter): boolean {
+    if (f.category && m.category !== f.category) return false;
+    if (f.agentOnly === true  && !m.agentOnly)   return false;
+    if (f.humanOnly === true  && !m.humanOnly)   return false;
+    if (f.agentOnly === false &&  m.agentOnly)   return false;
+    if (f.humanOnly === false &&  m.humanOnly)   return false;
+    if (f.maxReward !== undefined && m.reward > this._parseUsdc(f.maxReward)) return false;
+    if (f.minReward !== undefined && m.reward < this._parseUsdc(f.minReward)) return false;
+    return true;
+  }
+
   // ─── Autonomous loop ────────────────────────────────────────────────────────
 
   async runOnce(
@@ -412,6 +528,24 @@ export class ArcBountyAgent {
 
   private async _waitForTx(hash: Hash): Promise<void> {
     await this.publicClient.waitForTransactionReceipt({ hash });
+  }
+
+  /**
+   * Write to BountyAdapter with the canonical (chain, account) tuple. All
+   * mutating helpers funnel through here so future changes (gas estimation,
+   * retry, paymaster) land in one place.
+   */
+  private async _writeAdapter(functionName: string, args: readonly unknown[]): Promise<TxResult> {
+    const hash = await this.walletClient.writeContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: functionName as never,
+      args: args as never,
+      chain: null,
+      account: this.account,
+    });
+    await this._waitForTx(hash);
+    return { hash };
   }
 
   private async _findExistingAgentId(): Promise<bigint | null> {

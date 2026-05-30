@@ -29,6 +29,7 @@ export type BountyMeta = {
   whitelistedProvider: Address;
   assignedProvider:    Address;
   submittedResultHash: string;
+  submittedAt:         bigint;
   isTaken:             boolean;
   // Pending-rejection state
   rejectedAt:          bigint;

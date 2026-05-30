@@ -1,32 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useReadContract } from "wagmi";
+import Link from "next/link";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { shortAddress } from "@/lib/format";
-import Link from "next/link";
-
-// Scan known agent IDs — replace with subgraph/events in production.
-const MAX_AGENTS = 50n;
+import { useCompletedBounties, aggregateAgentStats, type AgentStats } from "@/hooks/useCompletedBounties";
 
 type Period = "7d" | "30d" | "90d" | "all";
 type Kind   = "all" | "agents" | "humans";
 
+// Rough block-time estimate for Arc Testnet (≈1s/block per docs).
+const BLOCKS_PER_DAY = 86_400n;
+
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<Period>("all");
-  const [kind, setKind]     = useState<Kind>("all");
+  const [kind,   setKind]   = useState<Kind>("all");
 
-  const agentIds = Array.from({ length: Number(MAX_AGENTS) }, (_, i) => BigInt(i + 1));
+  const { data: head } = useReadContract({
+    address: CONTRACTS.BOUNTY_ADAPTER,
+    abi: BOUNTY_ADAPTER_ABI,
+    functionName: "totalBounties",
+    query: { staleTime: 60_000 },
+  });
 
-  // Humans are not indexed on-chain in this MVP — only agents have REP-8004.
-  // Show empty state when filter is "humans".
+  const { data: records, isLoading } = useCompletedBounties();
+
+  // Period → block cutoff. `head` here is just used as a "now" anchor for tests;
+  // we approximate from current ts in the browser if no head available.
+  const cutoffBlock = useMemo(() => {
+    if (period === "all") return 0n;
+    const days = period === "7d" ? 7n : period === "30d" ? 30n : 90n;
+    // Compare against blockNumber of the latest known record.
+    const latest = records?.reduce((m, r) => r.blockNumber > m ? r.blockNumber : m, 0n) ?? 0n;
+    return latest > days * BLOCKS_PER_DAY ? latest - days * BLOCKS_PER_DAY : 0n;
+    // `head` intentionally unused — we anchor on the data we actually have.
+  }, [period, records, head]);
+
+  const stats = useMemo<AgentStats[]>(() => {
+    if (!records) return [];
+    const filtered = period === "all" ? records : records.filter(r => r.blockNumber >= cutoffBlock);
+    return aggregateAgentStats(filtered);
+  }, [records, period, cutoffBlock]);
+
   const showAgents = kind !== "humans";
 
   return (
     <>
       <header className="page-head">
         <h1>Leaderboard</h1>
-        <p className="sub">Top agents by ERC-8004 reputation score</p>
+        <p className="sub">Top agents by completed bounties + ERC-8004 reputation</p>
       </header>
 
       <div className="lb-controls">
@@ -61,19 +84,29 @@ export default function LeaderboardPage() {
         <div className="col-num">#</div>
         <div>Handle</div>
         <div>Kind</div>
-        <div className="col-num col-earned">Earned</div>
+        <div className="col-num col-earned">Jobs</div>
         <div className="col-num col-rep">Reputation</div>
       </div>
 
       <div className="lb-list">
-        {showAgents ? (
-          agentIds.map((agentId, idx) => (
-            <AgentRow key={agentId.toString()} agentId={agentId} rank={idx + 1} />
-          ))
-        ) : (
+        {!showAgents ? (
           <div style={{ textAlign: "center", padding: "48px 0", color: "var(--ink-mute)" }}>
             Human leaderboard coming soon — humans don&apos;t carry an on-chain REP-8004 score yet.
           </div>
+        ) : isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="lb-row"
+              style={{ height: 64, opacity: 0.4, animation: "pulse 1.4s ease-in-out infinite" }}
+            />
+          ))
+        ) : stats.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 0", color: "var(--ink-mute)" }}>
+            No completed bounties in this period yet.
+          </div>
+        ) : (
+          stats.map((s, idx) => <AgentRow key={s.agentId.toString()} stats={s} rank={idx + 1} />)
         )}
       </div>
 
@@ -82,7 +115,6 @@ export default function LeaderboardPage() {
   );
 }
 
-/** Generate a stable sunrise-tinted gradient for an avatar based on agentId. */
 function avatarGradient(agentId: bigint): React.CSSProperties {
   const hue = Number(agentId % 360n);
   const a = `hsl(${hue}, 70%, 70%)`;
@@ -98,36 +130,22 @@ function rankClass(rank: number): string {
   return "";
 }
 
-function AgentRow({ agentId, rank }: { agentId: bigint; rank: number }) {
-  const { data: rep } = useReadContract({
-    address: CONTRACTS.BOUNTY_ADAPTER,
-    abi: BOUNTY_ADAPTER_ABI,
-    functionName: "getAgentReputation",
-    args: [agentId],
-  });
-
-  // Hide agents with no completed jobs.
-  if (!rep || rep.totalJobs === 0n) return null;
-
-  const score = Number(rep.averageScore);
-  const jobs  = Number(rep.totalJobs);
-
+function AgentRow({ stats, rank }: { stats: AgentStats; rank: number }) {
+  const score = Math.round(stats.avgScore);
   return (
-    <Link href={`/agent/${agentId}`} style={{ textDecoration: "none", color: "inherit" }}>
+    <Link href={`/agent/${stats.agentId}`} style={{ textDecoration: "none", color: "inherit" }}>
       <article className={`lb-row${rankClass(rank)}`}>
         <div className="lb-rank">{String(rank).padStart(2, "0")}</div>
         <div className="lb-handle">
-          <div className="lb-avatar" style={avatarGradient(agentId)} />
+          <div className="lb-avatar" style={avatarGradient(stats.agentId)} />
           <div>
-            <div className="lb-name">agent #{agentId.toString()}</div>
-            <div className="lb-addr">{shortAddress(`0x${agentId.toString(16).padStart(40, "0")}`)}</div>
+            <div className="lb-name">agent #{stats.agentId.toString()}</div>
+            <div className="lb-addr">{shortAddress(`0x${stats.agentId.toString(16).padStart(40, "0")}`)}</div>
           </div>
         </div>
-        <div>
-          <span className="lb-kind agent">agent</span>
-        </div>
+        <div><span className="lb-kind agent">agent</span></div>
         <div className="lb-stat earned">
-          <div className="num green">{jobs}</div>
+          <div className="num green">{stats.jobsDone}</div>
           <div className="lbl">jobs</div>
         </div>
         <div className="lb-stat rep">

@@ -1,16 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientKey, consume } from "@/lib/rate-limit";
+import { reportEvent } from "@/lib/observe";
+
+export const runtime = "nodejs";
+
+const MAX_TEXT_BYTES = 1 * 1024 * 1024; // 1 MB
+const RATE = { capacity: 10, refillPerSecond: 10 / 60 }; // 10 / min, sustained
+
+function tooBig(s: string): boolean {
+  return new TextEncoder().encode(s).byteLength > MAX_TEXT_BYTES;
+}
 
 export async function POST(req: NextRequest) {
-  const { content } = await req.json() as { content: string };
-
-  if (!content || typeof content !== "string") {
-    return NextResponse.json({ error: "content required" }, { status: 400 });
-  }
-
   const jwt = process.env.PINATA_JWT;
-
   if (!jwt) {
     return NextResponse.json({ error: "IPFS not configured: PINATA_JWT missing" }, { status: 503 });
+  }
+
+  const rl = consume(`pin:${clientKey(req)}`, RATE);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
+  let content: string;
+  try {
+    const body = await req.json() as { content?: unknown };
+    if (!body.content || typeof body.content !== "string") {
+      return NextResponse.json({ error: "content required (string)" }, { status: 400 });
+    }
+    content = body.content;
+  } catch {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+
+  if (tooBig(content)) {
+    return NextResponse.json({ error: `content exceeds ${MAX_TEXT_BYTES} bytes` }, { status: 413 });
   }
 
   const blob = new Blob([content], { type: "text/plain" });
@@ -20,15 +47,13 @@ export async function POST(req: NextRequest) {
 
   const res = await fetch("https://uploads.pinata.cloud/v3/files", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-    },
+    headers: { Authorization: `Bearer ${jwt}` },
     body: form,
   });
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "unknown");
-    console.error("Pinata error:", res.status, errText);
+    reportEvent("ipfs.pin", `Pinata error ${res.status}`, "error", { status: res.status, body: errText.slice(0, 500) });
     return NextResponse.json({ error: `Pinata error: ${res.status}` }, { status: 502 });
   }
 

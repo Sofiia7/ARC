@@ -1,11 +1,32 @@
-import { type Address } from "viem";
+import { isAddress, type Address } from "viem";
+
+// Fail-fast: bad config must blow up at module load time, never produce a
+// "successful" tx against the zero address. This module is imported by every
+// page that talks to the chain, so the check runs on every build and every
+// cold start.
+function requireAdapterAddress(): Address {
+  const raw = process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS;
+  if (!raw) {
+    throw new Error(
+      "[arcbounty] NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS is not set. " +
+      "See frontend/.env.example. Source of truth: contracts/DEPLOYMENTS.md.",
+    );
+  }
+  if (!isAddress(raw)) {
+    throw new Error(`[arcbounty] NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS is not a valid address: ${raw}`);
+  }
+  if (raw.toLowerCase() === "0x0000000000000000000000000000000000000000") {
+    throw new Error("[arcbounty] NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS is the zero address.");
+  }
+  return raw as Address;
+}
 
 export const CONTRACTS = {
   AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583" as Address,
   IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address,
   REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address,
   USDC:                "0x3600000000000000000000000000000000000000" as Address,
-  BOUNTY_ADAPTER:      (process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS ?? "0x0000000000000000000000000000000000000000") as Address,
+  BOUNTY_ADAPTER:      requireAdapterAddress(),
 } as const;
 
 const BOUNTY_META_TUPLE = {
@@ -24,6 +45,7 @@ const BOUNTY_META_TUPLE = {
     { name: "whitelistedProvider",  type: "address" },
     { name: "assignedProvider",     type: "address" },
     { name: "submittedResultHash",  type: "string"  },
+    { name: "submittedAt",          type: "uint256" },
     { name: "isTaken",              type: "bool"    },
     { name: "rejectedAt",           type: "uint256" },
     { name: "rejectionReasonHash",  type: "string"  },
@@ -78,6 +100,11 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "jobId",           type: "uint256" },
       { name: "reputationScore", type: "uint8"   },
     ],
+    outputs: [],
+  },
+  {
+    name: "autoApprove", type: "function", stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
   {
@@ -168,6 +195,15 @@ export const BOUNTY_ADAPTER_ABI = [
     outputs: [{ name: "", type: "uint256[]" }],
   },
   {
+    name: "getAgentBounties", type: "function", stateMutability: "view",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256[]" }],
+  },
+  {
+    name: "APPROVAL_TIMEOUT", type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     name: "getAgentReputation", type: "function", stateMutability: "view",
     inputs: [{ name: "agentId", type: "uint256" }],
     outputs: [{
@@ -253,6 +289,44 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "payProvider",   type: "bool",    indexed: false },
       { name: "rulingHash",    type: "string",  indexed: false },
       { name: "defaultRuling", type: "bool",    indexed: false },
+    ],
+  },
+  {
+    name: "BountyAutoApproved", type: "event",
+    inputs: [
+      { name: "jobId",    type: "uint256", indexed: true },
+      { name: "provider", type: "address", indexed: true },
+    ],
+  },
+  {
+    name: "BountyCancelled", type: "event",
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true },
+      { name: "reason", type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "BountyExpired", type: "event",
+    inputs: [{ name: "jobId", type: "uint256", indexed: true }],
+  },
+  {
+    name: "RejectionProposed", type: "event",
+    inputs: [
+      { name: "jobId",      type: "uint256", indexed: true },
+      { name: "poster",     type: "address", indexed: true },
+      { name: "reasonHash", type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "RejectionFinalized", type: "event",
+    inputs: [{ name: "jobId", type: "uint256", indexed: true }],
+  },
+  {
+    name: "RejectionChallenged", type: "event",
+    inputs: [
+      { name: "jobId",      type: "uint256", indexed: true },
+      { name: "worker",     type: "address", indexed: true },
+      { name: "reasonHash", type: "string",  indexed: false },
     ],
   },
 ] as const;

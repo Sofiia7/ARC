@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Address & docs consistency
+        run: npx -y tsx scripts/check-consistency.ts
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  contracts:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: contracts } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: { version: nightly }
+      - name: forge fmt
+        run: forge fmt --check
+      - name: forge build
+        run: forge build --sizes
+      - name: forge test (unit + invariants, skip fork)
+        run: forge test -vvv --no-match-contract BountyAdapterForkTest
+      - name: gas snapshot — no regressions
+        run: |
+          if [ -f .gas-snapshot ]; then
+            forge snapshot --check --no-match-contract BountyAdapterForkTest
+          else
+            echo "::warning::no .gas-snapshot yet — run forge snapshot locally and commit it"
+          fi
+      - name: slither (config-gated, triaged in SLITHER.md)
+        uses: crytic/slither-action@v0.4.0
+        with:
+          target: contracts/
+          slither-config: contracts/slither.config.json
+          fail-on: low
+          solc-version: 0.8.30
+
+  contracts-fork:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    defaults: { run: { working-directory: contracts } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: fork test against Arc Testnet
+        env:
+          ARC_TESTNET_RPC_URL: ${{ secrets.ARC_TESTNET_RPC_URL }}
+        run: |
+          if [ -z "$ARC_TESTNET_RPC_URL" ]; then
+            echo "::warning::no ARC_TESTNET_RPC_URL secret, skipping"
+            exit 0
+          fi
+          forge test --fork-url "$ARC_TESTNET_RPC_URL" --match-contract BountyAdapterForkTest -vvv
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: "npm", cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - name: build
+        env:
+          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0x4AF985AE361354bB28e1c3A9096cB797567D04F3"
+          NEXT_PUBLIC_RPC_URL: "https://rpc.testnet.arc.network"
+        run: npm run build
+
+  sdk:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: agent-sdk } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build

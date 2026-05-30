@@ -15,6 +15,7 @@ export type BountyMeta = {
   whitelistedProvider: string;
   assignedProvider: string;
   submittedResultHash: string;
+  submittedAt: bigint;
   isTaken: boolean;
   rejectedAt: bigint;
   rejectionReasonHash: string;

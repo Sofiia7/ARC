@@ -4,7 +4,9 @@ import { useReadContract } from "wagmi";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import type { BountyMeta } from "@/components/BountyCard";
 
-const POLL_INTERVAL = 8_000; // 8 seconds
+// Fallback poll. Real-time updates come from useBountyEvents
+// (watchContractEvent); this is just a safety net for missed events.
+const POLL_INTERVAL = 30_000;
 
 export function useBountyMeta(jobId: bigint) {
   const result = useReadContract({

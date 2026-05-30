@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { injected } from "wagmi/connectors";
 import { shortAddress } from "@/lib/format";
 import { useMyAgentId } from "@/hooks/useMyAgentId";
 
@@ -21,8 +20,11 @@ function isActive(pathname: string | null, href: string): boolean {
 
 export function Navbar() {
   const { address, isConnected } = useAccount();
-  const { connect }    = useConnect();
+  const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+
+  const portoConnector    = connectors.find(c => c.id === "xyz.ithaca.porto" || c.name.toLowerCase().includes("porto"));
+  const injectedConnector = connectors.find(c => c.type === "injected");
   const pathname       = usePathname();
   const { agentId }    = useMyAgentId(address);
 
@@ -84,13 +86,27 @@ export function Navbar() {
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={() => connect({ connector: injected() })}
-            className="btn"
-          >
-            Connect Wallet
-          </button>
+          <>
+            {portoConnector && (
+              <button
+                type="button"
+                onClick={() => connect({ connector: portoConnector })}
+                className="btn"
+                title="Sign in with a passkey — no extension, gas paid in USDC"
+              >
+                Sign in (passkey)
+              </button>
+            )}
+            {injectedConnector && (
+              <button
+                type="button"
+                onClick={() => connect({ connector: injectedConnector })}
+                className="btn"
+              >
+                Connect Wallet
+              </button>
+            )}
+          </>
         )}
       </div>
     </nav>

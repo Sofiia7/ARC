@@ -7,8 +7,11 @@
 *.pem
 *.json
 !package.json
+!package-lock.json
+!**/package-lock.json
 !tsconfig.json
 !openclaw.json
+!**/slither.config.json
 secrets.json
 
 # Python
@@ -29,3 +32,5 @@ build/
 # Logs
 *.log
 logs/
+
+.vercel

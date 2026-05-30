@@ -1,93 +1,94 @@
 /**
  * Demo Agent — ArcBounty
  *
- * A minimal autonomous agent that:
- * 1. Registers itself in ERC-8004 IdentityRegistry (once)
- * 2. Scans for open "content" bounties
- * 3. Takes the first matching one
- * 4. Runs a trivial task (uppercase the description as fake "translation")
- * 5. Submits the result on-chain
+ * Runs the full autonomous cycle:
+ *   1. Pin agent metadata to IPFS (real CID, persistent — never data:).
+ *   2. Register in ERC-8004 IdentityRegistry (idempotent).
+ *   3. Subscribe to BountyCreated, pick the first matching new bounty.
+ *   4. Take it, run the task, submit the result.
  *
- * Usage:
- *   AGENT_PRIVATE_KEY=0x... BOUNTY_ADAPTER_ADDRESS=0x... npx tsx examples/demo-agent.ts
+ * Env:
+ *   AGENT_PRIVATE_KEY      — agent wallet (0x...)
+ *   BOUNTY_ADAPTER_ADDRESS — current adapter (see contracts/DEPLOYMENTS.md)
+ *   PINATA_JWT             — server-side IPFS pinning
+ *   ARC_RPC_URL            — optional, defaults to Arc Testnet RPC
+ *
+ * Run:
+ *   npx tsx examples/demo-agent.ts
  */
 
-import { ArcBountyAgent } from "../src/index.js";
-import type { BountyMeta } from "../src/index.js";
+import {
+  ArcBountyAgent,
+  pinAgentMetadata,
+  type AgentMetadata,
+  type BountyMeta,
+} from "../src/index.js";
 
-const AGENT_METADATA = {
+const METADATA: AgentMetadata = {
   name: "DemoTranslationAgent v0.1",
-  description: "Demo agent for ArcBounty — translates/transforms content bounties",
+  description: "Demo agent that transforms content-category bounty descriptions.",
   agent_type: "translation",
   capabilities: ["en-upper", "summarize"],
   version: "0.1.0",
-  arcbounty_categories: ["content", "data"],
-  min_reward_usdc: 1,
-  max_reward_usdc: 100,
+  arcbounty: {
+    min_reputation: 0,
+    preferred_categories: ["content", "data"],
+    min_reward_usdc: 1,
+    max_reward_usdc: 100,
+  },
 };
 
 async function main() {
   const privateKey = process.env["AGENT_PRIVATE_KEY"];
   if (!privateKey) throw new Error("Set AGENT_PRIVATE_KEY env var");
 
+  // 1. Pin the manifest. Validates against the schema first.
+  console.log("[1/4] Pinning agent metadata to IPFS…");
+  const metadataURI = await pinAgentMetadata(METADATA);
+  console.log("      manifest =", metadataURI);
+
   const agent = new ArcBountyAgent({
-    privateKey: privateKey as `0x${string}`,
-    metadataURI: `data:application/json,${encodeURIComponent(JSON.stringify(AGENT_METADATA))}`,
-    rpcUrl: process.env["ARC_RPC_URL"] ?? "https://rpc.testnet.arc.network",
+    privateKey:    privateKey as `0x${string}`,
+    metadataURI,
+    rpcUrl:        process.env["ARC_RPC_URL"] ?? "https://rpc.testnet.arc.network",
   });
+  console.log("      agent address =", agent.address);
 
-  console.log("Agent address:", agent.address);
-
-  // Step 1: Register (idempotent — finds existing agentId if already registered)
-  console.log("\n[1/4] Registering agent in ERC-8004 IdentityRegistry…");
+  // 2. Register (idempotent — finds existing tokenId if already minted).
+  console.log("\n[2/4] Registering in ERC-8004 IdentityRegistry…");
   const agentId = await agent.register();
-  console.log("Agent ID:", agentId.toString());
+  console.log("      agent ID =", agentId.toString());
 
-  // Step 2: Check balance
-  const balance = await agent.usdcBalance();
-  console.log(`\n[2/4] USDC balance: $${agent.formatUsdc(balance)}`);
+  // 3. Either take a pre-existing open bounty, or wait for the next match.
+  console.log("\n[3/4] Looking for content bounties (max $50)…");
+  const existing = await agent.listOpenBounties({ category: "content", maxReward: 50 });
+  let target: BountyMeta | undefined = existing[0];
 
-  // Step 3: Scan bounties
-  console.log("\n[3/4] Scanning open bounties (category: content, max $50)…");
-  const bounties = await agent.listOpenBounties({
-    category: "content",
-    maxReward: 50,
-  });
-
-  if (bounties.length === 0) {
-    console.log("No matching bounties found. Try posting one via the frontend!");
-    return;
+  if (!target) {
+    console.log("      none open — subscribing for the next match (5min)…");
+    target = await new Promise<BountyMeta>((resolve, reject) => {
+      const timeout = setTimeout(() => { stop(); reject(new Error("no matching bounty in 5 minutes")); }, 5 * 60_000);
+      const stop = agent.subscribeToNewBounties(
+        { category: "content", maxReward: 50 },
+        meta => { clearTimeout(timeout); stop(); resolve(meta); },
+      );
+    });
   }
+  console.log(`      picked #${target.jobId} ($${agent.formatUsdc(target.reward)} USDC)`);
 
-  console.log(`Found ${bounties.length} bounty(ies):`);
-  for (const b of bounties) {
-    console.log(`  #${b.jobId} | $${agent.formatUsdc(b.reward)} | ${b.category} | agent-only: ${b.agentOnly}`);
-  }
-
-  // Step 4: Run the task autonomously
-  console.log("\n[4/4] Running task autonomously…");
-  const completedJobId = await agent.runOnce(
+  // 4. Take → run task off-chain → submit result.
+  console.log("\n[4/4] Take + run + submit…");
+  await agent.runOnce(
     { category: "content", maxReward: 50 },
-    async (description: string, meta: BountyMeta) => {
-      console.log(`  Task description (first 200 chars): ${description.slice(0, 200)}`);
-
-      // Fake "task" — in a real agent this would call an LLM, run code, etc.
-      const result = `## Result from DemoAgent\n\n**Bounty #${meta.jobId}** processed.\n\n${description.toUpperCase()}`;
-      return result;
-    }
+    async (description, meta) => {
+      console.log("      desc:", description.slice(0, 120));
+      return `## Result from DemoAgent\n\n**Bounty #${meta.jobId}** processed.\n\n${description.toUpperCase()}`;
+    },
   );
 
-  if (completedJobId !== null) {
-    console.log(`\nDone! Submitted work for bounty #${completedJobId}.`);
-    console.log("Waiting for poster to approve and release USDC...");
-
-    // Print final reputation
-    const rep = await agent.getReputation();
-    console.log(`\nCurrent reputation: ${rep.averageScore}/100 | ${rep.totalJobs} jobs completed`);
-  }
+  const rep = await agent.getReputation();
+  console.log(`\nDone. Reputation: ${rep.averageScore}/100 over ${rep.totalJobs} job(s).`);
+  console.log("Poster has 14 days to approve/reject. After that anyone can call autoApprove.");
 }
 
-main().catch(err => {
-  console.error("Fatal:", err);
-  process.exit(1);
-});
+main().catch(err => { console.error("Fatal:", err); process.exit(1); });

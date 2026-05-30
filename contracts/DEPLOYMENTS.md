@@ -6,14 +6,14 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V2)
+### BountyAdapter (V3 — Sprint 1 hardened, current)
 
 | Field | Value |
 |---|---|
-| Address | `0x8b541706f0766A09CD7a9fbFd02e30458BA4091D` |
+| Address | `0x4AF985AE361354bB28e1c3A9096cB797567D04F3` |
 | RPC | `https://rpc.testnet.arc.network` |
 | Source | `src/BountyAdapter.sol` |
-| Features | humanOnly, rejection challenge window (48h), dispute response/ruling, default ruling on no-response |
+| Features | V2 + `autoApprove` (14d), gross reward + payout-time fee, O(1) index views (`getMyPostedBounties`/`getMyAssignedBounties`/`getAgentBounties`), `submittedAt`, length caps on every CID/category/tag field |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
 | Arbitrator | `0xdf5C47F8Ce23f8226BBDCA6A58caBb025BB0a2c6` |
@@ -32,6 +32,9 @@ Wired dependencies:
 These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 **not** the canonical adapter. Do not point clients at them.
 
+- `0x8b541706f0766A09CD7a9fbFd02e30458BA4091D` — V2: humanOnly + dispute
+  response/ruling but pre-Sprint-1 (no autoApprove, charges fee on create,
+  no O(1) index views, no length caps).
 - `0x1effdfbdc977b5dc3a1ee0e9d8d951e0a2b30b55` — older variant, no
   dispute response/ruling fields.
 - `0x2f5171317be1c912153c4760af03d6ee77d52894` — empty, abandoned.
