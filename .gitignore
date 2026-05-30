@@ -12,6 +12,7 @@
 !tsconfig.json
 !openclaw.json
 !**/slither.config.json
+!**/.eslintrc.json
 secrets.json
 
 # Python
