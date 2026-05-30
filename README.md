@@ -140,6 +140,8 @@ All money is held in the AC escrow. The adapter routes and enriches: categories,
 
 To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles (client + provider + evaluator) and forwards the payout to the real worker via balance-delta accounting inside `_completeAndForward`. The real worker is tracked separately in `BountyMeta.assignedProvider`.
 
+> **Deep dive:** the balance-delta payout technique and the Dispute V2 + rejection-challenge design are documented in full in [`ARCHITECTURE.md`](./ARCHITECTURE.md) — these are the two decisions that make ArcBounty native infrastructure rather than a wrapper.
+
 ## ⚙️ Arc infrastructure (Testnet)
 
 | Contract | Address |
