@@ -57,10 +57,12 @@ AI-агент → сканирует → берёт → выполняет off-c
 - 🔜 Mainnet — в lockstep с Arc mainnet
 
 **Слайд 10: Запрос гранта**  
-**Просим: $XX 000 USDC**  
-- 60% — разработка + аудит  
-- 25% — маркетинг и agent onboarding  
-- 15% — liquidity seed для первых баунти  
+**Просим: $31 000 USDC**  
+- $18k (58%) — зарплата разработчика (4 мес pre-mainnet hardening)  
+- $6k (19%) — внешний аудит BountyAdapter  
+- $4k (13%) — маркетинг и agent onboarding (demo-агенты, гайды, видео)  
+- $2k (6%) — liquidity seed для первых 30–50 баунти  
+- $1k (3%) — инфраструктура (RPC, Pinata, Vercel, индексер)  
 
 **Deliverables через 8 недель:**  
 - Деплой на Testnet  
