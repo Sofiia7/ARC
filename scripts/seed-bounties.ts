@@ -80,58 +80,87 @@ type Seed = {
   rewardUsdc: number;
   days: number;
   agentOnly: boolean;
+  humanOnly?: boolean;
 };
 
+// The first 8 entries are intentionally ordered to cover ALL five categories
+// with a mix of open / agentOnly / humanOnly audiences — so a default
+// SEED_LIMIT=8 run already populates every filter on the frontend. The rest
+// fill out 2–4 per category and post automatically once the wallet has more
+// USDC (raise SEED_LIMIT).
 const FULL_SEEDS: Seed[] = [
+  // ── Priority 8 (balanced across categories + audiences) ──────────────────
   {
-    title: "Translate ArcBounty README to Spanish",
-    body: "Translate `README.md` into idiomatic Spanish. Keep code blocks untouched. Submit the translated markdown.",
-    category: "content", tags: ["translation", "es", "docs"], rewardUsdc: 3, days: 7, agentOnly: false,
+    title: "viem script: watch BountyCreated and print new bounties",
+    body: "Write a ~40-line TypeScript script using `viem` `watchContractEvent` that subscribes to `BountyCreated` on the adapter and logs `{ jobId, reward, category }` for each. MIT-licensed, runnable with tsx.",
+    category: "dev", tags: ["typescript", "viem", "events"], rewardUsdc: 1, days: 10, agentOnly: false,
   },
   {
-    title: "Summarize 5 recent Arc Network blog posts",
-    body: "Pick the 5 latest posts from blog.arc.network. Produce a 150-word summary each with key takeaways.",
-    category: "content", tags: ["summary", "arc", "research"], rewardUsdc: 8, days: 5, agentOnly: true,
-  },
-  {
-    title: "Solidity gas-golf: optimize a simple voting contract",
-    body: "I will share a 60-line voting contract. Reduce gas on `vote()` by ≥20% while keeping behavior identical. Forge tests must pass.",
-    category: "dev", tags: ["solidity", "gas", "foundry"], rewardUsdc: 75, days: 10, agentOnly: false,
+    title: "TypeScript snippet: pin a Buffer to Pinata v3",
+    body: "20–40 line example. Must use `network: public` and return `{ cid, size }`. MIT-licensed. Submit as a gist or markdown.",
+    category: "dev", tags: ["typescript", "ipfs", "pinata"], rewardUsdc: 1, days: 4, agentOnly: true,
   },
   {
     title: "Design a Twitter/X banner for ArcBounty",
-    body: "1500×500 PNG, dark sunset palette matching the site. Source file (Figma/Affinity/PSD) plus the export.",
-    category: "design", tags: ["banner", "branding", "x"], rewardUsdc: 40, days: 6, agentOnly: false,
+    body: "1500×500 PNG, dark sunset palette matching the site. Submit the source file (Figma/Affinity/PSD) plus the PNG export, pinned to IPFS.",
+    category: "design", tags: ["banner", "branding", "x"], rewardUsdc: 1, days: 6, agentOnly: false,
   },
   {
-    title: "Write a TypeScript snippet: pin a Buffer to Pinata v3",
-    body: "20–40 line example. Must use `network: public` and return `{ cid, size }`. MIT-licensed.",
-    category: "dev", tags: ["typescript", "ipfs", "pinata"], rewardUsdc: 15, days: 4, agentOnly: true,
+    title: "Figma wireframe for a disputes dashboard",
+    body: "Low-fi wireframe of a page listing active disputes with claim/response/ruling columns and a countdown. Submit a shareable Figma link + PNG. Human designers only.",
+    category: "design", tags: ["figma", "wireframe", "ux"], rewardUsdc: 1, days: 8, agentOnly: false, humanOnly: true,
+  },
+  {
+    title: "Translate ArcBounty README to Spanish",
+    body: "Translate `README.md` into idiomatic Spanish. Keep code blocks untouched. Submit the translated markdown.",
+    category: "content", tags: ["translation", "es", "docs"], rewardUsdc: 1, days: 7, agentOnly: false,
+  },
+  {
+    title: "Summarize 5 recent Arc Network blog posts",
+    body: "Pick the 5 latest posts from blog.arc.network. Produce a 150-word summary each with key takeaways. Submit as markdown.",
+    category: "content", tags: ["summary", "arc", "research"], rewardUsdc: 1, days: 5, agentOnly: true,
   },
   {
     title: "Scrape & dedupe ETH-related job postings (CSV, 200 rows)",
     body: "Source: 3 public job boards of your choice. Columns: title, company, url, posted_at, location. Submit `.csv` pinned to IPFS.",
-    category: "data", tags: ["scrape", "csv", "jobs"], rewardUsdc: 25, days: 7, agentOnly: true,
+    category: "data", tags: ["scrape", "csv", "jobs"], rewardUsdc: 1, days: 7, agentOnly: true,
   },
   {
-    title: "Record a 60-second screencast walkthrough of /post page",
-    body: "Show: connect wallet → write description → attach image → set reward → post. MP4, 1080p.",
-    category: "content", tags: ["video", "demo", "walkthrough"], rewardUsdc: 30, days: 5, agentOnly: false,
+    title: "Find a medium+ severity bug in BountyAdapter.sol",
+    body: "Read `contracts/src/BountyAdapter.sol`. Submit a PoC + Foundry test reproducing any *medium-or-higher* severity issue. Triaged by the adapter owner. Human researchers only.",
+    category: "other", tags: ["audit", "solidity", "security"], rewardUsdc: 1, days: 14, agentOnly: false, humanOnly: true,
+  },
+
+  // ── Overflow (post when the wallet has more USDC; raise SEED_LIMIT) ───────
+  {
+    title: "Solidity gas-golf: optimize a simple voting contract",
+    body: "I will share a 60-line voting contract. Reduce gas on `vote()` by ≥20% while keeping behavior identical. Forge tests must pass.",
+    category: "dev", tags: ["solidity", "gas", "foundry"], rewardUsdc: 1, days: 10, agentOnly: false,
   },
   {
-    title: "Find a critical bug in BountyAdapter.sol",
-    body: "Read `contracts/src/BountyAdapter.sol`. Submit a PoC + Foundry test reproducing any *medium-or-higher* severity issue. Triage by adapter owner.",
-    category: "other", tags: ["audit", "solidity", "security"], rewardUsdc: 150, days: 14, agentOnly: false,
-  },
-  {
-    title: "Compile a list of 50 Arc Testnet contracts with activity",
-    body: "Use the explorer. Output JSON: `[{address, name?, tx_count_7d, first_seen}]`. Highest activity first.",
-    category: "data", tags: ["onchain", "arc", "json"], rewardUsdc: 20, days: 6, agentOnly: true,
+    title: "Design an agent-profile avatar set (10 SVGs)",
+    body: "10 generative-style SVG avatars for ERC-8004 agent profiles, sunset palette. Submit a zip pinned to IPFS, MIT-licensed.",
+    category: "design", tags: ["svg", "avatars", "branding"], rewardUsdc: 1, days: 6, agentOnly: false,
   },
   {
     title: "Write a 600-word blog post: \"Why agents need a bounty board\"",
     body: "Casual tone. Reference ERC-8183 + ERC-8004. Submit markdown + 1 hero illustration (your choice).",
-    category: "content", tags: ["blog", "agents", "erc-8004"], rewardUsdc: 50, days: 8, agentOnly: false,
+    category: "content", tags: ["blog", "agents", "erc-8004"], rewardUsdc: 1, days: 8, agentOnly: false,
+  },
+  {
+    title: "Compile a list of 50 Arc Testnet contracts with activity",
+    body: "Use the explorer. Output JSON: `[{address, name?, tx_count_7d, first_seen}]`. Highest activity first.",
+    category: "data", tags: ["onchain", "arc", "json"], rewardUsdc: 1, days: 6, agentOnly: true,
+  },
+  {
+    title: "Build a 30-day USDC price dataset (CSV)",
+    body: "Daily open/high/low/close for USDC from any public API, last 30 days. Submit `.csv` + a one-line provenance note.",
+    category: "data", tags: ["dataset", "csv", "price"], rewardUsdc: 1, days: 5, agentOnly: true,
+  },
+  {
+    title: "Propose 3 new bounty categories with rationale",
+    body: "Short markdown: 3 proposed categories beyond dev/design/content/data/other, each with 2–3 example bounties and why it fits Arc's agent economy.",
+    category: "other", tags: ["product", "proposal", "community"], rewardUsdc: 1, days: 7, agentOnly: false,
   },
 ];
 
