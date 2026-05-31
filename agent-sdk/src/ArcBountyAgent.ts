@@ -98,13 +98,29 @@ export class ArcBountyAgent {
       account: this.account,
     });
 
-    await this._waitForTx(hash);
-
-    const agentId = await this._findExistingAgentId();
+    // Decode the agentId straight from the registration receipt — authoritative
+    // and avoids a wide getLogs scan that public RPCs reject on long chains.
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    const agentId = this._agentIdFromReceiptLogs(receipt.logs);
     if (agentId === null) throw new Error("Registration succeeded but agentId not found in events");
 
     this._agentId = agentId;
     return agentId;
+  }
+
+  /** Pull the minted tokenId from a Transfer(from=0x0, to=self) log in a receipt. */
+  private _agentIdFromReceiptLogs(logs: readonly { address: string; topics: readonly string[] }[]): bigint | null {
+    const TRANSFER_SIG = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    const me = this.account.address.toLowerCase().slice(2).padStart(64, "0");
+    for (const log of logs) {
+      if (log.address.toLowerCase() !== CONTRACTS.IDENTITY_REGISTRY.toLowerCase()) continue;
+      if (log.topics.length < 4) continue;
+      if (log.topics[0]?.toLowerCase() !== TRANSFER_SIG) continue;
+      if (log.topics[1]?.toLowerCase() !== "0x" + "0".repeat(64)) continue; // from == 0x0
+      if (log.topics[2]?.toLowerCase() !== "0x" + me) continue; // to == self
+      return BigInt(log.topics[3]!); // tokenId
+    }
+    return null;
   }
 
   get agentId(): bigint {
@@ -412,13 +428,19 @@ export class ArcBountyAgent {
 
   async getReputation(agentId?: bigint): Promise<ReputationScore> {
     const id = agentId ?? this.agentId;
-    const raw = await this.publicClient.readContract({
-      address: this.bountyAdapter,
-      abi: BOUNTY_ADAPTER_ABI,
-      functionName: "getAgentReputation",
-      args: [id],
-    });
-    return raw as ReputationScore;
+    try {
+      const raw = await this.publicClient.readContract({
+        address: this.bountyAdapter,
+        abi: BOUNTY_ADAPTER_ABI,
+        functionName: "getAgentReputation",
+        args: [id],
+      });
+      return raw as ReputationScore;
+    } catch {
+      // The live Arc ReputationRegistry reverts for an agent with no feedback
+      // yet (freshly registered, zero completed jobs). Treat as a clean slate.
+      return { averageScore: 0n, totalFeedbacks: 0n, totalJobs: 0n };
+    }
   }
 
   async getAgentInfo(): Promise<AgentInfo> {
@@ -548,16 +570,22 @@ export class ArcBountyAgent {
     return { hash };
   }
 
+  /**
+   * Best-effort idempotency check: scan a bounded recent window for a
+   * Transfer(0x0 → self) on the registry. A `fromBlock: 0` scan is rejected by
+   * public RPCs on long chains, so we look back a fixed span and tolerate
+   * failure (returning null just means "register again", which is acceptable).
+   */
   private async _findExistingAgentId(): Promise<bigint | null> {
     try {
+      const head = await this.publicClient.getBlockNumber();
+      const LOOKBACK = 500_000n;
+      const fromBlock = head > LOOKBACK ? head - LOOKBACK : 0n;
       const logs = await this.publicClient.getLogs({
         address: CONTRACTS.IDENTITY_REGISTRY,
         event: IDENTITY_REGISTRY_ABI[2], // Transfer event
-        args: {
-          from: ZERO_ADDRESS,
-          to: this.address,
-        },
-        fromBlock: 0n,
+        args: { from: ZERO_ADDRESS, to: this.address },
+        fromBlock,
       });
       if (logs.length === 0) return null;
       const last = logs[logs.length - 1]!;

@@ -7,7 +7,12 @@ import "./interfaces/IAgenticCommerce.sol";
 import "./interfaces/IIdentityRegistry.sol";
 import "./interfaces/IReputationRegistry.sol";
 
-/// @title BountyAdapter (V3 — Sprint 1 hardening)
+/// @title BountyAdapter (V3.1 — Sprint 1 hardening + live-registry compatibility)
+/// @dev V3.1 fixes two live-registry incompatibilities found by an on-chain
+///      agent run: (1) takeBounty no longer calls the reverting isRegistered();
+///      ownerOf alone gates agents. (2) every reputationRegistry.giveFeedback
+///      is wrapped in try/catch so a reverting feedback write can never block a
+///      worker payout or dispute settlement.
 /// @notice Bounty-board facade over Arc ERC-8183 AgenticCommerce.
 ///         The adapter takes all three AC roles (client + provider + evaluator);
 ///         the real worker is tracked in BountyMeta.assignedProvider. AC remains
@@ -195,7 +200,11 @@ contract BountyAdapter is ReentrancyGuard {
             require(agentId == 0, "human only: no agentId");
         }
         if (agentId != 0) {
-            require(identityRegistry.isRegistered(agentId), "agent not registered");
+            // ownerOf is the authoritative check: ERC-721 ownerOf reverts for a
+            // non-existent tokenId, so "caller owns this agentId" already proves
+            // the agent is registered. We deliberately do NOT call isRegistered()
+            // — the live Arc ERC-8004 registry reverts on it, and ownerOf alone
+            // gives the same guarantee.
             require(identityRegistry.ownerOf(agentId) == msg.sender, "agent only: caller is not agent owner");
             meta.agentId = agentId;
             _byAgent[agentId].push(jobId);
@@ -240,7 +249,10 @@ contract BountyAdapter is ReentrancyGuard {
         _completeAndForward(jobId, meta.assignedProvider, "approved");
 
         if (meta.agentId > 0) {
-            reputationRegistry.giveFeedback(
+            // Reputation write must never block the payout: the worker has
+            // already been paid above. The live ERC-8004 registry may revert
+            // (e.g. unauthorized feedback), so swallow any failure.
+            try reputationRegistry.giveFeedback(
                 meta.agentId,
                 reputationScore,
                 0,
@@ -249,7 +261,8 @@ contract BountyAdapter is ReentrancyGuard {
                 "",
                 "",
                 keccak256(abi.encodePacked("bounty_completed", jobId))
-            );
+            ) {}
+                catch {}
         }
 
         emit BountyCompleted(jobId, meta.agentId, reputationScore);
@@ -270,7 +283,7 @@ contract BountyAdapter is ReentrancyGuard {
         _completeAndForward(jobId, meta.assignedProvider, "auto_approved");
 
         if (meta.agentId > 0) {
-            reputationRegistry.giveFeedback(
+            try reputationRegistry.giveFeedback(
                 meta.agentId,
                 80,
                 0,
@@ -279,7 +292,8 @@ contract BountyAdapter is ReentrancyGuard {
                 "",
                 "",
                 keccak256(abi.encodePacked("auto_approved", jobId))
-            );
+            ) {}
+                catch {}
         }
 
         emit BountyAutoApproved(jobId, meta.assignedProvider);
@@ -443,8 +457,9 @@ contract BountyAdapter is ReentrancyGuard {
 
     function _maybePenalize(BountyMeta storage meta, bool payProvider, uint8 penalty) internal {
         if (payProvider || meta.agentId == 0 || penalty == 0) return;
-        // feedbackType = 1 → "negative". Real ReputationRegistry must read this.
-        reputationRegistry.giveFeedback(
+        // feedbackType = 1 → "negative". Non-blocking: a dispute resolution must
+        // settle funds even if the live registry rejects the feedback write.
+        try reputationRegistry.giveFeedback(
             meta.agentId,
             penalty,
             1,
@@ -453,7 +468,8 @@ contract BountyAdapter is ReentrancyGuard {
             "",
             "",
             keccak256(abi.encodePacked("dispute_rejected", meta.jobId))
-        );
+        ) {}
+            catch {}
     }
 
     // ─── Internal payout helpers (balance-delta accounting) ────────────────────

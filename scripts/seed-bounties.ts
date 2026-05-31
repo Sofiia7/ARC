@@ -164,11 +164,13 @@ const FULL_SEEDS: Seed[] = [
   },
 ];
 
-// Resolve which subset to post. SEED_LIMIT clamps the count, SEED_MIN_REWARD overrides
+// Resolve which subset to post. SEED_OFFSET skips the first N entries (resume a
+// partial run), SEED_LIMIT clamps the end index, SEED_MIN_REWARD overrides
 // rewards down to a fixed minimum (useful when seed wallet is low on testnet USDC).
+const OFFSET = Number(process.env.SEED_OFFSET ?? 0);
 const LIMIT = Number(process.env.SEED_LIMIT ?? FULL_SEEDS.length);
 const MIN_REWARD = process.env.SEED_MIN_REWARD ? Number(process.env.SEED_MIN_REWARD) : null;
-const SEEDS: Seed[] = FULL_SEEDS.slice(0, LIMIT).map(s =>
+const SEEDS: Seed[] = FULL_SEEDS.slice(OFFSET, LIMIT).map(s =>
   MIN_REWARD !== null ? { ...s, rewardUsdc: MIN_REWARD } : s
 );
 
