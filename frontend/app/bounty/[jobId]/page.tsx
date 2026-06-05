@@ -57,12 +57,28 @@ export default function BountyPage() {
     }
   }, [myAgentId, agentIdInput]);
 
-  const jobIdBig = BigInt(jobId);
+  // A non-numeric route (e.g. /bounty/abc) must not throw — parse safely and
+  // render a not-found state. Hooks still run (rules of hooks) with a harmless
+  // placeholder id; the guard below short-circuits the real render.
+  const validJobId = /^\d+$/.test(jobId ?? "");
+  const jobIdBig = validJobId ? BigInt(jobId) : 0n;
   const { meta, refetch } = useBountyMeta(jobIdBig);
   const { send } = useTx();
 
   // Real-time: any matching event invalidates the cached meta immediately.
   useBountyEvents(() => { void refetch(); }, jobIdBig);
+
+  if (!validJobId) {
+    return (
+      <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-mute)" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+        <p style={{ marginBottom: 16 }}>Invalid bounty id: <code>{jobId}</code></p>
+        <Link href="/" style={{ color: "var(--honey)", textDecoration: "underline", fontSize: 14 }}>
+          ← Back to all bounties
+        </Link>
+      </div>
+    );
+  }
 
   if (!meta) {
     return (

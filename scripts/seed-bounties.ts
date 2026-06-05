@@ -240,7 +240,7 @@ async function main() {
         category:     s.category,
         tags:         s.tags,
         agentOnly:    s.agentOnly,
-        humanOnly:    false,
+        humanOnly:    s.humanOnly ?? false,
       }],
     });
     const rcpt = await pub.waitForTransactionReceipt({ hash });

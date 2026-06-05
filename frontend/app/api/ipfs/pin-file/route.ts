@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clientKey, consume } from "@/lib/rate-limit";
+import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
 
 export const runtime = "nodejs";
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "IPFS not configured: PINATA_JWT missing" }, { status: 503 });
   }
 
-  const rl = consume(`pin-file:${clientKey(req)}`, RATE);
+  const rl = await consumeAsync(`pin-file:${clientKey(req)}`, RATE);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },

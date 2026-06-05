@@ -1,0 +1,31 @@
+#!/bin/sh
+# ArcBounty pre-commit guard (Sprint 0 — secret-leak prevention).
+# Portable: pure POSIX sh, no npm/husky required. Enable once with:
+#   git config core.hooksPath .githooks
+#
+# 1. Hard-block any real .env file from being staged (.example is allowed).
+# 2. If gitleaks is on PATH, scan staged changes as defence-in-depth.
+
+set -eu
+
+# ── 1. Block real .env files ────────────────────────────────────────────────
+staged_env=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '(^|/)\.env(\..+)?$' \
+  | grep -vE '\.example$' || true)
+
+if [ -n "$staged_env" ]; then
+  echo "✖ pre-commit: refusing to commit real .env file(s):" >&2
+  echo "$staged_env" | sed 's/^/    /' >&2
+  echo "  Only *.env.example may be committed. Unstage with: git restore --staged <file>" >&2
+  exit 1
+fi
+
+# ── 2. gitleaks (optional, if installed) ────────────────────────────────────
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner || {
+    echo "✖ pre-commit: gitleaks found a potential secret in staged changes." >&2
+    exit 1
+  }
+fi
+
+exit 0

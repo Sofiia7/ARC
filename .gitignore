@@ -13,6 +13,7 @@
 !openclaw.json
 !**/slither.config.json
 !**/.eslintrc.json
+!**/vercel.json
 secrets.json
 
 # Python
