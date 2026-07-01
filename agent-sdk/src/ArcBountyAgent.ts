@@ -572,24 +572,36 @@ export class ArcBountyAgent {
 
   /**
    * Best-effort idempotency check: scan a bounded recent window for a
-   * Transfer(0x0 → self) on the registry. A `fromBlock: 0` scan is rejected by
-   * public RPCs on long chains, so we look back a fixed span and tolerate
-   * failure (returning null just means "register again", which is acceptable).
+   * Transfer(0x0 → self) on the registry. Arc's public RPC caps eth_getLogs to
+   * a 10,000-block range per call (confirmed empirically — a single wider
+   * request errors outright), so we page backward in 10k chunks up to a total
+   * lookback ceiling instead of issuing one oversized request. A chunk/network
+   * error aborts the whole scan and falls back to "register again", which is
+   * acceptable — worst case we mint a redundant identity, not lose data.
    */
   private async _findExistingAgentId(): Promise<bigint | null> {
+    const CHUNK = 10_000n; // Arc RPC's actual eth_getLogs range cap.
+    const TOTAL_LOOKBACK = 500_000n;
     try {
       const head = await this.publicClient.getBlockNumber();
-      const LOOKBACK = 500_000n;
-      const fromBlock = head > LOOKBACK ? head - LOOKBACK : 0n;
-      const logs = await this.publicClient.getLogs({
-        address: CONTRACTS.IDENTITY_REGISTRY,
-        event: IDENTITY_REGISTRY_ABI[2], // Transfer event
-        args: { from: ZERO_ADDRESS, to: this.address },
-        fromBlock,
-      });
-      if (logs.length === 0) return null;
-      const last = logs[logs.length - 1]!;
-      return (last.args as { tokenId: bigint }).tokenId;
+      const floor = head > TOTAL_LOOKBACK ? head - TOTAL_LOOKBACK : 0n;
+
+      for (let to = head; to > floor; to -= CHUNK) {
+        const from = to - CHUNK + 1n > floor ? to - CHUNK + 1n : floor;
+        const logs = await this.publicClient.getLogs({
+          address: CONTRACTS.IDENTITY_REGISTRY,
+          event: IDENTITY_REGISTRY_ABI[2], // Transfer event
+          args: { from: ZERO_ADDRESS, to: this.address },
+          fromBlock: from,
+          toBlock: to,
+        });
+        if (logs.length > 0) {
+          const last = logs[logs.length - 1]!;
+          return (last.args as { tokenId: bigint }).tokenId;
+        }
+        if (from === floor) break;
+      }
+      return null;
     } catch {
       return null;
     }
