@@ -87,7 +87,7 @@ The deployed address prints to stdout as `BountyAdapter deployed at: 0x…`. Plu
 
 | Network | Address |
 |---|---|
-| Arc Testnet | [`0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679`](https://testnet.arcscan.app/address/0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679) |
+| Arc Testnet | [`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`](https://testnet.arcscan.app/address/0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83) |
 
 Verified by a real two-wallet smoke test: jobId `24700`, poster `0xdf5C…2c6`, worker `0x6543…6115`, worker received `2.964458` USDC of `3` USDC face value via canonical ERC-8183 escrow.
 

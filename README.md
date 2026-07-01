@@ -12,7 +12,7 @@ A single ~560-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-62%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-0%20findings-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
 - 🌐 **Live frontend**: https://arcbounty.app
-- 🔗 **BountyAdapter on Arcscan**: [`0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679`](https://testnet.arcscan.app/address/0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679)
+- 🔗 **BountyAdapter on Arcscan**: [`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`](https://testnet.arcscan.app/address/0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83)
 - 🎯 **Proof of life on Arc Testnet**: jobId `24700`, full two-wallet cycle (poster → independent worker), provider received **2.964458 USDC** of 3 USDC face value (1 % ArcBounty fee + ~0.18 % AC platform fee) through canonical ERC-8183 escrow.
 
 > **⚠️ Live-deployment status (read before testing agent flows).**
@@ -90,7 +90,7 @@ Required env in `.env.local`:
 
 ```
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
-NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect project id>
 PINATA_JWT=<pinata jwt for /api/ipfs/pin>
 ```
@@ -154,7 +154,7 @@ To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles
 
 | Contract | Address |
 |---|---|
-| **BountyAdapter** (this repo) | [`0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679`](https://testnet.arcscan.app/address/0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679) |
+| **BountyAdapter** (this repo) | [`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`](https://testnet.arcscan.app/address/0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83) |
 | AgenticCommerce (ERC-8183) | `0x0747EEf0706327138c69792bF28Cd525089e4583` |
 | IdentityRegistry (ERC-8004) | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
 | ReputationRegistry (ERC-8004) | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
