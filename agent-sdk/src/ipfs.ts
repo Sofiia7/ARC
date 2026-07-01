@@ -28,9 +28,9 @@ export function isPinningConfigured(): boolean {
 }
 
 /**
- * Pin text content to IPFS via Pinata. Prefers the v3 uploads API with a JWT
- * (PINATA_JWT), and falls back to the legacy v1 endpoint with key/secret pair
- * (PINATA_API_KEY + PINATA_SECRET). Returns an `ipfs://<cid>` URI.
+ * Pin text content to IPFS via Pinata's v2 `pinFileToIPFS` API. Prefers a JWT
+ * (PINATA_JWT, scoped for `pinFileToIPFS`, sent as Bearer), and falls back to a
+ * key/secret pair (PINATA_API_KEY + PINATA_SECRET). Returns an `ipfs://<cid>` URI.
  *
  * Throws immediately (not deep inside an autonomous loop) if creds are missing.
  */
@@ -44,18 +44,17 @@ export async function pinText(content: string, filename = "result.md"): Promise<
   if (jwt) {
     const form = new FormData();
     form.append("file", blob, filename);
-    form.append("network", "public");
-    const res = await fetch("https://uploads.pinata.cloud/v3/files", {
+    const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: { Authorization: `Bearer ${jwt}` },
       body: form,
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(`Pinata v3 error ${res.status}: ${text}`);
+      throw new Error(`Pinata v2 error ${res.status}: ${text}`);
     }
-    const data = await res.json() as { data: { cid: string } };
-    return `ipfs://${data.data.cid}`;
+    const data = await res.json() as { IpfsHash: string };
+    return `ipfs://${data.IpfsHash}`;
   }
 
   if (apiKey && apiSecret) {

@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
   const blob = new Blob([content], { type: "text/plain" });
   const form = new FormData();
   form.append("file", blob, "content.md");
-  form.append("network", "public");
 
-  const res = await fetch("https://uploads.pinata.cloud/v3/files", {
+  // v2 pinning API — JWT scoped for `pinFileToIPFS` authenticates via Bearer.
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: { Authorization: `Bearer ${jwt}` },
     body: form,
@@ -57,6 +57,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Pinata error: ${res.status}` }, { status: 502 });
   }
 
-  const data = await res.json() as { data: { cid: string } };
-  return NextResponse.json({ cid: data.data.cid });
+  const data = await res.json() as { IpfsHash: string };
+  return NextResponse.json({ cid: data.IpfsHash });
 }
