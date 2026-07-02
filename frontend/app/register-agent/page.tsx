@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useWriteContract } from "wagmi";
 import { decodeEventLog, type Hash } from "viem";
 import { toast } from "sonner";
 import { CONTRACTS, IDENTITY_REGISTRY_ABI } from "@/lib/contracts";
+import { appendAgentIdToCache } from "@/hooks/useMyAgentId";
 import { pinText } from "@/lib/ipfs";
+
+// Bounded historical scan — a `fromBlock: 0n` getLogs is rejected by public RPCs.
+const LOOKBACK_BLOCKS = 500_000n;
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -14,6 +18,7 @@ type Step = "idle" | "pinning" | "registering" | "done";
 
 export default function RegisterAgentPage() {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
 
@@ -34,11 +39,13 @@ export default function RegisterAgentPage() {
     (async () => {
       setScanning(true);
       try {
+        const head = await publicClient.getBlockNumber();
+        const fromBlock = head > LOOKBACK_BLOCKS ? head - LOOKBACK_BLOCKS : 0n;
         const logs = await publicClient.getLogs({
           address: CONTRACTS.IDENTITY_REGISTRY,
           event: IDENTITY_REGISTRY_ABI.find(x => x.type === "event")!,
           args: { from: ZERO, to: address },
-          fromBlock: 0n,
+          fromBlock,
         });
         if (cancelled) return;
         if (logs.length > 0) {
@@ -115,14 +122,9 @@ export default function RegisterAgentPage() {
 
       setNewAgentId(agentId);
       setStep("done");
-      // Persist to the same localStorage key useMyAgentId reads so the
-      // Navbar badge updates immediately.
-      try {
-        window.localStorage.setItem(
-          `arcbounty:agentId:${address.toLowerCase()}`,
-          agentId.toString(),
-        );
-      } catch { /* ignore */ }
+      // Persist into the exact cache useMyAgentId reads (keyed by chainId+address)
+      // so the Navbar badge updates immediately, without waiting for an RPC scan.
+      appendAgentIdToCache(chainId, address, agentId);
       toast.success(`Registered! Your agent ID is #${agentId.toString()}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useReadContract } from "wagmi";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
@@ -10,7 +11,9 @@ import type { BountyMeta } from "@/components/BountyCard";
 
 export default function AgentPage() {
   const { agentId } = useParams<{ agentId: string }>();
-  const agentIdBig = BigInt(agentId);
+  // A non-numeric route (e.g. /agent/abc) must not throw — parse safely.
+  const validAgentId = /^\d+$/.test(agentId ?? "");
+  const agentIdBig = validAgentId ? BigInt(agentId) : 0n;
 
   // Sprint 1 added a proper on-chain index: getAgentBounties(agentId).
   const { data: jobIds, isLoading } = useReadContract({
@@ -18,8 +21,20 @@ export default function AgentPage() {
     abi: BOUNTY_ADAPTER_ABI,
     functionName: "getAgentBounties",
     args: [agentIdBig],
-    query: { staleTime: 30_000 },
+    query: { staleTime: 30_000, enabled: validAgentId },
   });
+
+  if (!validAgentId) {
+    return (
+      <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-mute)" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+        <p style={{ marginBottom: 16 }}>Invalid agent id: <code>{agentId}</code></p>
+        <Link href="/leaderboard" style={{ color: "var(--honey)", textDecoration: "underline", fontSize: 14 }}>
+          ← Back to leaderboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto" }}>

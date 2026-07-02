@@ -6,10 +6,10 @@ import Link from "next/link";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, CATEGORIES, type Category } from "@/lib/contracts";
 import { BountyCard } from "@/components/BountyCard";
 import type { BountyMeta } from "@/components/BountyCard";
-import { useOpenBounties } from "@/hooks/useBountyMeta";
+import { useAllOpenBountyMetas } from "@/hooks/useBountyMeta";
 import { useBountyEvents } from "@/hooks/useBountyEvents";
 
-const PAGE_SIZE = 20n;
+const PAGE_SIZE = 20;
 
 const CATEGORY_ICONS: Record<string, string> = {
   all:     "✦",
@@ -26,9 +26,18 @@ export default function HomePage() {
   const [humanOnly, setHumanOnly] = useState(false);
   const [page, setPage]           = useState(0);
 
-  const offset = BigInt(page) * PAGE_SIZE;
-  const { jobIds, isLoading, refetch } = useOpenBounties(category, offset, PAGE_SIZE);
+  const { metas, isLoading, refetch } = useAllOpenBountyMetas(category);
   useBountyEvents(() => { void refetch(); });
+
+  // Filter by audience over the full set, THEN paginate — so a filtered view
+  // never shows a falsely-empty page while matches exist further down.
+  const filtered = metas.filter(m => {
+    if (agentOnly && !m.agentOnly) return false;
+    if (humanOnly && !m.humanOnly) return false;
+    return true;
+  });
+  const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const hasNext = (page + 1) * PAGE_SIZE < filtered.length;
 
   const { data: total } = useReadContract({
     address: CONTRACTS.BOUNTY_ADAPTER,
@@ -112,12 +121,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      <BountyList
-        jobIds={jobIds}
-        agentFilter={agentOnly}
-        humanFilter={humanOnly}
-        isLoading={isLoading}
-      />
+      <BountyList items={pageItems} isLoading={isLoading} />
 
       <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "center" }}>
         {page > 0 && (
@@ -125,7 +129,7 @@ export default function HomePage() {
             ← Prev
           </button>
         )}
-        {jobIds && jobIds.length === Number(PAGE_SIZE) && (
+        {hasNext && (
           <button onClick={() => setPage(p => p + 1)} className="btn">
             Next →
           </button>
@@ -138,14 +142,10 @@ export default function HomePage() {
 }
 
 function BountyList({
-  jobIds,
-  agentFilter,
-  humanFilter,
+  items,
   isLoading,
 }: {
-  jobIds: readonly bigint[] | undefined;
-  agentFilter: boolean;
-  humanFilter: boolean;
+  items: BountyMeta[];
   isLoading: boolean;
 }) {
   if (isLoading) return (
@@ -160,7 +160,7 @@ function BountyList({
     </div>
   );
 
-  if (!jobIds || jobIds.length === 0) return (
+  if (items.length === 0) return (
     <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-soft)" }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
       <p style={{ marginBottom: 16 }}>No open bounties found.</p>
@@ -172,38 +172,9 @@ function BountyList({
 
   return (
     <div className="list">
-      {jobIds.map(jobId => (
-        <BountyMetaLoader
-          key={jobId.toString()}
-          jobId={jobId}
-          agentFilter={agentFilter}
-          humanFilter={humanFilter}
-        />
+      {items.map(m => (
+        <BountyCard key={m.jobId.toString()} meta={m} />
       ))}
     </div>
   );
-}
-
-function BountyMetaLoader({
-  jobId,
-  agentFilter,
-  humanFilter,
-}: {
-  jobId: bigint;
-  agentFilter: boolean;
-  humanFilter: boolean;
-}) {
-  const { data: meta } = useReadContract({
-    address: CONTRACTS.BOUNTY_ADAPTER,
-    abi: BOUNTY_ADAPTER_ABI,
-    functionName: "getBountyMeta",
-    args: [jobId],
-    query: { refetchInterval: 8_000 },
-  });
-
-  if (!meta) return <div className="row" style={{ height: 92, opacity: 0.5 }} />;
-  const m = meta as BountyMeta;
-  if (agentFilter && !m.agentOnly) return null;
-  if (humanFilter && !m.humanOnly) return null;
-  return <BountyCard meta={m} />;
 }

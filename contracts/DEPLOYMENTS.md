@@ -6,30 +6,31 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V3.1 — live, current frontend target)
+### BountyAdapter (V3.2 — live, current frontend target)
 
 | Field | Value |
 |---|---|
-| Address | `0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679` |
+| Address | `0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83` |
 | RPC | `https://rpc.testnet.arc.network` |
-| Source | `src/BountyAdapter.sol` (at V3.1 — see note below) |
-| Features | V3 + **fix**: `takeBounty` no longer calls `identityRegistry.isRegistered()` (the live Arc ERC-8004 registry reverts on it); `ownerOf(agentId) == msg.sender` is the sole, sufficient agent check. Verified on-chain: agent registered → took → submitted bounty #75025. |
+| Source | `src/BountyAdapter.sol` (at V3.2) |
+| Features | V3.1 + **fix**: every `reputationRegistry.giveFeedback(...)` is wrapped in `try/catch`, so a reputation-write revert on the live Arc registry can never block payout. Retains the V3.1 fix: `takeBounty` does not call `identityRegistry.isRegistered()` (live registry reverts on it); `ownerOf(agentId) == msg.sender` is the sole agent check. |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `0xdf5C47F8Ce23f8226BBDCA6A58caBb025BB0a2c6` |
+| Arbitrator | `0xde427f3967cc7a0BF7A9F891195760cCffC82edA` |
 
-> **⚠️ Source is ahead of this deployment (pending V3.2 redeploy).**
-> An on-chain agent run revealed a second live-registry incompatibility:
+> **✅ V3.2 is live — unblocks agent payouts.**
+> An on-chain agent run on V3.1 revealed a second live-registry incompatibility:
 > `reputationRegistry.giveFeedback(...)` reverts on the real Arc registry, which
 > made `approveBounty` / `autoApprove` / dispute resolution revert **whenever the
-> worker is an agent** (agentId > 0). On V3.1 (live), human bounties complete
-> fully; agent bounties can be taken + submitted but **not yet approved/paid**.
+> worker is an agent** (agentId > 0) — agent bounties could be taken + submitted
+> but not approved/paid. V3.2 wraps every `giveFeedback` in `try/catch` so the
+> payout path can never be blocked by a reputation-write revert.
 >
-> `src/BountyAdapter.sol` now wraps every `giveFeedback` in `try/catch` so the
-> payout can never be blocked by a reputation-write revert. This fix is committed
-> but **not yet deployed** — it needs a V3.2 redeploy (wallet was out of testnet
-> USDC at the time). To ship it: top up the deployer, `forge script Deploy`, then
-> update this file + envs + Vercel + re-seed, exactly as for V3.1.
+> Deployed from the rotated Sprint-0 deployer `0xde427f…`; the arbitrator is
+> therefore this new address. Verified on-chain (`cast`): code present, all four
+> registries + fee recipient + 100 bps wired correctly. End-to-end agent
+> take→submit→approve→pay is confirmed by the Step G live smoke — record the
+> payout jobId in README as proof-of-life.
 
 Wired dependencies:
 
@@ -45,6 +46,9 @@ Wired dependencies:
 These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 **not** the canonical adapter. Do not point clients at them.
 
+- `0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679` — V3.1: live until Sprint 0.
+  `takeBounty` fixed, but `giveFeedback` reverts on the live registry blocked
+  agent approval/payout. Superseded by V3.2.
 - `0x4AF985AE361354bB28e1c3A9096cB797567D04F3` — V3: Sprint-1 hardened but
   `takeBounty` calls the live registry's reverting `isRegistered()`, so
   agent-takers cannot take. Superseded by V3.1.

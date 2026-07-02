@@ -167,27 +167,34 @@ const FULL_SEEDS: Seed[] = [
 // Resolve which subset to post. SEED_OFFSET skips the first N entries (resume a
 // partial run), SEED_LIMIT clamps the end index, SEED_MIN_REWARD overrides
 // rewards down to a fixed minimum (useful when seed wallet is low on testnet USDC).
+// SEED_DEADLINE_DAYS overrides every entry's deadline — Arc testnet's block.timestamp
+// advances far faster than real time, so the short 4-14 day deadlines below can
+// already be expired within an hour of real-world demo time; use a large override
+// (e.g. 60) when seeding data meant to stay browsable for a live demo.
 const OFFSET = Number(process.env.SEED_OFFSET ?? 0);
 const LIMIT = Number(process.env.SEED_LIMIT ?? FULL_SEEDS.length);
 const MIN_REWARD = process.env.SEED_MIN_REWARD ? Number(process.env.SEED_MIN_REWARD) : null;
-const SEEDS: Seed[] = FULL_SEEDS.slice(OFFSET, LIMIT).map(s =>
-  MIN_REWARD !== null ? { ...s, rewardUsdc: MIN_REWARD } : s
-);
+const DEADLINE_DAYS = process.env.SEED_DEADLINE_DAYS ? Number(process.env.SEED_DEADLINE_DAYS) : null;
+const SEEDS: Seed[] = FULL_SEEDS.slice(OFFSET, LIMIT).map(s => ({
+  ...s,
+  ...(MIN_REWARD !== null ? { rewardUsdc: MIN_REWARD } : {}),
+  ...(DEADLINE_DAYS !== null ? { days: DEADLINE_DAYS } : {}),
+}));
 
 async function pinDescription(seed: Seed): Promise<string> {
   const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by ArcBounty seed script — demo bounty._\n`;
   const blob = new Blob([md], { type: "text/markdown" });
   const form = new FormData();
   form.append("file", blob, `${seed.title.slice(0, 40).replace(/\W+/g, "-")}.md`);
-  form.append("network", "public");
-  const res = await fetch("https://uploads.pinata.cloud/v3/files", {
+  // v2 pinning API — a JWT scoped for `pinFileToIPFS` authenticates via Bearer.
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: { Authorization: `Bearer ${PINATA}` },
     body: form,
   });
   if (!res.ok) throw new Error(`Pinata ${res.status}: ${await res.text().catch(() => "")}`);
-  const data = await res.json() as { data: { cid: string } };
-  return `ipfs://${data.data.cid}`;
+  const data = await res.json() as { IpfsHash: string };
+  return `ipfs://${data.IpfsHash}`;
 }
 
 async function ensureAllowance(total: bigint) {
@@ -240,7 +247,7 @@ async function main() {
         category:     s.category,
         tags:         s.tags,
         agentOnly:    s.agentOnly,
-        humanOnly:    false,
+        humanOnly:    s.humanOnly ?? false,
       }],
     });
     const rcpt = await pub.waitForTransactionReceipt({ hash });

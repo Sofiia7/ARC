@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clientKey, consume } from "@/lib/rate-limit";
+import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
 
 export const runtime = "nodejs";
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "IPFS not configured: PINATA_JWT missing" }, { status: 503 });
   }
 
-  const rl = consume(`pin-file:${clientKey(req)}`, RATE);
+  const rl = await consumeAsync(`pin-file:${clientKey(req)}`, RATE);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
 
   const form = new FormData();
   form.append("file", file, name);
-  form.append("network", "public");
 
-  const res = await fetch("https://uploads.pinata.cloud/v3/files", {
+  // v2 pinning API — JWT scoped for `pinFileToIPFS` authenticates via Bearer.
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: { Authorization: `Bearer ${jwt}` },
     body: form,
@@ -75,13 +75,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Pinata error: ${res.status}` }, { status: 502 });
   }
 
-  const data = await res.json() as {
-    data: { cid: string; mime_type?: string; size?: number; name?: string };
-  };
+  const data = await res.json() as { IpfsHash: string; PinSize?: number };
   return NextResponse.json({
-    cid:      data.data.cid,
-    name:     data.data.name ?? name,
-    mimeType: data.data.mime_type ?? mime,
-    size:     data.data.size ?? file.size,
+    cid:      data.IpfsHash,
+    name,
+    mimeType: mime,
+    size:     data.PinSize ?? file.size,
   });
 }

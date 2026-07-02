@@ -14,7 +14,7 @@ Posts 10 bounties spanning **content / dev / design / data / other** at reward s
 |---|---|
 | `PRIVATE_KEY`              | Poster wallet. Must hold ARC for gas and ≥ `~Σ rewards` USDC. |
 | `ARC_TESTNET_RPC_URL`      | RPC endpoint, e.g. `https://rpc.testnet.arc.network`. |
-| `BOUNTY_ADAPTER_ADDRESS`   | Currently deployed adapter (Testnet: `0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679`). |
+| `BOUNTY_ADAPTER_ADDRESS`   | Currently deployed adapter (Testnet: `0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`). |
 | `PINATA_JWT`               | Pinata JWT with file-upload permission. |
 | `USDC_ADDRESS` *(opt)*     | Defaults to Arc Testnet USDC `0x36…000`. |
 | `SEED_LIMIT` *(opt)*       | Cap on number of bounties to post (default: all 10). |
