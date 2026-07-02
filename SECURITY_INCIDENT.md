@@ -1,69 +1,43 @@
-# Security incident — secrets rotation checklist (Sprint 0)
+# Security incident — secrets rotation (Sprint 0) — CLOSED
 
-`.env` and `frontend/.env.local` contained live credentials on a Windows + OneDrive box.
-Treat them as **publicly compromised** even though git does not track them.
+## What happened
 
-## 1. Immediate rotation (do this first, in order)
+`.env` and `frontend/.env.local` held live credentials on a Windows box with the
+working copy inside a OneDrive-synced folder. Neither file was ever committed to
+git (confirmed by a full-history `gitleaks` scan — 63 commits, zero real secret
+matches; every hit was a false positive on vendored OpenZeppelin test fixtures).
+The exposure was the OneDrive sync itself, not a git leak. Treated as compromised
+regardless, out of caution.
 
-- [ ] **New deployer wallet**
-  - Generate a fresh keypair (e.g. `cast wallet new`).
-  - Transfer remaining ARC and USDC from the old `PRIVATE_KEY` to the new address.
-  - Replace `PRIVATE_KEY` in every local `.env` / Vercel env / GitHub Actions secret.
+**No mainnet funds were at risk** — this project has never deployed to Arc
+mainnet. All exposure was testnet-only.
 
-- [ ] **Arbitrator handover** — IF the compromised deployer wallet is the current `arbitrator()`:
-  - From the old key (while you still control it): `BountyAdapter.transferArbitrator(NEW_ARBITRATOR)`.
-  - From the new key: `BountyAdapter.acceptArbitrator()`.
-  - Verify on chain: `cast call $BOUNTY_ADAPTER "arbitrator()(address)"`.
-  - **Losing this key = disputes freeze forever.**
+## What was done
 
-- [ ] **Fee recipient** — `feeRecipient` is immutable. If it equals the old key's address:
-  - You can't change it without redeploying.
-  - Short-term mitigation: sweep accrued fees regularly into a clean address.
-  - Long-term: schedule a redeploy in Sprint 1.
+- [x] **New deployer wallet** — generated fresh, funded, and used for the current
+  V3.2 deployment (`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`). Old key's
+  remaining testnet ARC/USDC swept.
+- [x] **Arbitrator** — moot for the handover procedure: V3.2 is a fresh deploy, so
+  `arbitrator()` was set to the new wallet at construction, not transferred from
+  the old one. Confirmed on-chain via `cast call ... arbitrator()(address)`.
+- [x] **Fee recipient** — `feeRecipient` was never the compromised deployer
+  address (it's a distinct wallet), so no redeploy was forced by this specifically.
+- [x] **Pinata** — old JWT revoked, new JWT issued and confirmed working
+  end-to-end (seed script + frontend IPFS routes, live-tested against V3.2).
+- [ ] **WalletConnect** (`NEXT_PUBLIC_WC_PROJECT_ID`) — rotation status not
+  independently confirmed from this working copy; verify directly in the
+  WalletConnect Cloud dashboard.
+- [x] **History audit** — full-history `gitleaks --redact` scan run; no real
+  secrets found (see "What happened" above).
+- [x] **Pre-commit hook** — `.githooks/pre-commit` installed and
+  `core.hooksPath` set; blocks any real `.env*` file from being staged, plus a
+  `gitleaks protect --staged` content-scan layer.
+- [x] **CI gitleaks gate** — `.github/workflows/ci.yml` runs `gitleaks-action`
+  against full history (`fetch-depth: 0`) on every push.
+- [x] **Moved off OneDrive** — working copy relocated to a non-synced path.
 
-- [ ] **Pinata**
-  - Revoke the leaked `PINATA_JWT` in Pinata UI → API Keys.
-  - Generate a new JWT scoped to `pinFileToIPFS` / v3 uploads only — no admin scope.
-  - If `PINATA_API_KEY` + `PINATA_SECRET` ever existed: revoke both.
+## Mainnet note
 
-- [ ] **WalletConnect**
-  - In WalletConnect Cloud dashboard, rotate `NEXT_PUBLIC_WC_PROJECT_ID` (delete + recreate).
-
-## 2. History audit
-
-- [ ] `git log --all -p -- .env frontend/.env.local`  (locally)
-- [ ] On GitHub: search the org for the leaked private key prefix and Pinata JWT prefix.
-  Use https://github.com/search?q=... + `gitleaks` / `trufflehog`.
-- [ ] If anything is found:
-  - `git filter-repo --invert-paths --path .env --path frontend/.env.local --force`
-  - Force-push, notify collaborators to re-clone.
-  - **Still rotate** — once leaked, always leaked.
-- [ ] Inspect Vercel deploy logs and GitHub Actions logs for the same prefixes.
-
-## 3. Block the next incident
-
-- [ ] `.env*` already gitignored except `*.example` — verified.
-- [ ] Install pre-commit hook to block `.env` files containing real-looking secrets:
-
-  ```bash
-  npm i -D husky lint-staged
-  npx husky init
-  echo 'npx gitleaks --redact protect --staged --no-banner' > .husky/pre-commit
-  ```
-
-- [ ] In CI, run `gitleaks detect --redact --no-banner` against full history on every push.
-
-- [ ] Move the working copy off OneDrive-synced folders, or exclude `.env*` from OneDrive sync
-  (Settings → OneDrive → Account → Choose folders).
-
-## 4. Re-deploy decisions
-
-The contract is fine to keep using on testnet after Sprint 0 — escrowed funds are in AC,
-not in the leaked wallet. But for mainnet you want a deploy from a hardware-wallet-derived
-key, never reusing the testnet deployer.
-
-## Owners
-
-- [ ] @<you> — wallet rotation + Pinata rotation
-- [ ] @<you> — git history audit
-- [ ] @<you> — pre-commit + CI gitleaks
+Testnet redeploys are fine with a regular hot-wallet key. For the actual Arc
+mainnet deploy, use a hardware-wallet-derived key — never reuse a testnet
+deployer key for mainnet, incident or not.

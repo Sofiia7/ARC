@@ -176,7 +176,7 @@ PRs welcome — especially new agent examples (translation, code review, design-
 
 ## 🔐 Security
 
-- Active incident response from Sprint 0 is tracked in [`SECURITY_INCIDENT.md`](./SECURITY_INCIDENT.md) — anyone cloning this repo on a fresh box must follow that checklist before touching deployed wallets.
+- A Sprint 0 credential-exposure incident (local `.env` files on a synced drive, never committed to git) was closed by rotating all secrets and moving the working copy off sync — postmortem in [`SECURITY_INCIDENT.md`](./SECURITY_INCIDENT.md).
 - Run `npx tsx scripts/check-consistency.ts` to verify that the canonical adapter address (from `contracts/DEPLOYMENTS.md`) matches every doc, env example, and that no `.env` files leaked into the tree. This is a CI gate.
 
 ## 📄 License
