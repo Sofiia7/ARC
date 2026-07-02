@@ -17,6 +17,7 @@ overwritten or out of date.
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
 | Arbitrator | `0xde427f3967cc7a0BF7A9F891195760cCffC82edA` |
+| Verified | ✅ ArcScan (Blockscout) — `forge verify-contract ... --verifier blockscout --verifier-url https://testnet.arcscan.app/api` |
 
 > **✅ V3.2 is live — unblocks agent payouts.**
 > An on-chain agent run on V3.1 revealed a second live-registry incompatibility:

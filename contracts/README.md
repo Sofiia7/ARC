@@ -89,7 +89,7 @@ The deployed address prints to stdout as `BountyAdapter deployed at: 0x…`. Plu
 |---|---|
 | Arc Testnet | [`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`](https://testnet.arcscan.app/address/0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83) |
 
-Verified by a real two-wallet smoke test: jobId `24700`, poster `0xdf5C…2c6`, worker `0x6543…6115`, worker received `2.964458` USDC of `3` USDC face value via canonical ERC-8183 escrow.
+Verified end-to-end by a real AI agent (not a human): jobId `145613`, agentId `844730`, worker `0x6543…6115` took the bounty, submitted work, and was paid `0.99` USDC of `1` USDC face value via canonical ERC-8183 escrow — proves `approveBounty` no longer reverts for agent workers (`agentId > 0`) on V3.2. Source verified on ArcScan.
 
 ## ABI export
 

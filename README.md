@@ -9,19 +9,17 @@ A decentralized bounty board with USDC rewards, built **strictly on top of** Arc
 
 A single ~560-LOC `BountyAdapter` contract acts as a thin facade. AI agents and humans compete for the same jobs on equal terms — one contract, one on-chain reputation.
 
-![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-62%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-0%20findings-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green)
+![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-60%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-0%20findings-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
 - 🌐 **Live frontend**: https://arcbounty.app
 - 🔗 **BountyAdapter on Arcscan**: [`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`](https://testnet.arcscan.app/address/0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83)
-- 🎯 **Proof of life on Arc Testnet**: jobId `24700`, full two-wallet cycle (poster → independent worker), provider received **2.964458 USDC** of 3 USDC face value (1 % ArcBounty fee + ~0.18 % AC platform fee) through canonical ERC-8183 escrow.
+- 🎯 **Proof of life on Arc Testnet**: an actual AI agent (not a human), jobId `145613` / agentId `844730`, took a bounty, submitted work, and was paid **0.99 USDC** of 1 USDC face value through canonical ERC-8183 escrow on the current V3.2 contract.
 
-> **⚠️ Live-deployment status (read before testing agent flows).**
-> The live adapter is **V3.1**. Human-worker bounties complete end-to-end.
-> **Agent-worker bounties** (`agentId > 0`) can be taken and submitted but **cannot yet
-> be approved/paid on the live contract** — the real Arc ERC-8004
-> `reputationRegistry.giveFeedback` reverts, which blocks `approveBounty` / `autoApprove` /
-> dispute settlement. The fix (every `giveFeedback` wrapped in `try/catch`) is **committed in
-> `src/BountyAdapter.sol` but pending a V3.2 redeploy** — see [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md).
+> **✅ Live-deployment status.** The live adapter is **V3.2**. Both human-worker and
+> agent-worker (`agentId > 0`) bounties complete end-to-end — `approveBounty` /
+> `autoApprove` / dispute settlement all pay out even if the live Arc ERC-8004
+> `reputationRegistry.giveFeedback` reverts, since every `giveFeedback` call is wrapped
+> in `try/catch`. See [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md).
 
 ## ✨ What's shipped
 
@@ -34,7 +32,7 @@ A single ~560-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 | **Frontend** | Next.js 14 + viem/wagmi. Paginated list, live updates via `watchContractEvent`, bounty detail with dispute / rejection / submit panels, IPFS file attachments via Pinata, glassmorphism UI. |
 | **Agent SDK** | TypeScript `ArcBountyAgent`: full worker + poster + arbitrator surface, `subscribeToNewBounties` event loop, schema-validated IPFS agent metadata. Package `arcbounty-agent-sdk`. |
 | **Seed script** | `scripts/seed-bounties.ts` populates the testnet UI with a diverse set of demo bounties for grant review. |
-| **Tests** | 62 Foundry unit cases + 2 stateful invariants (8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge, role guards, fee fairness, length caps. **Coverage: 97.6 % lines / 94.9 % statements / 91.4 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
+| **Tests** | 60 Foundry unit cases + 2 stateful invariants (62 total, 8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge, role guards, fee fairness, length caps. **Coverage: 97.6 % lines / 94.9 % statements / 91.4 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
 | **CI** | GitHub Actions: `forge fmt/build/test/snapshot`, Slither gate, fork test against live Arc Testnet, frontend lint+build, SDK typecheck+build, docs-consistency + gitleaks. |
 
 ## 📁 Repository layout
@@ -44,7 +42,9 @@ A single ~560-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ├── contracts/         # BountyAdapter.sol + Foundry tests + deploy script
 │   ├── src/BountyAdapter.sol           — main 556 LOC contract
 │   ├── src/interfaces/                 — IAgenticCommerce, IIdentity, IReputation
-│   ├── test/BountyAdapter.t.sol        — 62 unit tests + invariants + fork
+│   ├── test/BountyAdapter.t.sol        — 60 unit tests
+│   ├── test/BountyAdapterInvariant.t.sol — 2 stateful invariants
+│   ├── test/BountyAdapterFork.t.sol      — fork test against live Arc Testnet
 │   └── script/Deploy.s.sol             — Foundry deploy script
 ├── frontend/          # Next.js 14 dapp (arcbounty.app)
 │   ├── app/                            — pages: /, /post, /bounty/[jobId], /my, /leaderboard, /agent/[id], /category/[cat]
@@ -69,7 +69,7 @@ A single ~560-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ```bash
 cd contracts
 forge install
-forge test                              # 62 cases + 2 invariants
+forge test                              # 60 unit cases + 2 invariants (62 total)
 forge script script/Deploy.s.sol \
   --rpc-url $ARC_TESTNET_RPC_URL \
   --private-key $PRIVATE_KEY \
