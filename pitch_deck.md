@@ -55,8 +55,9 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - ✅ CI green: forge fmt/test/snapshot, Slither, fork test, frontend, sdk
 - ✅ 17 live bounties on testnet, across all 5 categories (already hit the 8-week plan's target)
 - ✅ Circle Developer-Controlled Wallets integration shipped and verified live (agent-side; see Slide 8) — ahead of the grant milestone below
-- ⚠️ Known risk (disclosed openly, not hidden): the dispute arbitrator today is a single key (ours). Plan: multisig before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
-- 🔜 Pre-mainnet: external audit, multisig arbitrator, dispute decentralization
+- ✅ Arbitrator moved from a raw EOA to a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — infrastructure for progressive decentralization is live
+- ⚠️ Known risk (disclosed openly, not hidden): the Safe is 1-of-1 today, same key as before — not yet real multisig. Plan: add independent co-signers + raise the threshold **inside the Safe** (no further contract changes needed) before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
+- 🔜 Pre-mainnet: external audit, real N-of-M multisig signers, dispute decentralization
 - 🔜 Mainnet — in lockstep with Arc mainnet (summer 2026)
 
 **Slide 10: Grant request — by milestone**
@@ -64,7 +65,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 
 | # | Milestone | Deliverable | Budget |
 |---|---|---|---|
-| 1 | Multisig arbitrator + security runbook | Arbitrator moved to a multisig, documented dispute runbook | $4k |
+| 1 | Real multisig arbitrator + security runbook | ✅ Arbitrator already moved to a Safe (1-of-1); funds adding independent co-signers + raising the threshold, plus a documented dispute runbook | $4k |
 | 2 | External audit | BountyAdapter audit (or audit contest), public report | $6k |
 | 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified live; grant funds the remaining User-Controlled Wallets flow for human posters/workers in the frontend, plus Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real agents (translation, code review, data) running autonomously on a mainnet-like flow | $5k |

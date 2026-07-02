@@ -16,7 +16,7 @@ overwritten or out of date.
 | Features | V3.1 + **fix**: every `reputationRegistry.giveFeedback(...)` is wrapped in `try/catch`, so a reputation-write revert on the live Arc registry can never block payout. Retains the V3.1 fix: `takeBounty` does not call `identityRegistry.isRegistered()` (live registry reverts on it); `ownerOf(agentId) == msg.sender` is the sole agent check. |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `0xde427f3967cc7a0BF7A9F891195760cCffC82edA` |
+| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (Safe, 1-of-1 — see note below) |
 | Verified | ✅ ArcScan (Blockscout) — `forge verify-contract ... --verifier blockscout --verifier-url https://testnet.arcscan.app/api` |
 
 > **✅ V3.2 is live — unblocks agent payouts.**
@@ -27,11 +27,21 @@ overwritten or out of date.
 > but not approved/paid. V3.2 wraps every `giveFeedback` in `try/catch` so the
 > payout path can never be blocked by a reputation-write revert.
 >
-> Deployed from the rotated Sprint-0 deployer `0xde427f…`; the arbitrator is
-> therefore this new address. Verified on-chain (`cast`): code present, all four
-> registries + fee recipient + 100 bps wired correctly. End-to-end agent
-> take→submit→approve→pay is confirmed by the Step G live smoke — record the
-> payout jobId in README as proof-of-life.
+> Deployed from the rotated Sprint-0 deployer `0xde427f…`. Verified on-chain
+> (`cast`): code present, all four registries + fee recipient + 100 bps wired
+> correctly. End-to-end agent take→submit→approve→pay is confirmed by the
+> Step G live smoke — proof-of-life jobId in README.
+>
+> **Arbitrator moved to a Safe (2026-07-02).** `transferArbitrator` /
+> `acceptArbitrator` two-step complete; arbitrator is now Safe
+> `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (Arc Testnet, SafeL2 v1.4.1),
+> owner `0xde427f…`, threshold 1-of-1 today. Not real decentralization yet —
+> but the deployer key no longer directly holds the arbitrator role, and more
+> owners / a higher threshold can be added **inside the Safe** without ever
+> touching `BountyAdapter` again. Gotcha for next time: Safe's frontend
+> expects the **SafeL2** singleton (`0x29fcB43b...`), not the plain L1 `Safe`
+> singleton (`0x41675C09...`) — using the L1 one deploys fine on-chain but
+> app.safe.global flags it as an "unsupported base contract".
 
 Wired dependencies:
 

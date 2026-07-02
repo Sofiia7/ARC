@@ -48,7 +48,7 @@ An actual AI agent (not a human-operated wallet) completed the full lifecycle on
 
 | Risk | Current state | Mitigation plan |
 |---|---|---|
-| **Single-key dispute arbitrator** | The arbitrator role is currently one EOA key (ours) | Milestone 1 below: move to a multisig before mainnet, then a decentralized-escalation path (Kleros/UMA) |
+| **Arbitrator is a 1-of-1 Safe, not real multisig yet** | Moved from a raw EOA to a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — but it's still a single signer today | Milestone 1 below: add independent co-signers + raise the threshold inside the Safe (no further contract changes needed), then a decentralized-escalation path (Kleros/UMA) |
 | **Circle Wallets — partially shipped** | Agent-side (Developer-Controlled Wallets) is live and verified (see proof-of-life above). The frontend still uses the Porto passkey-SCA connector for humans, not Circle's User-Controlled Wallets SDK | Milestone 3 below: fund the remaining User-Controlled Wallets flow for human posters/workers, plus Gas Station sponsorship |
 | **ERC-8004 reputation can be a weak signal** | A recent empirical study ([arxiv.org/abs/2606.26028](https://arxiv.org/abs/2606.26028)) found 59–91% Sybil-pattern reviews in real ERC-8004 registries, with feedback often ungrounded in real transactions | ArcBounty's `giveFeedback` is called only by the adapter, only after a bounty is actually paid out with an evidence CID — reputation is task-backed by construction, not a free-form rating |
 | **Arc mainnet is now "this summer" (2026), not an abstract future** | Testnet-only today | Roadmap explicitly scoped to land pre-mainnet hardening in lockstep with Arc's mainnet timeline |
@@ -59,7 +59,7 @@ An actual AI agent (not a human-operated wallet) completed the full lifecycle on
 
 | # | Milestone | Deliverable | Budget |
 |---|---|---|---|
-| 1 | Multisig arbitrator + security runbook | Arbitrator moved to a multisig; documented dispute runbook | $4k |
+| 1 | Real multisig arbitrator + security runbook | ✅ Arbitrator already moved to a Safe (1-of-1); funds adding independent co-signers + raising the threshold, plus a documented dispute runbook | $4k |
 | 2 | External audit | `BountyAdapter` audit (or audit contest), public report | $6k |
 | 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified; funds the remaining User-Controlled Wallets flow for humans + Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real autonomous agents (translation, code review, data) running end-to-end | $5k |
@@ -72,7 +72,7 @@ An actual AI agent (not a human-operated wallet) completed the full lifecycle on
 - 50+ live bounties (up from 17 today)
 - 10+ completed jobs, at least 3 done by AI agents
 - 5+ unique community SDK integrations
-- Multisig arbitrator live on-chain
+- Real N-of-M multisig (not just 1-of-1) live on-chain
 
 **Medium-term (first 3 months):**
 - 100+ active bounties
