@@ -23,6 +23,7 @@ This is a direct fit for the Agentic Economy Group's stated focus: agentic comme
 ## What's live today
 
 - **Frontend**: [arcbounty.app](https://arcbounty.app) — production, CSP/HSTS, real-time on-chain events, passkey login (Porto connector)
+- **Agent SDK also supports Circle Developer-Controlled Wallets** — an agent can sign through Circle's MPC custody with zero private key in its process, not just Porto
 - **Contract**: `BountyAdapter` V3.2 at [`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`](https://testnet.arcscan.app/address/0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83) — deployed and **source-verified** on ArcScan
 - **SDK**: [`arcbounty-agent-sdk`](https://www.npmjs.com/package/arcbounty-agent-sdk) — published on npm, full poster/worker/arbitrator surface
 - **GitHub**: `github.com/Sofiia7/ARC` (private repo — access available on request as part of this application)
@@ -32,8 +33,9 @@ This is a direct fit for the Agentic Economy Group's stated focus: agentic comme
 
 An actual AI agent (not a human-operated wallet) completed the full lifecycle on the live V3.2 contract:
 
-- **jobId `145613`**, **agentId `844730`** — took a bounty, submitted work, and was paid **0.99 USDC** of a 1 USDC reward (the difference is the 1% protocol fee, not a rounding artifact) through the canonical ERC-8183 escrow.
+- **jobId `145613`**, **agentId `844730`** (raw private key) — took a bounty, submitted work, and was paid **0.99 USDC** of a 1 USDC reward (the difference is the 1% protocol fee, not a rounding artifact) through the canonical ERC-8183 escrow.
 - This specifically exercises the payout path that used to be broken on the prior contract version (V3.1): the live Arc ERC-8004 reputation registry can revert on `giveFeedback`, which used to block payout to agent workers entirely. V3.2 wraps that call in `try/catch` so payout can never be blocked by a reputation-write failure — verified end-to-end on-chain, not just in a unit test.
+- **A second, independent proof using a Circle Developer-Controlled Wallet** — **jobId `145786`**, **agentId `845036`**, wallet `0x3996…ba101` — ran the exact same register → take → submit → approve → pay cycle with no private key anywhere in the process, signing entirely through Circle's API/MPC custody. Paid **0.99 USDC** of 1 USDC, confirmed independently on-chain.
 
 ## Engineering discipline (verifiable, not just claimed)
 
@@ -47,7 +49,7 @@ An actual AI agent (not a human-operated wallet) completed the full lifecycle on
 | Risk | Current state | Mitigation plan |
 |---|---|---|
 | **Single-key dispute arbitrator** | The arbitrator role is currently one EOA key (ours) | Milestone 1 below: move to a multisig before mainnet, then a decentralized-escalation path (Kleros/UMA) |
-| **Circle Wallets claimed vs. shipped** | The live frontend uses the Porto passkey-SCA connector — the same UX category Circle promotes, but not Circle's own Wallet SDK | Milestone 3 below: real Circle developer-controlled/user-controlled wallet integration |
+| **Circle Wallets — partially shipped** | Agent-side (Developer-Controlled Wallets) is live and verified (see proof-of-life above). The frontend still uses the Porto passkey-SCA connector for humans, not Circle's User-Controlled Wallets SDK | Milestone 3 below: fund the remaining User-Controlled Wallets flow for human posters/workers, plus Gas Station sponsorship |
 | **ERC-8004 reputation can be a weak signal** | A recent empirical study ([arxiv.org/abs/2606.26028](https://arxiv.org/abs/2606.26028)) found 59–91% Sybil-pattern reviews in real ERC-8004 registries, with feedback often ungrounded in real transactions | ArcBounty's `giveFeedback` is called only by the adapter, only after a bounty is actually paid out with an evidence CID — reputation is task-backed by construction, not a free-form rating |
 | **Arc mainnet is now "this summer" (2026), not an abstract future** | Testnet-only today | Roadmap explicitly scoped to land pre-mainnet hardening in lockstep with Arc's mainnet timeline |
 
@@ -59,7 +61,7 @@ An actual AI agent (not a human-operated wallet) completed the full lifecycle on
 |---|---|---|---|
 | 1 | Multisig arbitrator + security runbook | Arbitrator moved to a multisig; documented dispute runbook | $4k |
 | 2 | External audit | `BountyAdapter` audit (or audit contest), public report | $6k |
-| 3 | Real Circle Wallet / Gas Station integration | Developer-controlled or user-controlled wallet flow, replacing Porto-only | $6k |
+| 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified; funds the remaining User-Controlled Wallets flow for humans + Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real autonomous agents (translation, code review, data) running end-to-end | $5k |
 | 5 | Public bounty liquidity | 50+ real testnet bounties funded by the grant (17 today) | $6k |
 | 6 | Indexer / monitoring / keeper hardening | Replace O(n) on-chain scans with an indexer; monitor and alert on the keeper cron | $4k |

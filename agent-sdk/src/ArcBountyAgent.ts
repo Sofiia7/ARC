@@ -1,6 +1,5 @@
 import {
   createPublicClient,
-  createWalletClient,
   decodeEventLog,
   http,
   defineChain,
@@ -8,14 +7,15 @@ import {
   type Address,
   type Hash,
   type PublicClient,
-  type WalletClient,
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import {
   BOUNTY_ADAPTER_ABI,
   IDENTITY_REGISTRY_ABI,
   ERC20_ABI,
 } from "./abi.js";
+import { ViemSigner } from "./signers/viemSigner.js";
+import { CircleSigner } from "./signers/circleSigner.js";
+import type { Signer } from "./signers/types.js";
 import {
   ARC_TESTNET_RPC,
   ARC_TESTNET_CHAIN_ID,
@@ -45,8 +45,7 @@ const arcTestnet = defineChain({
 
 export class ArcBountyAgent {
   private readonly publicClient: PublicClient;
-  private readonly walletClient: WalletClient;
-  private readonly account: ReturnType<typeof privateKeyToAccount>;
+  private readonly signer: Signer;
   private readonly bountyAdapter: Address;
   private readonly metadataURI: string;
   private readonly chain: ReturnType<typeof defineChain>;
@@ -57,7 +56,9 @@ export class ArcBountyAgent {
     const rpcUrl = config.rpcUrl ?? ARC_TESTNET_RPC;
     this.chain = defineChain({ ...arcTestnet, rpcUrls: { default: { http: [rpcUrl] } } });
 
-    this.account = privateKeyToAccount(config.privateKey);
+    this.signer = config.circleWallet
+      ? new CircleSigner(config.circleWallet)
+      : new ViemSigner(config.privateKey as `0x${string}`, this.chain, rpcUrl);
     this.metadataURI = config.metadataURI ?? "";
     const rawAdapter = config.bountyAdapterAddress ??
       (process.env["BOUNTY_ADAPTER_ADDRESS"] as Address | undefined);
@@ -73,11 +74,10 @@ export class ArcBountyAgent {
     this.bountyAdapter = rawAdapter as Address;
 
     this.publicClient = createPublicClient({ chain: this.chain, transport: http(rpcUrl) }) as PublicClient;
-    this.walletClient = createWalletClient({ account: this.account, chain: this.chain, transport: http(rpcUrl) });
   }
 
   get address(): Address {
-    return this.account.address;
+    return this.signer.address;
   }
 
   // ─── Identity ───────────────────────────────────────────────────────────────
@@ -89,13 +89,11 @@ export class ArcBountyAgent {
       return existing;
     }
 
-    const hash = await this.walletClient.writeContract({
+    const hash = await this.signer.writeContract({
       address: CONTRACTS.IDENTITY_REGISTRY,
       abi: IDENTITY_REGISTRY_ABI,
       functionName: "register",
       args: [this.metadataURI],
-      chain: null,
-      account: this.account,
     });
 
     // Decode the agentId straight from the registration receipt — authoritative
@@ -111,7 +109,7 @@ export class ArcBountyAgent {
   /** Pull the minted tokenId from a Transfer(from=0x0, to=self) log in a receipt. */
   private _agentIdFromReceiptLogs(logs: readonly { address: string; topics: readonly string[] }[]): bigint | null {
     const TRANSFER_SIG = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-    const me = this.account.address.toLowerCase().slice(2).padStart(64, "0");
+    const me = this.signer.address.toLowerCase().slice(2).padStart(64, "0");
     for (const log of logs) {
       if (log.address.toLowerCase() !== CONTRACTS.IDENTITY_REGISTRY.toLowerCase()) continue;
       if (log.topics.length < 4) continue;
@@ -216,7 +214,7 @@ export class ArcBountyAgent {
 
     await this._ensureUsdcAllowance(reward);
 
-    const hash = await this.walletClient.writeContract({
+    const hash = await this.signer.writeContract({
       address: this.bountyAdapter,
       abi: BOUNTY_ADAPTER_ABI,
       functionName: "createBounty",
@@ -230,8 +228,6 @@ export class ArcBountyAgent {
         agentOnly:    opts.agentOnly ?? false,
         humanOnly:    opts.humanOnly ?? false,
       }],
-      chain: null,
-      account: this.account,
     });
 
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
@@ -259,16 +255,7 @@ export class ArcBountyAgent {
 
   async takeBounty(jobId: bigint): Promise<TxResult> {
     const agentId = this._agentId ?? 0n;
-    const hash = await this.walletClient.writeContract({
-      address: this.bountyAdapter,
-      abi: BOUNTY_ADAPTER_ABI,
-      functionName: "takeBounty",
-      args: [jobId, agentId],
-      chain: null,
-      account: this.account,
-    });
-    await this._waitForTx(hash);
-    return { hash };
+    return this._writeAdapter("takeBounty", [jobId, agentId]);
   }
 
   async submitWork(jobId: bigint, options: SubmitWorkOptions): Promise<TxResult> {
@@ -276,17 +263,7 @@ export class ArcBountyAgent {
       throw new Error("Provide either text or cid");
     }
     const cid = options.cid ?? await pinText(options.text!);
-
-    const hash = await this.walletClient.writeContract({
-      address: this.bountyAdapter,
-      abi: BOUNTY_ADAPTER_ABI,
-      functionName: "submitWork",
-      args: [jobId, cid],
-      chain: null,
-      account: this.account,
-    });
-    await this._waitForTx(hash);
-    return { hash };
+    return this._writeAdapter("submitWork", [jobId, cid]);
   }
 
   // ─── Poster cycle ───────────────────────────────────────────────────────────
@@ -347,46 +324,19 @@ export class ArcBountyAgent {
   /** Worker challenges a pending rejection — flips bounty into dispute with worker as initiator. */
   async challengeRejection(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
     const cid = await this._resolveEvidenceCid(evidence);
-    const hash = await this.walletClient.writeContract({
-      address: this.bountyAdapter,
-      abi: BOUNTY_ADAPTER_ABI,
-      functionName: "challengeRejection",
-      args: [jobId, cid],
-      chain: null,
-      account: this.account,
-    });
-    await this._waitForTx(hash);
-    return { hash };
+    return this._writeAdapter("challengeRejection", [jobId, cid]);
   }
 
   /** Open a dispute (either party — after submission, before resolution). */
   async disputeBounty(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
     const cid = await this._resolveEvidenceCid(evidence);
-    const hash = await this.walletClient.writeContract({
-      address: this.bountyAdapter,
-      abi: BOUNTY_ADAPTER_ABI,
-      functionName: "disputeBounty",
-      args: [jobId, cid],
-      chain: null,
-      account: this.account,
-    });
-    await this._waitForTx(hash);
-    return { hash };
+    return this._writeAdapter("disputeBounty", [jobId, cid]);
   }
 
   /** Respond to an open dispute (only the non-initiator may call). */
   async respondToDispute(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
     const cid = await this._resolveEvidenceCid(evidence);
-    const hash = await this.walletClient.writeContract({
-      address: this.bountyAdapter,
-      abi: BOUNTY_ADAPTER_ABI,
-      functionName: "respondToDispute",
-      args: [jobId, cid],
-      chain: null,
-      account: this.account,
-    });
-    await this._waitForTx(hash);
-    return { hash };
+    return this._writeAdapter("respondToDispute", [jobId, cid]);
   }
 
   // ─── Expire stale bounties ──────────────────────────────────────────────────
@@ -406,15 +356,7 @@ export class ArcBountyAgent {
       const meta = await this.getBounty(jobId);
       if (meta.deadline < now) {
         try {
-          const hash = await this.walletClient.writeContract({
-            address: this.bountyAdapter,
-            abi: BOUNTY_ADAPTER_ABI,
-            functionName: "expireBounty",
-            args: [jobId],
-            chain: null,
-            account: this.account,
-          });
-          await this._waitForTx(hash);
+          await this._writeAdapter("expireBounty", [jobId]);
           expired.push(jobId);
         } catch {
           // already expired or other error — skip
@@ -558,13 +500,11 @@ export class ArcBountyAgent {
    * retry, paymaster) land in one place.
    */
   private async _writeAdapter(functionName: string, args: readonly unknown[]): Promise<TxResult> {
-    const hash = await this.walletClient.writeContract({
+    const hash = await this.signer.writeContract({
       address: this.bountyAdapter,
       abi: BOUNTY_ADAPTER_ABI,
-      functionName: functionName as never,
-      args: args as never,
-      chain: null,
-      account: this.account,
+      functionName,
+      args,
     });
     await this._waitForTx(hash);
     return { hash };
@@ -616,13 +556,11 @@ export class ArcBountyAgent {
     });
     if (current >= amount) return;
 
-    const hash = await this.walletClient.writeContract({
+    const hash = await this.signer.writeContract({
       address: CONTRACTS.USDC,
       abi: ERC20_ABI,
       functionName: "approve",
       args: [this.bountyAdapter, amount],
-      chain: null,
-      account: this.account,
     });
     await this._waitForTx(hash);
   }

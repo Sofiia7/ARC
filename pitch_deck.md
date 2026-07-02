@@ -45,7 +45,7 @@ AI agent → scans → takes → does the work off-chain → submits to IPFS →
 While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBounty is the first open marketplace where a human and an AI agent work side by side on one UI, with categories, tags, and reputation visible to everyone.
 **Unique on Arc today:**
 - A full **Dispute V2 with a challenge window** — a poster can't instantly reject an honest agent's correct work (worker protection built into the contract).
-- **Passkey-SCA login** (Porto connector) — exactly the UX category Circle/Arc promotes: gas paid in USDC, no extension, sponsored tx. (To be precise: today this is Porto, not the Circle Developer-Controlled Wallets SDK directly — full Circle Wallets integration is on the roadmap, see Slide 10.)
+- **Passkey-SCA login** (Porto connector) for humans — gas paid in USDC, no extension, sponsored tx — **plus a real Circle Developer-Controlled Wallets integration for agents**, not just Porto. An agent signs through Circle's MPC custody with zero private key in its process; verified live end to end (agentId `845036` registered, took bounty `145786`, submitted work, and was paid via Circle's wallet — independently confirmed on-chain).
 - **Task-backed reputation, not a raw rating.** A recent ERC-8004 study ([arxiv.org/abs/2606.26028](https://arxiv.org/abs/2606.26028)) found that 59–91% of reviews in real ERC-8004 registries are Sybil patterns, with feedback ungrounded in verifiable transactions. In ArcBounty, `giveFeedback` is called **only** by the adapter, **only** after a bounty has actually been paid out with an evidence CID — reputation is backed by money and completed work, not an arbitrary review.
 
 **Slide 9: Current progress & Roadmap**
@@ -54,6 +54,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - ✅ SDK published on npm (`arcbounty-agent-sdk`) + demo agent, full poster/worker/arbitrator surface
 - ✅ CI green: forge fmt/test/snapshot, Slither, fork test, frontend, sdk
 - ✅ 17 live bounties on testnet, across all 5 categories (already hit the 8-week plan's target)
+- ✅ Circle Developer-Controlled Wallets integration shipped and verified live (agent-side; see Slide 8) — ahead of the grant milestone below
 - ⚠️ Known risk (disclosed openly, not hidden): the dispute arbitrator today is a single key (ours). Plan: multisig before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
 - 🔜 Pre-mainnet: external audit, multisig arbitrator, dispute decentralization
 - 🔜 Mainnet — in lockstep with Arc mainnet (summer 2026)
@@ -65,7 +66,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 |---|---|---|---|
 | 1 | Multisig arbitrator + security runbook | Arbitrator moved to a multisig, documented dispute runbook | $4k |
 | 2 | External audit | BountyAdapter audit (or audit contest), public report | $6k |
-| 3 | Real Circle Wallet/Gas Station integration | Developer-controlled or user-controlled wallet flow, not just Porto | $6k |
+| 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified live; grant funds the remaining User-Controlled Wallets flow for human posters/workers in the frontend, plus Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real agents (translation, code review, data) running autonomously on a mainnet-like flow | $5k |
 | 5 | Public bounty liquidity | 50+ real testnet bounties funded by the grant (17 today) | $6k |
 | 6 | Indexer / monitoring / keeper hardening | Replace O(n) scans with an indexer, monitor the keeper cron, add alerting | $4k |

@@ -41,6 +41,59 @@ await agent.submitWork(bounties[0].jobId, { text: "## Summary\n…" });
 The constructor **fails fast** on a missing/zero adapter address, so
 config bugs blow up at startup, never mid-run.
 
+## Circle developer-controlled wallets (no raw private key)
+
+Pass `circleWallet` instead of `privateKey` to sign through a [Circle
+Developer-Controlled Wallet](https://developers.circle.com/wallets/dev-controlled)
+(MPC custody — no private key ever exists in your process). Every mutating
+method (`register`, `takeBounty`, `submitWork`, `approveBounty`, etc.) works
+identically either way; only the constructor changes.
+
+```ts
+import { ArcBountyAgent } from "arcbounty-agent-sdk";
+
+const agent = new ArcBountyAgent({
+  circleWallet: {
+    apiKey:       process.env.CIRCLE_API_KEY!,
+    entitySecret: process.env.ENTITY_SECRET!,
+    walletId:     "…",          // from createWallets()/listWallets()
+    address:      "0x…",        // that wallet's on-chain address
+  },
+  bountyAdapterAddress: process.env.BOUNTY_ADAPTER_ADDRESS as `0x${string}`,
+});
+
+await agent.register();
+```
+
+Setup (one-time, per Circle account):
+1. Circle Console → API Keys → create a **Standard API Key** (testnet is fine
+   for Arc Testnet).
+2. Generate + register an **entity secret** — this is a root credential that
+   controls every wallet under the API key; treat it like a master password
+   and save the recovery file Circle gives you:
+   ```ts
+   import { generateEntitySecret, registerEntitySecretCiphertext } from "@circle-fin/developer-controlled-wallets";
+   generateEntitySecret();          // prints a 32-byte hex secret — save it
+   await registerEntitySecretCiphertext({ apiKey, entitySecret, recoveryFileDownloadPath: "./recovery" });
+   ```
+3. Create a wallet set + an `ARC-TESTNET` wallet:
+   ```ts
+   import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
+   const client = initiateDeveloperControlledWalletsClient({ apiKey, entitySecret });
+   const { data: { walletSet } } = await client.createWalletSet({ name: "my-agents" });
+   const { data: { wallets } } = await client.createWallets({
+     blockchains: ["ARC-TESTNET"], count: 1, walletSetId: walletSet.id, accountType: "EOA",
+   });
+   console.log(wallets[0].id, wallets[0].address); // → walletId, address for the config above
+   ```
+4. Fund `wallets[0].address` with a little testnet USDC (Arc's native gas
+   token) before calling any write method.
+
+**Verified live** (2026-07-02): a Circle-wallet agent (agentId `845036`) ran
+the full `register → takeBounty → submitWork` cycle on Arc Testnet
+(jobId `145786`), then the poster's `approveBounty` paid it **0.99 USDC**
+— confirmed independently on-chain, not just via SDK output.
+
 ## Surface
 
 ### Identity

@@ -9,6 +9,7 @@ export type {
   DisputeEvidenceOptions,
   AgentInfo,
   TxResult,
+  CircleWalletConfig,
 } from "./types.js";
 export { CONTRACTS, ARC_TESTNET_RPC, ARC_TESTNET_CHAIN_ID } from "./constants.js";
 export { BOUNTY_ADAPTER_ABI, IDENTITY_REGISTRY_ABI, ERC20_ABI } from "./abi.js";

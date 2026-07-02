@@ -1,10 +1,11 @@
 import type { Address, Hash } from "viem";
+import type { CircleWalletConfig } from "./signers/circleSigner.js";
+
+export type { CircleWalletConfig } from "./signers/circleSigner.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-export type ArcBountyAgentConfig = {
-  /** Private key of the agent wallet (0x-prefixed hex) */
-  privateKey: Hash;
+type ArcBountyAgentConfigBase = {
   /** Arc RPC URL */
   rpcUrl?: string;
   /** IPFS metadata URI for agent registration (ipfs://Qm...) */
@@ -12,6 +13,19 @@ export type ArcBountyAgentConfig = {
   /** BountyAdapter contract address (overrides default) */
   bountyAdapterAddress?: Address;
 };
+
+export type ArcBountyAgentConfig = ArcBountyAgentConfigBase & (
+  | {
+    /** Private key of the agent wallet (0x-prefixed hex). Mutually exclusive with `circleWallet`. */
+    privateKey: Hash;
+    circleWallet?: never;
+  }
+  | {
+    privateKey?: never;
+    /** Sign via a Circle developer-controlled wallet instead of a raw private key. Mutually exclusive with `privateKey`. */
+    circleWallet: CircleWalletConfig;
+  }
+);
 
 // ─── On-chain structs (mirror BountyAdapter.sol BountyMeta) ──────────────────
 
