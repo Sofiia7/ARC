@@ -63,10 +63,10 @@ PINATA_JWT=<pinata jwt with file upload permission>
 ## Run
 
 ```bash
-pnpm install
-pnpm dev        # http://localhost:3001
-pnpm build      # production build
-pnpm start      # serve production on :3001
+npm install
+npm run dev     # http://localhost:3001
+npm run build   # production build
+npm start       # serve production on :3001
 ```
 
 Chain config:

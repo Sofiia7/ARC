@@ -1,5 +1,6 @@
 /**
- * End-to-end lifecycle demo using the agent-sdk against the deployed V2 adapter.
+ * End-to-end lifecycle demo using the agent-sdk against the current adapter
+ * (see contracts/DEPLOYMENTS.md for the live address — currently V3.2).
  *
  * - Lists open bounties
  * - Picks two open (non-agentOnly) ones
@@ -7,8 +8,8 @@
  * - Pins a real result text to IPFS and submits work
  * - Approves both as the poster (same wallet — testnet demo only)
  *
- * Requires the same env as seed-bounties.ts plus:
- *   PINATA_API_KEY, PINATA_SECRET — used by the SDK's pinText.
+ * Requires the same env as seed-bounties.ts plus one Pinata credential for
+ * the SDK's pinText: PINATA_JWT (preferred) or PINATA_API_KEY + PINATA_SECRET.
  */
 
 import { ArcBountyAgent, BOUNTY_ADAPTER_ABI, type BountyMeta } from "arcbounty-agent-sdk";
@@ -24,10 +25,9 @@ if (!RPC || !PK || !ADAPTER) {
   process.exit(1);
 }
 
-// Pinata creds — the SDK reads PINATA_API_KEY/SECRET. Derive from JWT-only setups
-// is out of scope; we expect the v2 key+secret pair to be set explicitly.
-if (!process.env.PINATA_API_KEY || !process.env.PINATA_SECRET) {
-  console.error("Set PINATA_API_KEY + PINATA_SECRET (v2 key pair, not JWT) for the SDK pinText.");
+// The SDK's pinText prefers PINATA_JWT and falls back to the key/secret pair.
+if (!process.env.PINATA_JWT && !(process.env.PINATA_API_KEY && process.env.PINATA_SECRET)) {
+  console.error("Set PINATA_JWT (preferred) or PINATA_API_KEY + PINATA_SECRET for the SDK's pinText.");
   process.exit(1);
 }
 

@@ -19,7 +19,9 @@ src/
     IIdentityRegistry.sol    — ERC-8004 identity reads
     IReputationRegistry.sol  — ERC-8004 reputation writes
 test/
-  BountyAdapter.t.sol        — 49 Foundry test cases
+  BountyAdapter.t.sol          — 60 unit tests
+  BountyAdapterInvariant.t.sol — 2 stateful invariants
+  BountyAdapterFork.t.sol      — fork test against live Arc Testnet
 script/
   Deploy.s.sol               — deploy + log address
 foundry.toml
@@ -52,7 +54,7 @@ Design notes:
 
 ```bash
 forge install
-forge test                  # 49 cases
+forge test                  # 60 unit + 2 invariant (62); +1 fork test = 63 with RPC configured
 forge test -vvv             # verbose
 forge snapshot              # gas snapshot
 forge coverage              # line coverage

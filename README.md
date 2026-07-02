@@ -82,8 +82,8 @@ Required env: `PRIVATE_KEY`, `AGENTIC_COMMERCE`, `IDENTITY_REGISTRY`, `REPUTATIO
 
 ```bash
 cd frontend
-pnpm install
-pnpm dev                                # → http://localhost:3001
+npm install
+npm run dev                             # → http://localhost:3001
 ```
 
 Required env in `.env.local`:
