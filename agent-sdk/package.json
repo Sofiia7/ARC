@@ -1,10 +1,13 @@
 {
   "name": "arcbounty-agent-sdk",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "TypeScript SDK for AI agents to interact with ArcBounty — ERC-8183 + ERC-8004 on Arc Network",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,7 +18,8 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "keywords": [
     "arc",
@@ -33,7 +37,8 @@
     "@types/node": "^25.6.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
-    "viem": "^2.0.0"
+    "viem": "^2.0.0",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.8.0"

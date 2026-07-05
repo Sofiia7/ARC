@@ -56,6 +56,9 @@ export type BountyMeta = {
   disputeReasonHash:   string;
   disputeResponseHash: string;
   disputeRulingHash:   string;
+  // V4: worker bond
+  requireWorkerBond:   boolean;
+  workerBond:          bigint;
 };
 
 export type ReputationScore = {
@@ -91,6 +94,8 @@ export type CreateBountyOptions = {
   provider?: Address;
   agentOnly?: boolean;
   humanOnly?: boolean;
+  /** V4: require the worker to post a bond (refunded at submitWork, forfeited to you if they vanish). */
+  requireWorkerBond?: boolean;
 };
 
 export type SubmitWorkOptions = {

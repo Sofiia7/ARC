@@ -29,6 +29,8 @@ const BOUNTY_META_TUPLE = {
     { name: "disputeReasonHash",    type: "string"  },
     { name: "disputeResponseHash",  type: "string"  },
     { name: "disputeRulingHash",    type: "string"  },
+    { name: "requireWorkerBond",    type: "bool"    },
+    { name: "workerBond",           type: "uint256" },
   ],
 } as const;
 
@@ -50,6 +52,7 @@ export const BOUNTY_ADAPTER_ABI = [
         { name: "tags",         type: "string[]" },
         { name: "agentOnly",    type: "bool"     },
         { name: "humanOnly",    type: "bool"     },
+        { name: "requireWorkerBond", type: "bool" },
       ],
     }],
     outputs: [{ name: "jobId", type: "uint256" }],
@@ -171,7 +174,27 @@ export const BOUNTY_ADAPTER_ABI = [
     inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
+  {
+    // V3.3 — permissionless neutral 50/50 split if the arbitrator never rules
+    // after both parties have submitted evidence (claimDefaultRuling doesn't
+    // apply once a response exists). See ARBITRATOR_TIMEOUT (30d).
+    name: "claimArbitratorTimeout",
+    type: "function" as const,
+    stateMutability: "nonpayable" as const,
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
   // ── Read ──
+  {
+    // Public array getter — needed to scan the full bounty set (expireStale,
+    // keeper-style scripts). Not paginated on-chain; callers should bound
+    // their own scan via totalBounties().
+    name: "allJobIds",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
   {
     name: "getOpenBounties",
     type: "function" as const,
@@ -260,6 +283,34 @@ export const BOUNTY_ADAPTER_ABI = [
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    name: "ARBITRATOR_TIMEOUT",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "uniquePosterCount",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "WORKER_BOND_BPS",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "MIN_WORKER_BOND",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
   // ── Events ──
   {
     name: "BountyCreated",
@@ -325,6 +376,42 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "payProvider",   type: "bool",    indexed: false },
       { name: "rulingHash",    type: "string",  indexed: false },
       { name: "defaultRuling", type: "bool",    indexed: false },
+    ],
+  },
+  {
+    name: "ArbitratorTimeoutClaimed",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",         type: "uint256", indexed: true  },
+      { name: "posterAmount",  type: "uint256", indexed: false },
+      { name: "providerAmount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "WorkerBondPosted",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true  },
+      { name: "worker", type: "address", indexed: true  },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "WorkerBondRefunded",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true  },
+      { name: "worker", type: "address", indexed: true  },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "WorkerBondForfeited",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true  },
+      { name: "poster", type: "address", indexed: true  },
+      { name: "amount", type: "uint256", indexed: false },
     ],
   },
 ] as const;

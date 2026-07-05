@@ -24,6 +24,7 @@ import {
   ZERO_ADDRESS,
 } from "./constants.js";
 import { pinText, fetchIpfsText } from "./ipfs.js";
+import { parseUsdc, resolveDeadline, matchesBountyFilter, agentIdFromReceiptLogs, workerBondFor } from "./logic.js";
 import type {
   ArcBountyAgentConfig,
   BountyMeta,
@@ -99,26 +100,11 @@ export class ArcBountyAgent {
     // Decode the agentId straight from the registration receipt — authoritative
     // and avoids a wide getLogs scan that public RPCs reject on long chains.
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
-    const agentId = this._agentIdFromReceiptLogs(receipt.logs);
+    const agentId = agentIdFromReceiptLogs(receipt.logs, CONTRACTS.IDENTITY_REGISTRY, this.signer.address);
     if (agentId === null) throw new Error("Registration succeeded but agentId not found in events");
 
     this._agentId = agentId;
     return agentId;
-  }
-
-  /** Pull the minted tokenId from a Transfer(from=0x0, to=self) log in a receipt. */
-  private _agentIdFromReceiptLogs(logs: readonly { address: string; topics: readonly string[] }[]): bigint | null {
-    const TRANSFER_SIG = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-    const me = this.signer.address.toLowerCase().slice(2).padStart(64, "0");
-    for (const log of logs) {
-      if (log.address.toLowerCase() !== CONTRACTS.IDENTITY_REGISTRY.toLowerCase()) continue;
-      if (log.topics.length < 4) continue;
-      if (log.topics[0]?.toLowerCase() !== TRANSFER_SIG) continue;
-      if (log.topics[1]?.toLowerCase() !== "0x" + "0".repeat(64)) continue; // from == 0x0
-      if (log.topics[2]?.toLowerCase() !== "0x" + me) continue; // to == self
-      return BigInt(log.topics[3]!); // tokenId
-    }
-    return null;
   }
 
   get agentId(): bigint {
@@ -152,15 +138,7 @@ export class ArcBountyAgent {
 
     const metas = await Promise.all(jobIds.map(jobId => this.getBounty(jobId)));
 
-    return metas.filter(m => {
-      if (agentOnly === true  && !m.agentOnly)  return false;
-      if (humanOnly === true  && !m.humanOnly)  return false;
-      if (agentOnly === false && m.agentOnly)   return false;
-      if (humanOnly === false && m.humanOnly)   return false;
-      if (maxReward !== undefined && m.reward > this._parseUsdc(maxReward)) return false;
-      if (minReward !== undefined && m.reward < this._parseUsdc(minReward)) return false;
-      return true;
-    });
+    return metas.filter(m => matchesBountyFilter(m, { agentOnly, humanOnly, maxReward, minReward }));
   }
 
   async getBounty(jobId: bigint): Promise<BountyMeta> {
@@ -208,8 +186,8 @@ export class ArcBountyAgent {
       throw new Error("Provide either descriptionCid or descriptionText");
     }
 
-    const reward = this._parseUsdc(opts.rewardUsdc);
-    const deadline = this._resolveDeadline(opts.deadline);
+    const reward = parseUsdc(opts.rewardUsdc);
+    const deadline = resolveDeadline(opts.deadline);
     const descCid = opts.descriptionCid ?? await pinText(opts.descriptionText!);
 
     await this._ensureUsdcAllowance(reward);
@@ -227,6 +205,7 @@ export class ArcBountyAgent {
         tags:         opts.tags ?? [],
         agentOnly:    opts.agentOnly ?? false,
         humanOnly:    opts.humanOnly ?? false,
+        requireWorkerBond: opts.requireWorkerBond ?? false,
       }],
     });
 
@@ -255,6 +234,22 @@ export class ArcBountyAgent {
 
   async takeBounty(jobId: bigint): Promise<TxResult> {
     const agentId = this._agentId ?? 0n;
+    // V4: a requireWorkerBond bounty pulls the bond from the worker via
+    // transferFrom inside takeBounty — without a USDC allowance the take
+    // reverts. Read the live bond parameters rather than hardcoding them so
+    // the SDK stays correct if a future deployment tunes them.
+    const meta = await this.getBounty(jobId);
+    if (meta.requireWorkerBond) {
+      const [bondBps, minBond] = await Promise.all([
+        this.publicClient.readContract({
+          address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "WORKER_BOND_BPS",
+        }),
+        this.publicClient.readContract({
+          address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "MIN_WORKER_BOND",
+        }),
+      ]);
+      await this._ensureUsdcAllowance(workerBondFor(meta.reward, bondBps, minBond));
+    }
     return this._writeAdapter("takeBounty", [jobId, agentId]);
   }
 
@@ -319,6 +314,16 @@ export class ArcBountyAgent {
     return this._writeAdapter("claimDefaultRuling", [jobId]);
   }
 
+  /**
+   * V3.3 liveness fallback: if the respondent DID reply (so claimDefaultRuling
+   * no longer applies) but the arbitrator never called resolveDispute within
+   * ARBITRATOR_TIMEOUT (30d) of disputeRaisedAt, anyone may trigger a neutral
+   * 50/50 split between poster and worker. No reputation penalty either way.
+   */
+  async claimArbitratorTimeout(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("claimArbitratorTimeout", [jobId]);
+  }
+
   // ─── Dispute flow (worker-side) ─────────────────────────────────────────────
 
   /** Worker challenges a pending rejection — flips bounty into dispute with worker as initiator. */
@@ -341,26 +346,46 @@ export class ArcBountyAgent {
 
   // ─── Expire stale bounties ──────────────────────────────────────────────────
 
+  /**
+   * Scans the full bounty set and calls expireBounty() on anything past its
+   * deadline with no submission and not yet resolved. Stops after finding
+   * `limit` candidates to expire.
+   *
+   * NOTE: `getOpenBounties` (used pre-V3.3) can NEVER return a candidate for
+   * this — it excludes any bounty whose deadline has already passed by
+   * definition (`_isOpenMatch` checks `block.timestamp <= deadline`). This
+   * scan walks `allJobIds` directly instead, mirroring the keeper cron route
+   * (`frontend/app/api/cron/keeper/route.ts`).
+   */
   async expireStale(category = "", limit = 100): Promise<bigint[]> {
-    const jobIds = await this.publicClient.readContract({
+    const total = await this.publicClient.readContract({
       address: this.bountyAdapter,
       abi: BOUNTY_ADAPTER_ABI,
-      functionName: "getOpenBounties",
-      args: [category, 0n, BigInt(limit)],
+      functionName: "totalBounties",
     });
 
     const now = BigInt(Math.floor(Date.now() / 1000));
     const expired: bigint[] = [];
 
-    for (const jobId of jobIds) {
+    for (let i = 0n; i < total && expired.length < limit; i++) {
+      const jobId = await this.publicClient.readContract({
+        address: this.bountyAdapter,
+        abi: BOUNTY_ADAPTER_ABI,
+        functionName: "allJobIds",
+        args: [i],
+      });
+
       const meta = await this.getBounty(jobId);
-      if (meta.deadline < now) {
-        try {
-          await this._writeAdapter("expireBounty", [jobId]);
-          expired.push(jobId);
-        } catch {
-          // already expired or other error — skip
-        }
+      if (meta.resolved) continue;
+      if (meta.submittedResultHash.length > 0) continue; // has a submission — expireBounty rejects this
+      if (category && meta.category !== category) continue;
+      if (meta.deadline >= now) continue;
+
+      try {
+        await this._writeAdapter("expireBounty", [jobId]);
+        expired.push(jobId);
+      } catch {
+        // already expired/resolved by someone else — skip
       }
     }
     return expired;
@@ -383,6 +408,22 @@ export class ArcBountyAgent {
       // yet (freshly registered, zero completed jobs). Treat as a clean slate.
       return { averageScore: 0n, totalFeedbacks: 0n, totalJobs: 0n };
     }
+  }
+
+  /**
+   * V4 anti-Sybil signal: count of distinct posters who've actually paid out
+   * a completed bounty to this agent. Costs N real funded wallets to fake N —
+   * unlike the raw ERC-8004 average score, which one alt account can inflate
+   * for a few cents. See V4_DESIGN_ANTI_SYBIL.md.
+   */
+  async getUniquePosterCount(agentId?: bigint): Promise<bigint> {
+    const id = agentId ?? this.agentId;
+    return this.publicClient.readContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "uniquePosterCount",
+      args: [id],
+    });
   }
 
   async getAgentInfo(): Promise<AgentInfo> {
@@ -440,7 +481,7 @@ export class ArcBountyAgent {
           seen.add(key);
           try {
             const meta = await this.getBounty(jobId);
-            if (!this._matchesFilter(meta, filter)) continue;
+            if (!matchesBountyFilter(meta, filter)) continue;
             await onMatch(meta);
           } catch (err) {
             // Swallow per-event errors so one bad bounty doesn't kill the loop.
@@ -453,15 +494,139 @@ export class ArcBountyAgent {
     return unwatch;
   }
 
-  private _matchesFilter(m: BountyMeta, f: OpenBountiesFilter): boolean {
-    if (f.category && m.category !== f.category) return false;
-    if (f.agentOnly === true  && !m.agentOnly)   return false;
-    if (f.humanOnly === true  && !m.humanOnly)   return false;
-    if (f.agentOnly === false &&  m.agentOnly)   return false;
-    if (f.humanOnly === false &&  m.humanOnly)   return false;
-    if (f.maxReward !== undefined && m.reward > this._parseUsdc(f.maxReward)) return false;
-    if (f.minReward !== undefined && m.reward < this._parseUsdc(f.minReward)) return false;
-    return true;
+  // ─── Dispute watchdog (self-protection) ─────────────────────────────────────
+
+  /**
+   * Background watchdog over this agent's own assigned bounties. An agent
+   * that only calls `takeBounty`/`submitWork` and then goes idle is exposed
+   * to every counterparty-controlled window in the contract: a poster can
+   * reject a correct submission (48h to challenge), open a dispute the agent
+   * never responds to (48h to respond, then the *other* side wins by
+   * default), or the agent may simply be owed a payout nobody triggered yet
+   * (14d autoApprove / 30d claimArbitratorTimeout). `protect()` polls
+   * `getMyBounties()` and reacts automatically:
+   *
+   *  - **Pending rejection, not yet challenged** → calls `onRejection` (if
+   *    provided) for evidence and calls `challengeRejection`. Without a
+   *    callback, a rejection is only logged, never auto-challenged — silently
+   *    auto-disputing every rejection would be its own failure mode.
+   *  - **Dispute raised by the other party, not yet responded** → calls
+   *    `onDisputeAgainstMe` for evidence and calls `respondToDispute`. Same
+   *    caveat: no callback means log-only.
+   *  - **Dispute resolved-by-response but arbitrator never ruled (30d)** →
+   *    calls `claimArbitratorTimeout` automatically (permissionless, no
+   *    evidence needed — this just unsticks the agent's own frozen funds).
+   *  - **Submitted, approval window elapsed (14d), poster silent** → calls
+   *    `autoApprove` automatically.
+   *
+   * Returns an `unwatch()` function. Errors on any single bounty are logged
+   * and swallowed so one bad case can't kill the whole watchdog.
+   */
+  protect(options: {
+    pollingIntervalMs?: number;
+    onRejection?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
+    onDisputeAgainstMe?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
+    onEvent?: (event: string, meta: BountyMeta) => void;
+  } = {}): () => void {
+    const pollingIntervalMs = options.pollingIntervalMs ?? 60_000;
+    let stopped = false;
+
+    const tick = async () => {
+      if (stopped) return;
+      try {
+        await this._protectOnce(options);
+      } catch (err) {
+        console.error("[ArcBountyAgent.protect] tick error:", err);
+      }
+      if (!stopped) timer = setTimeout(tick, pollingIntervalMs);
+    };
+
+    let timer: ReturnType<typeof setTimeout> = setTimeout(tick, 0);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }
+
+  private async _protectOnce(options: {
+    onRejection?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
+    onDisputeAgainstMe?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
+    onEvent?: (event: string, meta: BountyMeta) => void;
+  }): Promise<void> {
+    const [rejectionWindow, disputeWindow, approvalTimeout, arbitratorTimeout] = await Promise.all([
+      this.publicClient.readContract({
+        address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "REJECTION_CHALLENGE_WINDOW",
+      }),
+      this.publicClient.readContract({
+        address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "DISPUTE_RESPONSE_WINDOW",
+      }),
+      this.publicClient.readContract({
+        address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "APPROVAL_TIMEOUT",
+      }),
+      this.publicClient.readContract({
+        address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "ARBITRATOR_TIMEOUT",
+      }),
+    ]);
+
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    const mine = await this.getMyBounties();
+
+    for (const meta of mine) {
+      if (meta.resolved) continue;
+
+      try {
+        // 1. Pending rejection, still within the challenge window, not yet challenged.
+        if (meta.rejectedAt > 0n && !meta.inDispute && now <= meta.rejectedAt + rejectionWindow) {
+          options.onEvent?.("rejection_pending", meta);
+          if (options.onRejection) {
+            const evidence = await options.onRejection(meta);
+            await this.challengeRejection(meta.jobId, evidence);
+            options.onEvent?.("rejection_challenged", meta);
+          }
+          continue;
+        }
+
+        // 2. Dispute open, raised by the OTHER party, this agent hasn't responded.
+        if (
+          meta.inDispute
+          && meta.disputeResponseHash.length === 0
+          && meta.disputeInitiator.toLowerCase() !== this.address.toLowerCase()
+          && now <= meta.disputeRaisedAt + disputeWindow
+        ) {
+          options.onEvent?.("dispute_needs_response", meta);
+          if (options.onDisputeAgainstMe) {
+            const evidence = await options.onDisputeAgainstMe(meta);
+            await this.respondToDispute(meta.jobId, evidence);
+            options.onEvent?.("dispute_responded", meta);
+          }
+          continue;
+        }
+
+        // 3. Dispute answered on both sides but the arbitrator ghosted (V3.3).
+        if (
+          meta.inDispute
+          && meta.disputeResponseHash.length > 0
+          && now > meta.disputeRaisedAt + arbitratorTimeout
+        ) {
+          await this.claimArbitratorTimeout(meta.jobId);
+          options.onEvent?.("arbitrator_timeout_claimed", meta);
+          continue;
+        }
+
+        // 4. Submitted, poster silent past the approval window.
+        if (
+          meta.submittedAt > 0n
+          && meta.rejectedAt === 0n
+          && !meta.inDispute
+          && now > meta.submittedAt + approvalTimeout
+        ) {
+          await this.autoApprove(meta.jobId);
+          options.onEvent?.("auto_approved", meta);
+        }
+      } catch (err) {
+        console.error(`[ArcBountyAgent.protect] error handling bounty #${meta.jobId}:`, err);
+      }
+    }
   }
 
   // ─── Autonomous loop ────────────────────────────────────────────────────────
@@ -568,16 +733,5 @@ export class ArcBountyAgent {
   private async _resolveEvidenceCid(e: DisputeEvidenceOptions): Promise<string> {
     if (!e.text && !e.cid) throw new Error("Provide either text or cid");
     return e.cid ?? await pinText(e.text!);
-  }
-
-  private _resolveDeadline(d: number | Date): bigint {
-    if (d instanceof Date) return BigInt(Math.floor(d.getTime() / 1000));
-    // < 1e9 is interpreted as duration-in-seconds from now (~30 years cutoff)
-    if (d < 1_000_000_000) return BigInt(Math.floor(Date.now() / 1000) + d);
-    return BigInt(d);
-  }
-
-  private _parseUsdc(dollars: number): bigint {
-    return BigInt(Math.round(dollars * 10 ** USDC_DECIMALS));
   }
 }
