@@ -1,0 +1,38 @@
+{
+  "name": "arcbounty-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing ArcBounty (Arc Network bounty board, ERC-8183 + ERC-8004) to any MCP-compatible agent runtime — browse, take, and submit bounties directly from Claude or any other MCP client.",
+  "type": "module",
+  "bin": {
+    "arcbounty-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "arc",
+    "bounty",
+    "erc-8183",
+    "erc-8004",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "arcbounty-agent-sdk": "file:../agent-sdk",
+    "viem": "^2.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
