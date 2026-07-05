@@ -1,14 +1,17 @@
 # ArcBounty Architecture
 
-This document explains the two non-obvious engineering decisions that make
+This document explains the non-obvious engineering decisions that make
 ArcBounty work *natively* on Arc's standards instead of reimplementing escrow:
 
 1. How a bounty board with arbitrary worker assignment maps onto ERC-8183's
    fixed three-role model (the **balance-delta payout** technique).
 2. How the dispute system extends ERC-8183 without forking it (the **dispute V2
    + rejection challenge window**).
+3. How V4 raises the cost of the two economic gaps a naive bounty board
+   leaves open — free squatting and cheap reputation farming — without a
+   redesign (the **worker bond + unique-poster count**).
 
-Both are uncommon on Arc today and are the core of why ArcBounty is
+All three are uncommon on Arc today and are the core of why ArcBounty is
 infrastructure rather than a demo.
 
 ---
@@ -118,9 +121,11 @@ has a guaranteed window to escalate.
 either party → disputeBounty(jobId, reasonCid)        // IPFS evidence from initiator
 other party  → respondToDispute(jobId, responseCid)   // IPFS evidence from respondent (48h)
 arbitrator   → resolveDispute(jobId, payProvider, rulingCid, reputationPenalty)
-                                                       // records ruling CID + final split
-        OR (no response in 48h):
+                                                       // records ruling CID; binary payout
+        OR (no response within 48h):
 anyone       → claimDefaultRuling(jobId)               // silence = initiator wins, permissionless
+        OR (response given, but arbitrator never rules within 30d — V3.3):
+anyone       → claimArbitratorTimeout(jobId)           // neutral 50/50 split, no rep penalty
 ```
 
 Key properties:
@@ -128,6 +133,13 @@ Key properties:
 - **Both sides submit evidence to IPFS** (`disputeReasonHash` /
   `disputeResponseHash`); the arbitrator records a `disputeRulingHash`. Every
   step is auditable on-chain.
+- **`resolveDispute` is a binary payout** (`payProvider: bool`), not a
+  configurable split — correcting an earlier draft of this document that
+  described it as recording "a final split." The arbitrator picks a winner;
+  there is no on-chain mechanism for the arbitrator to award, say, a 70/30
+  split. (The *only* split path in the contract is the neutral
+  `claimArbitratorTimeout` fallback below, and that one is always 50/50 by
+  construction, not arbitrator-chosen.)
 - **Silence is resolved permissionlessly.** If the respondent ignores the 48h
   window, *anyone* can call `claimDefaultRuling` and the initiator wins — no
   funds can be frozen forever by a non-responsive counterparty.
@@ -135,13 +147,33 @@ Key properties:
   `giveFeedback(... feedbackType = 1 ...)` in ERC-8004, so dispute outcomes feed
   the same reputation that drives discovery.
 
-### autoApprove — the third liveness guarantee
+### autoApprove and claimArbitratorTimeout — the remaining liveness guarantees
 
-Beyond disputes, a poster who simply vanishes after a submission used to lock
-funds in escrow. `autoApprove(jobId)` lets **anyone** pay the worker once
-`APPROVAL_TIMEOUT` (14 days) elapses from submission. Together with
-`claimDefaultRuling` and `finalizeRejection`, every terminal state is reachable
-without trusting any single party to act.
+Beyond the dispute flow above, two more permissionless paths close every way a
+non-responsive party could otherwise freeze funds:
+
+- **`autoApprove(jobId)`** — a poster who simply vanishes after a submission
+  used to lock funds in escrow. Anyone may pay the worker once
+  `APPROVAL_TIMEOUT` (14 days) elapses from submission.
+- **`claimArbitratorTimeout(jobId)` (V3.3)** — closes the one gap that
+  survived through V3.2: once a respondent has replied to a dispute,
+  `claimDefaultRuling`'s silence-based path no longer applies (it explicitly
+  reverts once `disputeResponseHash` is non-empty), and the *only* remaining
+  path was `resolveDispute`, callable exclusively by the arbitrator. An
+  unresponsive or compromised arbitrator therefore could — and, without this
+  fallback, still can, on any deployment older than V3.3 — freeze that
+  bounty's funds **forever**, with no recourse for either party. V3.3 adds a
+  30-day (`ARBITRATOR_TIMEOUT`) permissionless fallback that resolves the
+  dispute with a neutral 50/50 split and no reputation penalty (fault was
+  never established, so neither side is credited or blamed). It is
+  deliberately worse than an actual timely ruling for whichever side would
+  have won outright — that's the point: it must never be more attractive than
+  waiting for the real arbitrator, only better than funds frozen forever.
+
+With `claimDefaultRuling`, `finalizeRejection`, `autoApprove`, and
+`claimArbitratorTimeout` together, every terminal state is now reachable
+without permanently trusting any single party to act — the claim that was
+aspirational through V3.2 is, as of V3.3, actually true.
 
 ---
 
@@ -151,13 +183,58 @@ without trusting any single party to act.
 |---|---|---|---|
 | Poster | bounty creator | approve / reject / dispute | cannot unilaterally claw back after submission |
 | Worker | human or ERC-8004 agent | submit / challenge / dispute | challenge window + autoApprove protect payout |
-| Arbitrator | adapter deployer (→ multisig) | resolve disputes | two-step `transferArbitrator`; roadmap: decentralized oracle |
+| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator` (completed to the Safe 2026-07-05); bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
+| Fee recipient | protocol fee wallet | none over funds in flight, only collects `feeBps` | two-step `transferFeeRecipient`/`acceptFeeRecipient`, self-service, independent of arbitrator |
 | Adapter | this contract | holds AC roles, forwards funds | non-upgradeable, `ReentrancyGuard`, fee-capped ≤10% |
 
-The arbitrator is the one trusted role. It is transferable via a two-step
-`transferArbitrator` / `acceptArbitrator` handshake (multisig-safe), and the
-roadmap replaces it with a decentralized escalation path (UMA-style optimistic
-oracle or ERC-8004 ValidationRegistry).
+The arbitrator is the one trusted role for *dispute outcomes*, but as of V3.3
+its power is time-bounded: going dark (or being compromised and going silent)
+no longer freezes funds indefinitely — worst case, after 30 days, the dispute
+resolves to a neutral 50/50 split via `claimArbitratorTimeout`. It is
+transferable via a two-step `transferArbitrator` / `acceptArbitrator`
+handshake (Safe-safe), and the roadmap replaces it with a decentralized
+escalation path (UMA-style optimistic oracle or ERC-8004 ValidationRegistry).
+
+### Custody during the open (untaken) phase
+
+Between `createBounty` and `takeBounty`, a bounty's USDC sits **in the
+BountyAdapter contract itself**, not yet in the ERC-8183 AgenticCommerce
+escrow — AC's `fund()` is only called from `takeBounty`, once a worker (and
+therefore a concrete AC job to fund) exists. This means the "all money is held
+in the audited AC escrow" framing elsewhere in this repo is accurate for the
+*taken* phase of a bounty's life, but not the open-listing phase: during that
+window the adapter itself is custodial. This is covered by the
+`invariant_conservationOfUSDC` stateful test and has never lost or misplaced
+funds in testing, but it should be stated plainly rather than left implicit —
+especially for the external audit (see `GRANT_APPLICATION.md` milestone 2),
+which should treat the adapter's own custody window as in-scope, not just its
+interactions with AC.
+
+---
+
+## 3. V4: opt-in worker bond + unique-poster reputation signal
+
+Full rationale and the options that were considered: `V4_DESIGN_ANTI_SYBIL.md`.
+Two independent additions, both aimed at costs that were nearly zero before:
+
+**Worker bond** (`CreateParams.requireWorkerBond`, opt-in per bounty) closes
+free bounty-squatting: taking a bounty and never submitting used to cost only
+gas, leaving the board's UI cluttered and the real worker locked out for the
+bounty's whole duration. A worker taking such a bounty now posts
+`max(MIN_WORKER_BOND, reward * WORKER_BOND_BPS / 10_000)` = `max($0.50, 15%
+of reward)`, refunded in full the moment they call `submitWork` (the bond
+only deters vanishing, not slow or imperfect work), forfeited to the poster
+if `expireBounty` fires on a taken-but-unsubmitted bounty.
+
+**`uniquePosterCount(agentId)`** closes (partially) cheap reputation farming:
+a poster and worker being the same person behind two wallets used to cost
+about a cent per fabricated "completed job, score 100" at `MIN_REWARD`. This
+counter increments the first time a *distinct* poster address completes a
+bounty with a given agent (`approveBounty` / `autoApprove`) — faking N
+"unique" counterparties now costs N really-funded wallets, not one alt
+account. It doesn't replace ERC-8004's own `averageScore` (that's Arc's
+registry, not ours to change) — it's an additional, adapter-native signal
+callers can weight however they like.
 
 ---
 
@@ -167,7 +244,7 @@ oracle or ERC-8004 ValidationRegistry).
 Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-8004 agent)
         ▼                                      ▲
    ┌─────────────────────────┐  result CID (IPFS)
-   │      BountyAdapter       │  ← this repo, ~560 LOC, non-upgradeable
+   │      BountyAdapter       │  ← this repo, ~570 LOC, non-upgradeable
    │  client+provider+eval    │
    └────┬──────────────┬──────┘
         │              │
@@ -176,8 +253,8 @@ Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-80
  (escrow rail)    (agentId + on-chain feedback)
 ```
 
-- **Contract** — `contracts/src/BountyAdapter.sol`. 60 unit tests + 2 stateful
-  invariants (62 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
+- **Contract** — `contracts/src/BountyAdapter.sol`. 77 unit tests + 2 stateful
+  invariants (79 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
   (`contracts/SLITHER.md`), verified on ArcScan.
 - **Frontend** — `frontend/`, Next.js 14 + viem/wagmi, real-time via
   `watchContractEvent`, Porto passkey/SCA login, CSP-hardened.

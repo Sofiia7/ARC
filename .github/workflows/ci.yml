@@ -89,7 +89,7 @@ jobs:
       - run: npm run lint
       - name: build
         env:
-          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83"
+          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0xAe9898324256083E8F37D82FEC4be0448A107645"
           NEXT_PUBLIC_RPC_URL: "https://rpc.testnet.arc.network"
         run: npm run build
 
@@ -102,4 +102,29 @@ jobs:
         with: { node-version: "20" }
       - run: npm install
       - run: npm run typecheck
+      - run: npm test
       - run: npm run build
+
+  mcp-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      # mcp-server depends on arcbounty-agent-sdk via a local file: reference
+      # (so in-repo SDK changes are exercised before an npm release) — build
+      # it first so its dist/ types & JS actually exist for the install below.
+      - name: build agent-sdk (local dependency)
+        working-directory: agent-sdk
+        run: |
+          npm install
+          npm run build
+      - name: install mcp-server
+        working-directory: mcp-server
+        run: npm install
+      - name: typecheck
+        working-directory: mcp-server
+        run: npm run typecheck
+      - name: build
+        working-directory: mcp-server
+        run: npm run build

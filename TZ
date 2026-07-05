@@ -3,8 +3,9 @@
 > details below no longer match the shipped system: function names
 > (`getBountiesByCategory` → now `getOpenBounties`; the separate `fundBounty`
 > step was folded into `takeBounty`), the `BountyMeta` struct (now includes full
-> dispute/rejection-challenge fields), the roadmap (now V3.2, live on testnet),
-> and the Circle Wallets note in §4.4 (proposed here, not yet built — see
+> dispute/rejection-challenge and V4 worker-bond fields), the roadmap (now V4,
+> live on testnet), and the Circle Wallets note in §4.4 (agent-side
+> Developer-Controlled Wallets since shipped and verified live — see
 > `pitch_deck.md` for the current, honest status). For the current, accurate
 > architecture and status, see [`ARCHITECTURE.md`](ARCHITECTURE.md),
 > [`README.md`](README.md), and [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md).

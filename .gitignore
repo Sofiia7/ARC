@@ -36,3 +36,6 @@ build/
 logs/
 
 .vercel
+
+# Local-only working notes (never publish)
+GRANT_SUBMISSION_GUIDE.md
