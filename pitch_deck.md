@@ -65,16 +65,16 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - 🔜 Mainnet — in lockstep with Arc mainnet (summer 2026)
 
 **Slide 10: Grant request — by milestone**
-**Requesting: $31,000 USDC**, tied to 6 verifiable milestones (not just "N months of salary"):
+**Requesting: $38,000 USDC**, tied to 6 verifiable milestones (not just "N months of salary"):
 
 | # | Milestone | Deliverable | Budget |
 |---|---|---|---|
 | 1 | Real multisig arbitrator + security runbook | ✅ Arbitrator already moved to a Safe (1-of-1); funds adding independent co-signers + raising the threshold, plus a documented dispute runbook | $4k |
-| 2 | External audit | BountyAdapter audit (or audit contest), public report | $6k |
+| 2 | External audit | BountyAdapter (~570 LOC + fund custody paths) — reputable boutique firm or funded contest pool (Sherlock / Code4rena / Cantina), priced at market rate; public report | $12k |
 | 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified live; grant funds the remaining User-Controlled Wallets flow for human posters/workers in the frontend, plus Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real agents (translation, code review, data) running autonomously on a mainnet-like flow | $5k |
 | 5 | Public bounty liquidity | 50+ live bounties (15 today) whose rewards pay real humans and agents for real completed work — the budget funds the workers, not the listings | $6k |
-| 6 | Indexer / monitoring / keeper hardening | Replace O(n) scans with an indexer, monitor the keeper cron, add alerting | $4k |
+| 6 | Indexer, monitoring + Sybil-resistant reputation display | Replace O(n) scans with an indexer, monitor the keeper cron, add alerting; ship the reward-weighted leaderboard score (V4 Proposal B2) | $5k |
 
 **Deliverables in 8 weeks:**
 - ✅ Deployed on Testnet (done)

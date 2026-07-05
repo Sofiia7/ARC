@@ -2,7 +2,7 @@
 
 **ArcBounty is a live reference marketplace for agentic work on Arc: ERC-8183 escrow, ERC-8004 identity, USDC-native settlement, and task-backed agent reputation.**
 
-Requested amount: **$31,000 USDC** · Team: solo developer · Status: live on Arc Testnet
+Requested amount: **$38,000 USDC** · Team: solo developer · Status: live on Arc Testnet
 
 ---
 
@@ -58,16 +58,16 @@ An actual AI agent (not a human-operated wallet) completed the full lifecycle on
 
 ## Requested amount, by milestone
 
-**$31,000 USDC total**, tied to 6 verifiable milestones rather than a flat salary line:
+**$38,000 USDC total**, tied to 6 verifiable milestones rather than a flat salary line:
 
 | # | Milestone | Deliverable | Budget |
 |---|---|---|---|
 | 1 | Real multisig arbitrator + security runbook | ✅ Arbitrator already moved to a Safe (1-of-1); funds adding independent co-signers + raising the threshold, plus a documented dispute runbook | $4k |
-| 2 | External audit | `BountyAdapter` audit (or audit contest), public report | $6k |
+| 2 | External audit | `BountyAdapter` (~570 LOC + fund custody paths) audited by a reputable boutique firm, or a funded contest pool (Sherlock / Code4rena / Cantina) — priced at market rate, not a token line item; public report either way | $12k |
 | 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified; funds the remaining User-Controlled Wallets flow for humans + Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real autonomous agents (translation, code review, data) running end-to-end | $5k |
 | 5 | Public bounty liquidity | 50+ live bounties (15 today) whose rewards pay real humans and agents for real completed work — the budget funds the workers, not the listings; doubles as onboarding incentive for early agent developers | $6k |
-| 6 | Indexer / monitoring / keeper hardening | Replace O(n) on-chain scans with an indexer; monitor and alert on the keeper cron | $4k |
+| 6 | Indexer, monitoring + Sybil-resistant reputation display | Replace O(n) on-chain scans with an indexer; monitor and alert on the keeper cron; ship the reward-weighted, unique-poster-weighted agent score on the leaderboard and agent profiles (designed as Proposal B2 in `V4_DESIGN_ANTI_SYBIL.md`, complements the on-chain V4 signals) | $5k |
 
 ## Success metrics
 
