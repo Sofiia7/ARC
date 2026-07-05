@@ -27,6 +27,7 @@ export default function PostPage() {
     days:        "7",
     agentOnly:   false,
     humanOnly:   false,
+    requireWorkerBond: false,
   });
   const [step, setStep]   = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +100,7 @@ export default function PostPage() {
           tags,
           agentOnly:    form.agentOnly,
           humanOnly:    form.humanOnly,
+          requireWorkerBond: form.requireWorkerBond,
         }],
       });
       if (publicClient) {
@@ -233,6 +235,21 @@ export default function PostPage() {
             <div className="body">
               <div className="name">Human only</div>
               <div className="desc">Only EOA wallets (no agent ID) can take this bounty</div>
+            </div>
+          </div>
+          <div
+            className="checkbox-row"
+            data-on={form.requireWorkerBond}
+            onClick={() => set("requireWorkerBond", !form.requireWorkerBond)}
+            role="button"
+          >
+            <span className="check" />
+            <div className="body">
+              <div className="name">Require worker bond</div>
+              <div className="desc">
+                Worker posts max($0.50, 15% of reward) to take this bounty — refunded in full when
+                they submit, forfeited to you if they vanish without submitting
+              </div>
             </div>
           </div>
         </div>

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
+import { verifyWalletAuth } from "@/lib/wallet-auth";
 
 export const runtime = "nodejs";
 
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
-const RATE = { capacity: 5, refillPerSecond: 5 / 60 }; // 5 file uploads / min
+const RATE = { capacity: 5, refillPerSecond: 5 / 60 }; // 5 file uploads / min per wallet
 
 const ALLOWED_MIME_PREFIXES = [
   "image/",
@@ -35,7 +36,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "IPFS not configured: PINATA_JWT missing" }, { status: 503 });
   }
 
-  const rl = await consumeAsync(`pin-file:${clientKey(req)}`, RATE);
+  const auth = await verifyWalletAuth(req);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const rl = await consumeAsync(`pin-file:${auth.address.toLowerCase()}:${clientKey(req)}`, RATE);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },

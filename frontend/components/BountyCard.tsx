@@ -26,6 +26,8 @@ export type BountyMeta = {
   disputeReasonHash: string;
   disputeResponseHash: string;
   disputeRulingHash: string;
+  requireWorkerBond: boolean;
+  workerBond: bigint;
 };
 
 type Status = "open" | "submitted" | "in-review" | "paid" | "expired";

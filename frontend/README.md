@@ -48,7 +48,7 @@ Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
-NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0xAe9898324256083E8F37D82FEC4be0448A107645
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect cloud project id>
 PINATA_JWT=<pinata jwt with file upload permission>
 ```
@@ -59,6 +59,17 @@ PINATA_JWT=<pinata jwt with file upload permission>
 | `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` | Deployed `BountyAdapter` address. **Must match the contract you deployed.** |
 | `NEXT_PUBLIC_WC_PROJECT_ID` | WalletConnect Cloud project id (free at cloud.walletconnect.com). |
 | `PINATA_JWT` | Server-side only. Used by `/api/ipfs/pin` and `/api/ipfs/pin-file` to pin descriptions and attachments. |
+
+### IPFS pin routes require a wallet signature
+
+`/api/ipfs/pin` and `/api/ipfs/pin-file` reject requests without a valid
+`x-arc-address` / `x-arc-signature` / `x-arc-timestamp` header set, verified
+server-side in `lib/wallet-auth.ts` (see that file for the full rationale —
+short version: an unauthenticated pin route is an open door to burning the
+Pinata quota or pinning arbitrary content under this account). `lib/ipfs.ts`'s
+`pinText`/`pinFile` sign this automatically via the connected wagmi account —
+callers don't need to do anything extra, but a wallet must be connected
+before either is called, and each call costs one signature prompt.
 
 ## Run
 

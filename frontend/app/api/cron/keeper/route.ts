@@ -42,21 +42,29 @@ type Meta = {
 };
 
 export async function GET(req: NextRequest) {
-  // ── Auth ──
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    }
-  }
-
   const pk = process.env.KEEPER_PRIVATE_KEY;
   if (!pk) {
     return NextResponse.json(
       { error: "keeper not configured: KEEPER_PRIVATE_KEY missing (route inert)" },
       { status: 503 },
     );
+  }
+
+  // ── Auth ──
+  // Mandatory once the keeper wallet is live: an unauthenticated keeper route
+  // lets anyone spam it and burn the keeper wallet's gas on every call. A
+  // missing CRON_SECRET next to a funded KEEPER_PRIVATE_KEY is a
+  // misconfiguration, not an open-by-default route.
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return NextResponse.json(
+      { error: "keeper misconfigured: KEEPER_PRIVATE_KEY is set but CRON_SECRET is missing" },
+      { status: 503 },
+    );
+  }
+  const auth = req.headers.get("authorization");
+  if (auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const rpc = process.env.NEXT_PUBLIC_RPC_URL ?? "https://rpc.testnet.arc.network";

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
+import { verifyWalletAuth } from "@/lib/wallet-auth";
 
 export const runtime = "nodejs";
 
 const MAX_TEXT_BYTES = 1 * 1024 * 1024; // 1 MB
-const RATE = { capacity: 10, refillPerSecond: 10 / 60 }; // 10 / min, sustained
+const RATE = { capacity: 10, refillPerSecond: 10 / 60 }; // 10 / min, sustained per wallet
 
 function tooBig(s: string): boolean {
   return new TextEncoder().encode(s).byteLength > MAX_TEXT_BYTES;
@@ -17,7 +18,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "IPFS not configured: PINATA_JWT missing" }, { status: 503 });
   }
 
-  const rl = await consumeAsync(`pin:${clientKey(req)}`, RATE);
+  const auth = await verifyWalletAuth(req);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  // Rate-limit per-wallet (primary) — falls back to IP only as a secondary
+  // dimension so one signed identity can't be smeared across many IPs either.
+  const rl = await consumeAsync(`pin:${auth.address.toLowerCase()}:${clientKey(req)}`, RATE);
   if (!rl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },

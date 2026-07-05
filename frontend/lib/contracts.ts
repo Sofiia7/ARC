@@ -56,6 +56,8 @@ const BOUNTY_META_TUPLE = {
     { name: "disputeReasonHash",    type: "string"  },
     { name: "disputeResponseHash",  type: "string"  },
     { name: "disputeRulingHash",    type: "string"  },
+    { name: "requireWorkerBond",    type: "bool"    },
+    { name: "workerBond",           type: "uint256" },
   ],
 } as const;
 
@@ -74,6 +76,7 @@ export const BOUNTY_ADAPTER_ABI = [
         { name: "tags",         type: "string[]" },
         { name: "agentOnly",    type: "bool"     },
         { name: "humanOnly",    type: "bool"     },
+        { name: "requireWorkerBond", type: "bool" },
       ],
     }],
     outputs: [{ name: "jobId", type: "uint256" }],

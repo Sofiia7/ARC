@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import Link from "next/link";
 import { useMyAgentId } from "@/hooks/useMyAgentId";
-import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+import { CONTRACTS, BOUNTY_ADAPTER_ABI, ERC20_ABI } from "@/lib/contracts";
 import { formatUsdc, shortAddress, secondsToDeadline } from "@/lib/format";
 import { WorkSubmitModal } from "@/components/WorkSubmitModal";
 import { DisputeOpenModal } from "@/components/DisputeOpenModal";
@@ -20,6 +20,16 @@ import { useTx } from "@/hooks/useTx";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const KNOWN_CATS = new Set(["dev", "design", "content", "data", "other"]);
+
+// Mirrors BountyAdapter.sol's WORKER_BOND_BPS / MIN_WORKER_BOND constants —
+// used only to show/approve the exact bond amount client-side; the contract
+// itself is the source of truth and computes this independently on-chain.
+const WORKER_BOND_BPS = 1500n; // 15%
+const MIN_WORKER_BOND = 500_000n; // 0.50 USDC
+function workerBondFor(reward: bigint): bigint {
+  const pct = (reward * WORKER_BOND_BPS) / 10_000n;
+  return pct > MIN_WORKER_BOND ? pct : MIN_WORKER_BOND;
+}
 
 type StatusKind = "open" | "submitted" | "in-review" | "paid" | "expired";
 
@@ -100,8 +110,24 @@ export default function BountyPage() {
   const status          = statusOf(meta, expired);
 
   async function handleTake() {
+    if (!meta) return; // only reachable after meta has loaded (button is gated on it)
     const trimmed = agentIdInput.trim();
     const agentIdBig = trimmed && /^\d+$/.test(trimmed) ? BigInt(trimmed) : 0n;
+
+    if (meta.requireWorkerBond) {
+      const bond = workerBondFor(meta.reward);
+      const approveHash = await send(
+        {
+          address: CONTRACTS.USDC,
+          abi: ERC20_ABI as never,
+          functionName: "approve",
+          args: [CONTRACTS.BOUNTY_ADAPTER, bond],
+        },
+        { pending: "Approving worker bond…", success: "Bond approved", error: "Bond approval failed" }
+      );
+      if (!approveHash) return; // rejected/failed — don't proceed to takeBounty
+    }
+
     await send(
       {
         address: CONTRACTS.BOUNTY_ADAPTER,
@@ -323,6 +349,12 @@ export default function BountyPage() {
                       </p>
                     )}
                   </div>
+                )}
+                {meta.requireWorkerBond && (
+                  <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "0 2px 8px", lineHeight: 1.5 }}>
+                    This bounty requires a worker bond of <strong>${formatUsdc(workerBondFor(meta.reward))}</strong>{" "}
+                    (refunded in full when you submit; forfeited to the poster if you take it and never submit).
+                  </p>
                 )}
                 <button
                   onClick={handleTake}
