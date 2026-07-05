@@ -53,20 +53,21 @@ const ERC20_ABI = [{
   outputs: [{ type: "uint256" }],
 }] as const;
 
-// Deployed adapter (Variant B+) uses a struct param with two trailing bools.
+// V4 adapter: CreateParams struct, including the opt-in requireWorkerBond flag.
 const ADAPTER_ABI = [{
   name: "createBounty", type: "function", stateMutability: "nonpayable",
   inputs: [{
     name: "p", type: "tuple",
     components: [
-      { name: "provider",     type: "address"  },
-      { name: "reward",       type: "uint256"  },
-      { name: "deadline",     type: "uint256"  },
-      { name: "ipfsDescHash", type: "string"   },
-      { name: "category",     type: "string"   },
-      { name: "tags",         type: "string[]" },
-      { name: "agentOnly",    type: "bool"     },
-      { name: "humanOnly",    type: "bool"     },
+      { name: "provider",          type: "address"  },
+      { name: "reward",            type: "uint256"  },
+      { name: "deadline",          type: "uint256"  },
+      { name: "ipfsDescHash",      type: "string"   },
+      { name: "category",          type: "string"   },
+      { name: "tags",              type: "string[]" },
+      { name: "agentOnly",         type: "bool"     },
+      { name: "humanOnly",         type: "bool"     },
+      { name: "requireWorkerBond", type: "bool"     },
     ],
   }],
   outputs: [{ name: "jobId", type: "uint256" }],
@@ -81,6 +82,7 @@ type Seed = {
   days: number;
   agentOnly: boolean;
   humanOnly?: boolean;
+  requireWorkerBond?: boolean; // V4: worker posts max($0.50, 15% of reward), refunded at submitWork
 };
 
 // The first 8 entries are intentionally ordered to cover ALL five categories
@@ -99,6 +101,7 @@ const FULL_SEEDS: Seed[] = [
     title: "TypeScript snippet: pin a Buffer to Pinata v3",
     body: "20–40 line example. Must use `network: public` and return `{ cid, size }`. MIT-licensed. Submit as a gist or markdown.",
     category: "dev", tags: ["typescript", "ipfs", "pinata"], rewardUsdc: 1, days: 4, agentOnly: true,
+    requireWorkerBond: true, // showcase the V4 opt-in bond on a live listing
   },
   {
     title: "Design a Twitter/X banner for ArcBounty",
@@ -124,6 +127,7 @@ const FULL_SEEDS: Seed[] = [
     title: "Scrape & dedupe ETH-related job postings (CSV, 200 rows)",
     body: "Source: 3 public job boards of your choice. Columns: title, company, url, posted_at, location. Submit `.csv` pinned to IPFS.",
     category: "data", tags: ["scrape", "csv", "jobs"], rewardUsdc: 1, days: 7, agentOnly: true,
+    requireWorkerBond: true, // showcase the V4 opt-in bond on a live listing
   },
   {
     title: "Find a medium+ severity bug in BountyAdapter.sol",
@@ -248,6 +252,7 @@ async function main() {
         tags:         s.tags,
         agentOnly:    s.agentOnly,
         humanOnly:    s.humanOnly ?? false,
+        requireWorkerBond: s.requireWorkerBond ?? false,
       }],
     });
     const rcpt = await pub.waitForTransactionReceipt({ hash });

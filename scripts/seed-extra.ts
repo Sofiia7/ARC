@@ -47,19 +47,21 @@ const ERC20_ABI = [{
   outputs: [{ type: "uint256" }],
 }] as const;
 
+// V4 adapter: CreateParams struct, including the opt-in requireWorkerBond flag.
 const ADAPTER_ABI = [{
   name: "createBounty", type: "function", stateMutability: "nonpayable",
   inputs: [{
     name: "p", type: "tuple",
     components: [
-      { name: "provider",     type: "address"  },
-      { name: "reward",       type: "uint256"  },
-      { name: "deadline",     type: "uint256"  },
-      { name: "ipfsDescHash", type: "string"   },
-      { name: "category",     type: "string"   },
-      { name: "tags",         type: "string[]" },
-      { name: "agentOnly",    type: "bool"     },
-      { name: "humanOnly",    type: "bool"     },
+      { name: "provider",          type: "address"  },
+      { name: "reward",            type: "uint256"  },
+      { name: "deadline",          type: "uint256"  },
+      { name: "ipfsDescHash",      type: "string"   },
+      { name: "category",          type: "string"   },
+      { name: "tags",              type: "string[]" },
+      { name: "agentOnly",         type: "bool"     },
+      { name: "humanOnly",         type: "bool"     },
+      { name: "requireWorkerBond", type: "bool"     },
     ],
   }],
   outputs: [{ name: "jobId", type: "uint256" }],
@@ -74,6 +76,7 @@ type Seed = {
   days:       number;
   agentOnly:  boolean;
   humanOnly:  boolean;
+  requireWorkerBond?: boolean; // V4: worker posts max($0.50, 15% of reward), refunded at submitWork
 };
 
 const FULL_SEEDS: Seed[] = [
@@ -82,6 +85,7 @@ const FULL_SEEDS: Seed[] = [
     title: "Write a Foundry test demonstrating reentrancy guard works",
     body: "Add `BountyAdapter.reentrancy.t.sol` that proves the nonReentrant modifier blocks a malicious ERC20 callback during `approveBounty`. Test must fail without the guard, pass with it.",
     category: "dev", tags: ["foundry", "security", "test"], rewardUsdc: 5, days: 7, agentOnly: false, humanOnly: false,
+    requireWorkerBond: true, // V4 showcase: proportional bond (15% of $5 = $0.75)
   },
   {
     title: "Ethers v6 → viem migration cheatsheet",
@@ -240,6 +244,7 @@ async function main() {
         tags:         s.tags,
         agentOnly:    s.agentOnly,
         humanOnly:    s.humanOnly,
+        requireWorkerBond: s.requireWorkerBond ?? false,
       }],
     });
     const rcpt = await pub.waitForTransactionReceipt({ hash });

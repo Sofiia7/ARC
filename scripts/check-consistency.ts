@@ -30,9 +30,11 @@ const ADDR_FILES = [
   "contracts/README.md",
   "frontend/README.md",
   "scripts/README.md",
+  "mcp-server/README.md",
   "frontend/.env.example",
   "agent-sdk/.env.example",
   "scripts/.env.example",
+  "mcp-server/.env.example",
   ".env.example",
 ];
 
@@ -47,7 +49,8 @@ const KNOWN_NON_ADAPTER = new Set([
   "0x3600000000000000000000000000000000000000", // USDC
   "0x0000000000000000000000000000000000000000", // zero
   "0xADac7534d3fE868E28c77df5CD930f2635bcb63A", // feeRecipient (DEPLOYMENTS.md)
-  "0xdf5C47F8Ce23f8226BBDCA6A58caBb025BB0a2c6", // arbitrator (DEPLOYMENTS.md)
+  "0x4892232f0dD235cC1B92a3A87fc8990553691BC6", // arbitrator Safe (DEPLOYMENTS.md)
+  "0xde427f3967cc7a0BF7A9F891195760cCffC82edA", // deployer (DEPLOYMENTS.md)
 ]);
 
 for (const rel of ADDR_FILES) {
