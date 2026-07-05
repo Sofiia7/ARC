@@ -240,6 +240,21 @@ contract BountyAdapterTest is Test {
         usdc.mint(poster, 1000e6);
         vm.prank(poster);
         usdc.approve(address(adapter), type(uint256).max);
+
+        // V4: workers need USDC + an allowance to post a worker bond.
+        usdc.mint(worker, 1000e6);
+        vm.prank(worker);
+        usdc.approve(address(adapter), type(uint256).max);
+        usdc.mint(agent, 1000e6);
+        vm.prank(agent);
+        usdc.approve(address(adapter), type(uint256).max);
+    }
+
+    function _createWithBond() internal returns (uint256) {
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.requireWorkerBond = true;
+        vm.prank(poster);
+        return adapter.createBounty(p);
     }
 
     function _params(bool agentOnly, bool humanOnly, address provider, string memory cat)
@@ -255,7 +270,8 @@ contract BountyAdapterTest is Test {
             category: cat,
             tags: tags,
             agentOnly: agentOnly,
-            humanOnly: humanOnly
+            humanOnly: humanOnly,
+            requireWorkerBond: false
         });
     }
 
@@ -1028,5 +1044,283 @@ contract BountyAdapterTest is Test {
         adapter.finalizeRejection(c);
 
         assertEq(usdc.balanceOf(feeAddr), 0, "fee leaked on refund path");
+    }
+
+    // ─── V3.3: claimArbitratorTimeout ─────────────────────────────────────────
+
+    function testArbitratorTimeout_splitsEvenlyWhenArbitratorGhosts() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+
+        vm.prank(poster);
+        adapter.disputeBounty(jobId, REASON);
+        vm.prank(worker);
+        adapter.respondToDispute(jobId, RESP);
+
+        // Arbitrator never calls resolveDispute. 30 days pass.
+        vm.warp(block.timestamp + 30 days + 1);
+
+        uint256 posterBefore = usdc.balanceOf(poster);
+        uint256 workerBefore = usdc.balanceOf(worker);
+        uint256 feeBefore = usdc.balanceOf(feeAddr);
+
+        vm.prank(stranger);
+        adapter.claimArbitratorTimeout(jobId);
+
+        uint256 fee = reward / 100; // 1%
+        uint256 net = reward - fee;
+        uint256 half = net / 2;
+
+        assertEq(usdc.balanceOf(feeAddr), feeBefore + fee);
+        assertEq(usdc.balanceOf(poster), posterBefore + half);
+        assertEq(usdc.balanceOf(worker), workerBefore + (net - half));
+
+        BountyAdapter.BountyMeta memory m = adapter.getBountyMeta(jobId);
+        assertTrue(m.resolved);
+        assertFalse(m.inDispute);
+        assertEq(m.disputeRulingHash, "timeout:50-50-split");
+    }
+
+    function testArbitratorTimeout_noReputationPenaltyOnAgentWorker() public {
+        uint256 jobId = _create();
+        vm.prank(agent);
+        adapter.takeBounty(jobId, agentId);
+        vm.prank(agent);
+        adapter.submitWork(jobId, RESULT);
+
+        vm.prank(poster);
+        adapter.disputeBounty(jobId, REASON);
+        vm.prank(agent);
+        adapter.respondToDispute(jobId, RESP);
+
+        vm.warp(block.timestamp + 30 days + 1);
+        vm.prank(stranger);
+        adapter.claimArbitratorTimeout(jobId);
+
+        // Neutral outcome — no giveFeedback call at all (positive or negative).
+        assertEq(reputation.getFeedbackCount(), 0);
+    }
+
+    function testArbitratorTimeout_revertBeforeWindow() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        vm.prank(poster);
+        adapter.disputeBounty(jobId, REASON);
+        vm.prank(worker);
+        adapter.respondToDispute(jobId, RESP);
+
+        vm.warp(block.timestamp + 30 days - 1);
+        vm.expectRevert("arbitrator window open");
+        adapter.claimArbitratorTimeout(jobId);
+    }
+
+    function testArbitratorTimeout_revertIfNoResponse() public {
+        // Respondent never replied — claimDefaultRuling is the correct path,
+        // not claimArbitratorTimeout.
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        vm.prank(poster);
+        adapter.disputeBounty(jobId, REASON);
+
+        vm.warp(block.timestamp + 30 days + 1);
+        vm.expectRevert("use claimDefaultRuling");
+        adapter.claimArbitratorTimeout(jobId);
+    }
+
+    function testArbitratorTimeout_revertNotInDispute() public {
+        uint256 jobId = _create();
+        vm.expectRevert("not in dispute");
+        adapter.claimArbitratorTimeout(jobId);
+    }
+
+    function testArbitratorTimeout_revertAlreadyResolved() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        vm.prank(poster);
+        adapter.disputeBounty(jobId, REASON);
+        vm.prank(worker);
+        adapter.respondToDispute(jobId, RESP);
+        adapter.resolveDispute(jobId, true, RULING, 0); // arbitrator (address(this)) rules in time
+
+        // resolveDispute already cleared inDispute, so the "not in dispute"
+        // guard (checked before "resolved") is what fires here.
+        vm.warp(block.timestamp + 30 days + 1);
+        vm.expectRevert("not in dispute");
+        adapter.claimArbitratorTimeout(jobId);
+    }
+
+    // ─── V3.3: feeRecipient two-step transfer ─────────────────────────────────
+
+    function testFeeRecipientTransfer_twoStep() public {
+        address next = address(0xFEE5);
+        vm.prank(feeAddr);
+        adapter.transferFeeRecipient(next);
+        assertEq(adapter.feeRecipient(), feeAddr);
+        vm.prank(next);
+        adapter.acceptFeeRecipient();
+        assertEq(adapter.feeRecipient(), next);
+    }
+
+    function testFeeRecipientTransfer_revertNotFeeRecipient() public {
+        vm.prank(stranger);
+        vm.expectRevert("only fee recipient");
+        adapter.transferFeeRecipient(address(0xFEE5));
+    }
+
+    function testFeeRecipientTransfer_revertNotPending() public {
+        vm.prank(feeAddr);
+        adapter.transferFeeRecipient(address(0xFEE5));
+        vm.prank(stranger);
+        vm.expectRevert("not pending");
+        adapter.acceptFeeRecipient();
+    }
+
+    // ─── V4: worker bond ───────────────────────────────────────────────────────
+
+    function testWorkerBond_postedAtTake() public {
+        uint256 jobId = _createWithBond();
+        uint256 expectedBond = (reward * 1500) / 10_000; // 15% of $10 = $1.50, above the floor
+        assertEq(expectedBond, 1.5e6);
+
+        uint256 before = usdc.balanceOf(worker);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+
+        assertEq(usdc.balanceOf(worker), before - expectedBond);
+        assertEq(adapter.getBountyMeta(jobId).workerBond, expectedBond);
+    }
+
+    function testWorkerBond_minimumFloorApplies() public {
+        // At MIN_REWARD ($1), 15% = $0.15 — below the $0.50 floor, so the
+        // floor governs.
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.reward = 1e6;
+        p.requireWorkerBond = true;
+        vm.prank(poster);
+        uint256 jobId = adapter.createBounty(p);
+
+        uint256 before = usdc.balanceOf(worker);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+
+        assertEq(usdc.balanceOf(worker), before - 0.5e6);
+        assertEq(adapter.getBountyMeta(jobId).workerBond, 0.5e6);
+    }
+
+    function testWorkerBond_notRequiredByDefault() public {
+        uint256 jobId = _create(); // requireWorkerBond defaults to false
+        uint256 before = usdc.balanceOf(worker);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+
+        assertEq(usdc.balanceOf(worker), before, "no bond should be pulled");
+        assertEq(adapter.getBountyMeta(jobId).workerBond, 0);
+    }
+
+    function testWorkerBond_refundedAtSubmit() public {
+        uint256 jobId = _createWithBond();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+
+        uint256 afterTake = usdc.balanceOf(worker);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+
+        assertEq(usdc.balanceOf(worker), afterTake + 1.5e6, "bond must be refunded in full at submit");
+        assertEq(adapter.getBountyMeta(jobId).workerBond, 0);
+    }
+
+    function testWorkerBond_forfeitedOnExpireWithoutSubmission() public {
+        uint256 jobId = _createWithBond();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+
+        uint256 posterBefore = usdc.balanceOf(poster);
+        vm.warp(deadline + 1);
+        vm.prank(stranger);
+        adapter.expireBounty(jobId);
+
+        // Poster gets back the reward (via _rejectAndRefund) AND the forfeited bond.
+        assertEq(usdc.balanceOf(poster), posterBefore + reward + 1.5e6);
+        assertEq(adapter.getBountyMeta(jobId).workerBond, 0);
+    }
+
+    // ─── V4: uniquePosterCount ─────────────────────────────────────────────────
+
+    function testUniquePosterCount_incrementsPerDistinctPoster() public {
+        assertEq(adapter.uniquePosterCount(agentId), 0);
+
+        // First bounty: poster completes with the agent.
+        uint256 a = _create();
+        vm.prank(agent);
+        adapter.takeBounty(a, agentId);
+        vm.prank(agent);
+        adapter.submitWork(a, RESULT);
+        vm.prank(poster);
+        adapter.approveBounty(a, 95);
+        assertEq(adapter.uniquePosterCount(agentId), 1);
+
+        // Second bounty, SAME poster — must not double-count.
+        uint256 b = _create();
+        vm.prank(agent);
+        adapter.takeBounty(b, agentId);
+        vm.prank(agent);
+        adapter.submitWork(b, RESULT);
+        vm.prank(poster);
+        adapter.approveBounty(b, 95);
+        assertEq(adapter.uniquePosterCount(agentId), 1, "same poster must not double-count");
+
+        // Third bounty, a DIFFERENT poster.
+        usdc.mint(stranger, 100e6);
+        vm.prank(stranger);
+        usdc.approve(address(adapter), type(uint256).max);
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        vm.prank(stranger);
+        uint256 c = adapter.createBounty(p);
+        vm.prank(agent);
+        adapter.takeBounty(c, agentId);
+        vm.prank(agent);
+        adapter.submitWork(c, RESULT);
+        vm.prank(stranger);
+        adapter.approveBounty(c, 95);
+        assertEq(adapter.uniquePosterCount(agentId), 2, "a genuinely new poster must increment");
+    }
+
+    function testUniquePosterCount_incrementsOnAutoApprove() public {
+        uint256 jobId = _create();
+        vm.prank(agent);
+        adapter.takeBounty(jobId, agentId);
+        vm.prank(agent);
+        adapter.submitWork(jobId, RESULT);
+
+        vm.warp(block.timestamp + 14 days + 1);
+        vm.prank(stranger);
+        adapter.autoApprove(jobId);
+
+        assertEq(adapter.uniquePosterCount(agentId), 1);
+    }
+
+    function testUniquePosterCount_noOpForHumanWorker() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0); // agentId = 0 → human
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        vm.prank(poster);
+        adapter.approveBounty(jobId, 95);
+
+        assertEq(adapter.uniquePosterCount(0), 0, "agentId=0 must never accrue a count");
     }
 }

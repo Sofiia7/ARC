@@ -66,7 +66,8 @@ contract BountyAdapterForkTest is Test {
             category: "dev",
             tags: tags,
             agentOnly: false,
-            humanOnly: true // ensure we don't need to mint an ERC-8004 NFT
+            humanOnly: true, // ensure we don't need to mint an ERC-8004 NFT
+            requireWorkerBond: false
         });
 
         vm.prank(poster);

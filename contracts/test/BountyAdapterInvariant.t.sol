@@ -96,7 +96,8 @@ contract Handler is Test {
             category: "dev",
             tags: tags,
             agentOnly: false,
-            humanOnly: false
+            humanOnly: false,
+            requireWorkerBond: false
         });
         try adapter.createBounty(p) returns (uint256 jobId) {
             knownJobs.push(jobId);

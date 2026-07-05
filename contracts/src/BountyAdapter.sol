@@ -7,7 +7,7 @@ import "./interfaces/IAgenticCommerce.sol";
 import "./interfaces/IIdentityRegistry.sol";
 import "./interfaces/IReputationRegistry.sol";
 
-/// @title BountyAdapter (V3.1 — Sprint 1 hardening + live-registry compatibility)
+/// @title BountyAdapter (V4 — opt-in worker bond + unique-poster reputation signal)
 /// @dev V3.1 fixes two live-registry incompatibilities found by an on-chain
 ///      agent run: (1) takeBounty no longer calls the reverting isRegistered();
 ///      ownerOf alone gates agents. (2) every reputationRegistry.giveFeedback
@@ -25,6 +25,29 @@ import "./interfaces/IReputationRegistry.sol";
 ///    deadlock that previously left funds in AC escrow.
 ///  - O(1) index slices for poster / assignedProvider / agentId views.
 ///  - Length caps on every IPFS / category / reason field to bound storage cost.
+///
+/// V3.3 changes vs V3.2:
+///  - claimArbitratorTimeout(jobId): closes the one remaining liveness gap —
+///    a dispute where the respondent replied (so claimDefaultRuling no longer
+///    applies) but the arbitrator never rules used to freeze funds forever,
+///    since resolveDispute is arbitrator-only. After ARBITRATOR_TIMEOUT (30d)
+///    from disputeRaisedAt, anyone may trigger a neutral 50/50 split with no
+///    reputation penalty (fault was never established).
+///  - feeRecipient is no longer immutable: two-step transferFeeRecipient /
+///    acceptFeeRecipient (self-service — the current fee recipient nominates
+///    its own successor, independent of the arbitrator role).
+///
+/// V4 changes vs V3.3 (see V4_DESIGN_ANTI_SYBIL.md for the full rationale):
+///  - Opt-in worker bond (CreateParams.requireWorkerBond): a worker taking
+///    such a bounty posts max(MIN_WORKER_BOND, reward * WORKER_BOND_BPS/1e4),
+///    refunded in full at submitWork, forfeited to the poster if the bounty
+///    expires while taken with no submission. Deters free bounty-squatting
+///    without taxing bounties whose poster doesn't opt in.
+///  - uniquePosterCount(agentId): increments the first time a distinct
+///    poster completes a bounty with that agent as worker (approveBounty /
+///    autoApprove). Cheap on-chain signal against reputation farmed via
+///    self-dealing with one alt account — faking N unique posters now costs
+///    N real funded wallets, not one.
 contract BountyAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -33,7 +56,8 @@ contract BountyAdapter is ReentrancyGuard {
     IReputationRegistry public immutable reputationRegistry;
     IERC20 public immutable usdc;
 
-    address public immutable feeRecipient;
+    address public feeRecipient;
+    address public pendingFeeRecipient;
     address public arbitrator;
     address public pendingArbitrator;
     uint256 public immutable feeBps;
@@ -45,12 +69,26 @@ contract BountyAdapter is ReentrancyGuard {
     /// @notice After this period from submitWork, anyone may call autoApprove
     ///         and the worker is paid. Protects workers from posters who vanish.
     uint256 public constant APPROVAL_TIMEOUT = 14 days;
+    /// @notice After this period from disputeRaisedAt, if the respondent DID
+    ///         reply (so claimDefaultRuling's silence-based path doesn't apply)
+    ///         but the arbitrator never called resolveDispute, anyone may call
+    ///         claimArbitratorTimeout for a neutral 50/50 split. Prevents an
+    ///         unresponsive or compromised arbitrator from freezing funds
+    ///         forever — the one liveness gap in V3.2.
+    uint256 public constant ARBITRATOR_TIMEOUT = 30 days;
 
     // String length bounds — keep storage cheap and SSTORE refunds predictable.
     uint256 public constant MAX_CID_LEN = 96; // CIDv1 + ipfs:// prefix
     uint256 public constant MAX_CATEGORY = 16;
     uint256 public constant MAX_TAG_LEN = 32;
     uint256 public constant MAX_TAGS = 10;
+
+    // V4: opt-in worker bond, deters free bounty-squatting (take-and-vanish).
+    // Bond = max(MIN_WORKER_BOND, reward * WORKER_BOND_BPS / BPS_DENOMINATOR).
+    // Refunded in full at submitWork (it only deters vanishing, not quality);
+    // forfeited to the poster if the bounty expires while taken, unsubmitted.
+    uint256 public constant WORKER_BOND_BPS = 1500; // 15%
+    uint256 public constant MIN_WORKER_BOND = 0.5e6; // 0.50 USDC floor
 
     struct CreateParams {
         address provider; // 0x0 = open. If non-zero, only this address (or owner of agentId) can take.
@@ -61,6 +99,7 @@ contract BountyAdapter is ReentrancyGuard {
         string[] tags;
         bool agentOnly;
         bool humanOnly;
+        bool requireWorkerBond; // V4: opt-in — worker must post a bond to take this bounty
     }
 
     struct BountyMeta {
@@ -90,6 +129,9 @@ contract BountyAdapter is ReentrancyGuard {
         string disputeReasonHash;
         string disputeResponseHash;
         string disputeRulingHash;
+        // V4: worker bond
+        bool requireWorkerBond;
+        uint256 workerBond; // 0 once refunded (submitWork) or forfeited (expireBounty)
     }
 
     mapping(uint256 => BountyMeta) private _bounties;
@@ -99,6 +141,13 @@ contract BountyAdapter is ReentrancyGuard {
     mapping(address => uint256[]) private _postedBy;
     mapping(address => uint256[]) private _assignedTo;
     mapping(uint256 => uint256[]) private _byAgent;
+
+    // V4: anti-Sybil signal — count of distinct posters who have actually paid
+    // out a completed bounty to a given agent. Cheap, on-chain, tamper-proof:
+    // faking N "unique" posters costs N real funded wallets, not one alt
+    // account. See V4_DESIGN_ANTI_SYBIL.md.
+    mapping(uint256 => mapping(address => bool)) private _hasPostedForAgent;
+    mapping(uint256 => uint256) public uniquePosterCount;
 
     event BountyCreated(
         uint256 indexed jobId, address indexed poster, uint256 reward, string category, uint256 deadline
@@ -119,6 +168,12 @@ contract BountyAdapter is ReentrancyGuard {
     event DisputeResolved(uint256 indexed jobId, bool payProvider, string rulingHash, bool defaultRuling);
     event ArbitratorTransferStarted(address indexed previous, address indexed pending);
     event ArbitratorTransferred(address indexed previous, address indexed next);
+    event FeeRecipientTransferStarted(address indexed previous, address indexed pending);
+    event FeeRecipientTransferred(address indexed previous, address indexed next);
+    event ArbitratorTimeoutClaimed(uint256 indexed jobId, uint256 posterAmount, uint256 providerAmount);
+    event WorkerBondPosted(uint256 indexed jobId, address indexed worker, uint256 amount);
+    event WorkerBondRefunded(uint256 indexed jobId, address indexed worker, uint256 amount);
+    event WorkerBondForfeited(uint256 indexed jobId, address indexed poster, uint256 amount);
 
     constructor(
         address _agenticCommerce,
@@ -174,6 +229,7 @@ contract BountyAdapter is ReentrancyGuard {
         meta.agentOnly = p.agentOnly;
         meta.humanOnly = p.humanOnly;
         meta.whitelistedProvider = p.provider;
+        meta.requireWorkerBond = p.requireWorkerBond;
         for (uint256 i = 0; i < p.tags.length; i++) {
             meta.tags.push(p.tags[i]);
         }
@@ -214,9 +270,23 @@ contract BountyAdapter is ReentrancyGuard {
         meta.assignedProvider = msg.sender;
         _assignedTo[msg.sender].push(jobId);
 
+        // All state written above and here (CEI: effects before the external
+        // calls below) — including workerBond, so no write is left dangling
+        // after fund()/safeTransferFrom() the way a naive ordering would.
+        uint256 bond = 0;
+        if (meta.requireWorkerBond) {
+            bond = _workerBondFor(meta.reward);
+            meta.workerBond = bond;
+        }
+
         // Fund the AC escrow now (adapter is the client).
         usdc.forceApprove(address(agenticCommerce), meta.reward);
         agenticCommerce.fund(jobId, bytes(""));
+
+        if (bond > 0) {
+            usdc.safeTransferFrom(msg.sender, address(this), bond);
+            emit WorkerBondPosted(jobId, msg.sender, bond);
+        }
 
         emit BountyTaken(jobId, msg.sender, agentId);
     }
@@ -230,8 +300,19 @@ contract BountyAdapter is ReentrancyGuard {
 
         meta.submittedResultHash = ipfsResultHash;
         meta.submittedAt = block.timestamp;
+        // Effect (zeroing workerBond) before any interaction below — CEI.
+        // Bond only deters taking-and-vanishing — once real work is submitted,
+        // refund it immediately rather than holding it through approval/dispute.
+        uint256 bond = meta.workerBond;
+        meta.workerBond = 0;
+
         bytes32 deliverable = keccak256(abi.encodePacked(ipfsResultHash));
         agenticCommerce.submit(jobId, deliverable, bytes(""));
+
+        if (bond > 0) {
+            usdc.safeTransfer(msg.sender, bond);
+            emit WorkerBondRefunded(jobId, msg.sender, bond);
+        }
 
         emit WorkSubmitted(jobId, msg.sender, ipfsResultHash);
     }
@@ -247,6 +328,7 @@ contract BountyAdapter is ReentrancyGuard {
 
         meta.resolved = true;
         _completeAndForward(jobId, meta.assignedProvider, "approved");
+        _recordUniquePoster(meta);
 
         if (meta.agentId > 0) {
             // Reputation write must never block the payout: the worker has
@@ -281,6 +363,7 @@ contract BountyAdapter is ReentrancyGuard {
 
         meta.resolved = true;
         _completeAndForward(jobId, meta.assignedProvider, "auto_approved");
+        _recordUniquePoster(meta);
 
         if (meta.agentId > 0) {
             try reputationRegistry.giveFeedback(
@@ -365,8 +448,19 @@ contract BountyAdapter is ReentrancyGuard {
         require(bytes(meta.submittedResultHash).length == 0, "has submission");
 
         meta.resolved = true;
+        // Effect (zeroing workerBond) before any interaction below — CEI.
+        uint256 bond = meta.workerBond;
+        meta.workerBond = 0;
+
         if (meta.isTaken) {
             _rejectAndRefund(jobId, "expired");
+            // Worker took the bounty, posted a bond, then vanished without
+            // submitting — forfeit the bond to the poster whose listing was
+            // blocked for the bounty's whole duration.
+            if (bond > 0) {
+                usdc.safeTransfer(meta.poster, bond);
+                emit WorkerBondForfeited(jobId, meta.poster, bond);
+            }
         } else {
             usdc.safeTransfer(meta.poster, meta.reward);
         }
@@ -446,6 +540,30 @@ contract BountyAdapter is ReentrancyGuard {
         emit DisputeResolved(jobId, payProvider, meta.disputeRulingHash, true);
     }
 
+    /// @notice Permissionless neutral resolution when the arbitrator never
+    ///         rules after both parties have already submitted evidence (so
+    ///         claimDefaultRuling's silence-based path is unavailable). Splits
+    ///         the payout 50/50 between poster and worker; no reputation
+    ///         penalty is applied since fault was never adjudicated. This is
+    ///         the last-resort liveness path — resolveDispute by the real
+    ///         arbitrator remains strictly preferable and should always be
+    ///         faster in practice.
+    function claimArbitratorTimeout(uint256 jobId) external nonReentrant {
+        BountyMeta storage meta = _bounties[jobId];
+        require(meta.inDispute, "not in dispute");
+        require(!meta.resolved, "resolved");
+        require(bytes(meta.disputeResponseHash).length > 0, "use claimDefaultRuling");
+        require(block.timestamp > meta.disputeRaisedAt + ARBITRATOR_TIMEOUT, "arbitrator window open");
+
+        meta.resolved = true;
+        meta.inDispute = false;
+        meta.disputeRulingHash = "timeout:50-50-split";
+
+        (uint256 posterAmount, uint256 providerAmount) = _completeAndSplit(jobId, meta.poster, meta.assignedProvider);
+
+        emit ArbitratorTimeoutClaimed(jobId, posterAmount, providerAmount);
+    }
+
     function _finalizeDispute(uint256 jobId, bool payProvider) internal {
         BountyMeta storage meta = _bounties[jobId];
         if (payProvider) {
@@ -492,6 +610,31 @@ contract BountyAdapter is ReentrancyGuard {
         }
     }
 
+    /// @dev Pulls received USDC from AC via complete() and splits the net
+    ///      proceeds 50/50 between the two payees. Used only by
+    ///      claimArbitratorTimeout — the protocol fee still applies (work was
+    ///      genuinely delivered and disputed, not refunded outright).
+    function _completeAndSplit(uint256 jobId, address payeeA, address payeeB)
+        internal
+        returns (uint256 amountA, uint256 amountB)
+    {
+        uint256 before = usdc.balanceOf(address(this));
+        agenticCommerce.complete(jobId, keccak256("arbitrator_timeout"), bytes("arbitrator_timeout"));
+        uint256 received = usdc.balanceOf(address(this)) - before;
+        if (received == 0) return (0, 0);
+
+        uint256 fee = (received * feeBps) / BPS_DENOMINATOR;
+        if (fee > 0) {
+            usdc.safeTransfer(feeRecipient, fee);
+            emit ProtocolFeePaid(jobId, feeRecipient, fee);
+        }
+        uint256 net = received - fee;
+        amountA = net / 2;
+        amountB = net - amountA; // remainder (if net is odd) goes to payeeB
+        if (amountA > 0) usdc.safeTransfer(payeeA, amountA);
+        if (amountB > 0) usdc.safeTransfer(payeeB, amountB);
+    }
+
     /// @dev Pulls received USDC from AC and refunds poster — NO fee charged.
     function _rejectAndRefund(uint256 jobId, string memory reason) internal {
         BountyMeta storage meta = _bounties[jobId];
@@ -518,6 +661,28 @@ contract BountyAdapter is ReentrancyGuard {
         arbitrator = pendingArbitrator;
         pendingArbitrator = address(0);
         emit ArbitratorTransferred(prev, arbitrator);
+    }
+
+    // ─── Fee recipient transfer (2-step, self-service) ─────────────────────────
+
+    /// @notice The current fee recipient nominates its own successor. Kept
+    ///         independent of the arbitrator role by design — a compromised
+    ///         fee wallet or planned rotation shouldn't require arbitrator
+    ///         involvement, and the arbitrator should never be able to
+    ///         unilaterally redirect protocol fees.
+    function transferFeeRecipient(address next) external {
+        require(msg.sender == feeRecipient, "only fee recipient");
+        require(next != address(0), "next=0");
+        pendingFeeRecipient = next;
+        emit FeeRecipientTransferStarted(feeRecipient, next);
+    }
+
+    function acceptFeeRecipient() external {
+        require(msg.sender == pendingFeeRecipient, "not pending");
+        address prev = feeRecipient;
+        feeRecipient = pendingFeeRecipient;
+        pendingFeeRecipient = address(0);
+        emit FeeRecipientTransferred(prev, feeRecipient);
     }
 
     // ─── Views ─────────────────────────────────────────────────────────────────
@@ -591,6 +756,22 @@ contract BountyAdapter is ReentrancyGuard {
     }
 
     // ─── Internal helpers ──────────────────────────────────────────────────────
+
+    /// @dev V4: bond = max(MIN_WORKER_BOND, reward * WORKER_BOND_BPS / BPS_DENOMINATOR).
+    function _workerBondFor(uint256 reward) internal pure returns (uint256) {
+        uint256 pct = (reward * WORKER_BOND_BPS) / BPS_DENOMINATOR;
+        return pct > MIN_WORKER_BOND ? pct : MIN_WORKER_BOND;
+    }
+
+    /// @dev V4: increments uniquePosterCount[agentId] the first time a given
+    ///      poster completes a bounty with that agent as worker. No-op for
+    ///      human workers (agentId == 0) or a poster already counted.
+    function _recordUniquePoster(BountyMeta storage meta) internal {
+        if (meta.agentId == 0) return;
+        if (_hasPostedForAgent[meta.agentId][meta.poster]) return;
+        _hasPostedForAgent[meta.agentId][meta.poster] = true;
+        uniquePosterCount[meta.agentId]++;
+    }
 
     function _isOpenMatch(uint256 jobId, bool filterCategory, bytes32 categoryHash) internal view returns (bool) {
         BountyMeta storage meta = _bounties[jobId];

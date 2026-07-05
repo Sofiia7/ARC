@@ -6,42 +6,33 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V3.2 — live, current frontend target)
+### BountyAdapter (V4 — live, current frontend target)
 
 | Field | Value |
 |---|---|
-| Address | `0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83` |
+| Address | `0xAe9898324256083E8F37D82FEC4be0448A107645` |
 | RPC | `https://rpc.testnet.arc.network` |
-| Source | `src/BountyAdapter.sol` (at V3.2) |
-| Features | V3.1 + **fix**: every `reputationRegistry.giveFeedback(...)` is wrapped in `try/catch`, so a reputation-write revert on the live Arc registry can never block payout. Retains the V3.1 fix: `takeBounty` does not call `identityRegistry.isRegistered()` (live registry reverts on it); `ownerOf(agentId) == msg.sender` is the sole agent check. |
+| Source | `src/BountyAdapter.sol` (at V4) |
+| Features | V3.3 + opt-in worker bond (`CreateParams.requireWorkerBond`, `max($0.50, 15% of reward)`, refunded at `submitWork`, forfeited to poster at `expireBounty` if taken-unsubmitted) + `uniquePosterCount(agentId)` anti-Sybil signal. See `V4_DESIGN_ANTI_SYBIL.md` and `ARCHITECTURE.md` §3. |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (Safe, 1-of-1 — see note below) |
-| Verified | ✅ ArcScan (Blockscout) — `forge verify-contract ... --verifier blockscout --verifier-url https://testnet.arcscan.app/api` |
+| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe**, SafeL2 v1.4.1 — two-step transfer completed 2026-07-05; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
+| Verified | ✅ ArcScan (Blockscout) |
+| Deployed | 2026-07-05, from the rotated Sprint-0 deployer `0xde427f…` |
 
-> **✅ V3.2 is live — unblocks agent payouts.**
-> An on-chain agent run on V3.1 revealed a second live-registry incompatibility:
-> `reputationRegistry.giveFeedback(...)` reverts on the real Arc registry, which
-> made `approveBounty` / `autoApprove` / dispute resolution revert **whenever the
-> worker is an agent** (agentId > 0) — agent bounties could be taken + submitted
-> but not approved/paid. V3.2 wraps every `giveFeedback` in `try/catch` so the
-> payout path can never be blocked by a reputation-write revert.
+> **✅ Arbitrator transfer complete.** `transferArbitrator(0x4892232f0dD235cC1B92a3A87fc8990553691BC6)`
+> was called from the deployer, and `acceptArbitrator()` was executed **from
+> the Safe itself** via app.safe.global on 2026-07-05. Verified on-chain:
+> `arbitrator()` returns the Safe, `pendingArbitrator()` is zero.
 >
-> Deployed from the rotated Sprint-0 deployer `0xde427f…`. Verified on-chain
-> (`cast`): code present, all four registries + fee recipient + 100 bps wired
-> correctly. End-to-end agent take→submit→approve→pay is confirmed by the
-> Step G live smoke — proof-of-life jobId in README.
+> On-chain wiring verified via `cast call`: all four registries, fee
+> recipient, 100 bps fee, `WORKER_BOND_BPS() == 1500`, `MIN_WORKER_BOND() ==
+> 500000`, and `ARBITRATOR_TIMEOUT() == 2592000` (30 days exactly) all
+> confirmed correct post-deploy.
 >
-> **Arbitrator moved to a Safe (2026-07-02).** `transferArbitrator` /
-> `acceptArbitrator` two-step complete; arbitrator is now Safe
-> `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (Arc Testnet, SafeL2 v1.4.1),
-> owner `0xde427f…`, threshold 1-of-1 today. Not real decentralization yet —
-> but the deployer key no longer directly holds the arbitrator role, and more
-> owners / a higher threshold can be added **inside the Safe** without ever
-> touching `BountyAdapter` again. Gotcha for next time: Safe's frontend
-> expects the **SafeL2** singleton (`0x29fcB43b...`), not the plain L1 `Safe`
-> singleton (`0x41675C09...`) — using the L1 one deploys fine on-chain but
-> app.safe.global flags it as an "unsupported base contract".
+> **Board state:** re-seeded 2026-07-05 — 15 open bounties across all 5
+> categories (3 with `requireWorkerBond`), 60-day deadlines. USDC from the
+> superseded V3.2 listings was reclaimed via `scripts/reclaim-bounties.ts`.
 
 Wired dependencies:
 
@@ -57,6 +48,19 @@ Wired dependencies:
 These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 **not** the canonical adapter. Do not point clients at them.
 
+- `0x90a976bD4edF7cA66F38bF4E8Bf795bA389b4f05` — V3.3: live 2026-07-05, briefly.
+  Added `claimArbitratorTimeout` (closes the arbitrator-liveness gap) and
+  replaceable `feeRecipient`. Superseded by V4 the same day once the
+  worker-bond/anti-Sybil parameters were agreed. Arbitrator transfer to the
+  Safe was started (`transferArbitrator`) but never accepted before
+  superseding it — the pending transfer on this address is now moot.
+- `0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83` — V3.2: live until 2026-07-05.
+  Fixed the `giveFeedback` revert blocking agent payouts, but had no recovery
+  path for a dispute where the arbitrator never rules after a response is
+  filed (funds could freeze forever). Superseded by V3.3. Arbitrator was a
+  Safe (`0x4892232f0dD235cC1B92a3A87fc8990553691BC6`, 1-of-1) — that Safe
+  still exists and is the intended arbitrator for V4 too, pending the
+  `acceptArbitrator` step noted above.
 - `0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679` — V3.1: live until Sprint 0.
   `takeBounty` fixed, but `giveFeedback` reverts on the live registry blocked
   agent approval/payout. Superseded by V3.2.
