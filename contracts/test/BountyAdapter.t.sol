@@ -485,6 +485,86 @@ contract BountyAdapterTest is Test {
         assertTrue(adapter.getBountyMeta(jobId).resolved);
     }
 
+    // V4.1: rejectBounty must revert once APPROVAL_TIMEOUT has elapsed — a
+    // poster can't sit on a correct submission and reject right before
+    // autoApprove would otherwise fire, buying extra free delay.
+    function testReject_revertAfterApprovalWindowElapsed() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+
+        vm.warp(block.timestamp + 14 days + 1);
+        vm.prank(poster);
+        vm.expectRevert("approval window elapsed, use autoApprove");
+        adapter.rejectBounty(jobId, REASON);
+    }
+
+    // V4.1: withdrawRejection lets a poster who changed their mind return to
+    // the pre-rejection state — approveBounty becomes reachable again.
+    function testWithdrawRejection_allowsApproveAfterwards() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+
+        vm.prank(poster);
+        adapter.rejectBounty(jobId, REASON);
+        assertTrue(adapter.getBountyMeta(jobId).rejectedAt > 0);
+
+        vm.prank(poster);
+        adapter.withdrawRejection(jobId);
+        assertEq(adapter.getBountyMeta(jobId).rejectedAt, 0);
+        assertEq(adapter.getBountyMeta(jobId).rejectionReasonHash, "");
+
+        // approveBounty was blocked by "rejection pending" before the
+        // withdrawal; now it must succeed.
+        uint256 before = usdc.balanceOf(worker);
+        vm.prank(poster);
+        adapter.approveBounty(jobId, 90);
+        assertEq(usdc.balanceOf(worker), before + (reward - reward / 100));
+        assertTrue(adapter.getBountyMeta(jobId).resolved);
+    }
+
+    function testWithdrawRejection_revertNotPoster() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        vm.prank(poster);
+        adapter.rejectBounty(jobId, REASON);
+
+        vm.prank(stranger);
+        vm.expectRevert("only poster");
+        adapter.withdrawRejection(jobId);
+    }
+
+    function testWithdrawRejection_revertNoPendingRejection() public {
+        uint256 jobId = _create();
+        vm.prank(poster);
+        vm.expectRevert("no pending rejection");
+        adapter.withdrawRejection(jobId);
+    }
+
+    function testWithdrawRejection_revertAfterChallenge() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        vm.prank(poster);
+        adapter.rejectBounty(jobId, REASON);
+        vm.prank(worker);
+        adapter.challengeRejection(jobId, REASON);
+
+        vm.prank(poster);
+        vm.expectRevert("already challenged");
+        adapter.withdrawRejection(jobId);
+    }
+
     function testReject_revertEmptyReason() public {
         uint256 jobId = _create();
         vm.prank(worker);
@@ -1255,6 +1335,33 @@ contract BountyAdapterTest is Test {
         // Poster gets back the reward (via _rejectAndRefund) AND the forfeited bond.
         assertEq(usdc.balanceOf(poster), posterBefore + reward + 1.5e6);
         assertEq(adapter.getBountyMeta(jobId).workerBond, 0);
+    }
+
+    function testWorkerBond_revertDeadlineTooSoon() public {
+        // V4.1 honeypot guard: a bond bounty with a near-immediate deadline
+        // would let the poster farm forfeited bonds from auto-taking agents.
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.requireWorkerBond = true;
+        p.deadline = block.timestamp + adapter.MIN_BOND_BOUNTY_DURATION() - 1;
+        vm.prank(poster);
+        vm.expectRevert(bytes("bond bounty: deadline too soon"));
+        adapter.createBounty(p);
+
+        // Exactly at the floor is allowed (boundary).
+        p.deadline = block.timestamp + adapter.MIN_BOND_BOUNTY_DURATION();
+        vm.prank(poster);
+        uint256 jobId = adapter.createBounty(p);
+        assertTrue(adapter.getBountyMeta(jobId).requireWorkerBond);
+    }
+
+    function testCreate_shortDeadlineStillAllowedWithoutBond() public {
+        // The duration floor is scoped to bond bounties only — a bond-free
+        // micro-bounty with a short deadline risks no worker funds.
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.deadline = block.timestamp + 10 minutes;
+        vm.prank(poster);
+        uint256 jobId = adapter.createBounty(p);
+        assertEq(adapter.getBountyMeta(jobId).deadline, p.deadline);
     }
 
     // ─── V4: uniquePosterCount ─────────────────────────────────────────────────

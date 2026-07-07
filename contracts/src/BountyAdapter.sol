@@ -48,6 +48,23 @@ import "./interfaces/IReputationRegistry.sol";
 ///    autoApprove). Cheap on-chain signal against reputation farmed via
 ///    self-dealing with one alt account — faking N unique posters now costs
 ///    N real funded wallets, not one.
+///
+/// V4.1 changes vs V4 (internal audit findings, not yet deployed):
+///  - rejectBounty now reverts once APPROVAL_TIMEOUT has elapsed since
+///    submission. Previously a poster sitting on a correct submission could
+///    reject right before autoApprove would otherwise fire, buying another
+///    REJECTION_CHALLENGE_WINDOW (or a full dispute) of free delay.
+///  - withdrawRejection(jobId): lets a poster who rejected and changed their
+///    mind return to the pre-rejection state (so approveBounty becomes
+///    reachable again) instead of being forced forward into a challenge or a
+///    48h wait for finalizeRejection.
+///  - MIN_BOND_BOUNTY_DURATION: a requireWorkerBond bounty must have at least
+///    24h between creation and deadline. Without this, a poster could list a
+///    bond bounty with a near-immediate deadline as a honeypot: an auto-taking
+///    agent posts the bond, cannot plausibly finish, and expireBounty forfeits
+///    the bond to the poster — repeatable at gas cost. A 24h floor makes the
+///    take genuinely completable, so forfeiture again means "worker vanished",
+///    not "worker was trapped". Bond-free bounties keep any deadline.
 contract BountyAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -89,6 +106,12 @@ contract BountyAdapter is ReentrancyGuard {
     // forfeited to the poster if the bounty expires while taken, unsubmitted.
     uint256 public constant WORKER_BOND_BPS = 1500; // 15%
     uint256 public constant MIN_WORKER_BOND = 0.5e6; // 0.50 USDC floor
+    /// @notice V4.1: minimum createBounty→deadline span for bond bounties.
+    ///         Prevents the bond-honeypot: a near-immediate deadline on a
+    ///         requireWorkerBond listing would let the poster farm forfeited
+    ///         bonds from auto-taking agents that cannot plausibly deliver
+    ///         in time. Does not apply to bond-free bounties.
+    uint256 public constant MIN_BOND_BOUNTY_DURATION = 24 hours;
 
     struct CreateParams {
         address provider; // 0x0 = open. If non-zero, only this address (or owner of agentId) can take.
@@ -163,6 +186,7 @@ contract BountyAdapter is ReentrancyGuard {
     event RejectionProposed(uint256 indexed jobId, address indexed poster, string reasonHash);
     event RejectionFinalized(uint256 indexed jobId);
     event RejectionChallenged(uint256 indexed jobId, address indexed worker, string reasonHash);
+    event RejectionWithdrawn(uint256 indexed jobId);
     event DisputeRaised(uint256 indexed jobId, address indexed initiator, string reasonHash);
     event DisputeResponded(uint256 indexed jobId, address indexed responder, string responseHash);
     event DisputeResolved(uint256 indexed jobId, bool payProvider, string rulingHash, bool defaultRuling);
@@ -204,6 +228,10 @@ contract BountyAdapter is ReentrancyGuard {
     function createBounty(CreateParams calldata p) external nonReentrant returns (uint256 jobId) {
         require(p.reward >= MIN_REWARD, "reward too low");
         require(p.deadline > block.timestamp, "deadline in past");
+        if (p.requireWorkerBond) {
+            // Bond honeypot guard — see MIN_BOND_BOUNTY_DURATION natspec.
+            require(p.deadline >= block.timestamp + MIN_BOND_BOUNTY_DURATION, "bond bounty: deadline too soon");
+        }
         _requireCid(p.ipfsDescHash, "ipfsDesc");
         require(_validCategory(p.category), "invalid category");
         require(!(p.agentOnly && p.humanOnly), "agentOnly+humanOnly");
@@ -390,11 +418,35 @@ contract BountyAdapter is ReentrancyGuard {
         require(!meta.inDispute, "in dispute");
         require(!meta.resolved, "resolved");
         require(meta.rejectedAt == 0, "already rejected");
+        // Without this bound, a poster could sit on a correct submission for
+        // up to APPROVAL_TIMEOUT and then reject right before autoApprove
+        // would otherwise fire, buying another REJECTION_CHALLENGE_WINDOW (or
+        // a full dispute) of delay for free. Once the approval window has
+        // elapsed, autoApprove is the only path forward — matches the
+        // permissionless-liveness guarantee the rest of the contract makes.
+        require(block.timestamp <= meta.submittedAt + APPROVAL_TIMEOUT, "approval window elapsed, use autoApprove");
         _requireCid(ipfsReasonHash, "reason");
 
         meta.rejectedAt = block.timestamp;
         meta.rejectionReasonHash = ipfsReasonHash;
         emit RejectionProposed(jobId, msg.sender, ipfsReasonHash);
+    }
+
+    /// @notice Lets a poster who rejected a submission and changed their mind
+    ///         withdraw the pending rejection before the worker challenges it
+    ///         (or before it's finalized). Without this, a poster stuck in
+    ///         `rejectedAt != 0` had no way back to `approveBounty` — only
+    ///         forward to a challenge/dispute or a 48h wait for finalize.
+    function withdrawRejection(uint256 jobId) external nonReentrant {
+        BountyMeta storage meta = _bounties[jobId];
+        require(meta.poster == msg.sender, "only poster");
+        require(meta.rejectedAt != 0, "no pending rejection");
+        require(!meta.inDispute, "already challenged");
+        require(!meta.resolved, "resolved");
+
+        meta.rejectedAt = 0;
+        meta.rejectionReasonHash = "";
+        emit RejectionWithdrawn(jobId);
     }
 
     function challengeRejection(uint256 jobId, string calldata ipfsReasonHash) external nonReentrant {

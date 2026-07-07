@@ -6,33 +6,39 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V4 — live, current frontend target)
+### BountyAdapter (V4.1 — live, current frontend target)
 
 | Field | Value |
 |---|---|
-| Address | `0xAe9898324256083E8F37D82FEC4be0448A107645` |
+| Address | `0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887` |
 | RPC | `https://rpc.testnet.arc.network` |
-| Source | `src/BountyAdapter.sol` (at V4) |
-| Features | V3.3 + opt-in worker bond (`CreateParams.requireWorkerBond`, `max($0.50, 15% of reward)`, refunded at `submitWork`, forfeited to poster at `expireBounty` if taken-unsubmitted) + `uniquePosterCount(agentId)` anti-Sybil signal. See `V4_DESIGN_ANTI_SYBIL.md` and `ARCHITECTURE.md` §3. |
+| Source | `src/BountyAdapter.sol` (at V4.1) |
+| Features | V4 (opt-in worker bond + `uniquePosterCount(agentId)` anti-Sybil signal) **plus the V4.1 internal-audit fixes**: `rejectBounty` bounded by `APPROVAL_TIMEOUT` (no more free delay by rejecting right before `autoApprove`), `withdrawRejection(jobId)` (poster can back out of a pending rejection), and `MIN_BOND_BOUNTY_DURATION` (24h floor on bond-bounty deadlines — closes the bond-honeypot where a near-immediate deadline farmed forfeited bonds from auto-taking agents). See `V4_DESIGN_ANTI_SYBIL.md` and `ARCHITECTURE.md` §3. |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe**, SafeL2 v1.4.1 — two-step transfer completed 2026-07-05; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
+| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe**, SafeL2 v1.4.1 — two-step transfer completed 2026-07-07; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
 | Verified | ✅ ArcScan (Blockscout) |
-| Deployed | 2026-07-05, from the rotated Sprint-0 deployer `0xde427f…` |
+| Deployed | 2026-07-07, block `50610373`, tx `0x1d2b2698470ca8ff65fe0d22513756919a19a66449b8ad8a5be162c6b0d3b83c`, from the rotated Sprint-0 deployer `0xde427f…` |
 
 > **✅ Arbitrator transfer complete.** `transferArbitrator(0x4892232f0dD235cC1B92a3A87fc8990553691BC6)`
 > was called from the deployer, and `acceptArbitrator()` was executed **from
-> the Safe itself** via app.safe.global on 2026-07-05. Verified on-chain:
-> `arbitrator()` returns the Safe, `pendingArbitrator()` is zero.
+> the Safe itself** (Safe `execTransaction`, tx `0xd9a3c5aa…93c84`) on
+> 2026-07-07. Verified on-chain: `arbitrator()` returns the Safe,
+> `pendingArbitrator()` is zero.
 >
 > On-chain wiring verified via `cast call`: all four registries, fee
 > recipient, 100 bps fee, `WORKER_BOND_BPS() == 1500`, `MIN_WORKER_BOND() ==
-> 500000`, and `ARBITRATOR_TIMEOUT() == 2592000` (30 days exactly) all
-> confirmed correct post-deploy.
+> 500000`, `MIN_BOND_BOUNTY_DURATION() == 86400` (24h), and
+> `ARBITRATOR_TIMEOUT() == 2592000` (30 days exactly) all confirmed correct
+> post-deploy.
 >
-> **Board state:** re-seeded 2026-07-05 — 15 open bounties across all 5
-> categories (3 with `requireWorkerBond`), 60-day deadlines. USDC from the
-> superseded V3.2 listings was reclaimed via `scripts/reclaim-bounties.ts`.
+> **Board state:** re-seeded 2026-07-07 — 19 bounties across all 5
+> categories (3 with `requireWorkerBond`, rewards $1–$5), 60-day deadlines.
+> Two were then completed end-to-end by a real agent as the V4.1
+> proof-of-life (jobIds `151017` — the bond listing, bond posted and
+> refunded — and `151016`; agentId `847205`; see
+> `scripts/agent-proof-of-life.ts`), leaving 17 open. USDC from the
+> superseded V4 listings was reclaimed via `scripts/reclaim-bounties.ts`.
 
 Wired dependencies:
 
@@ -48,6 +54,11 @@ Wired dependencies:
 These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 **not** the canonical adapter. Do not point clients at them.
 
+- `0xAe9898324256083E8F37D82FEC4be0448A107645` — V4: live 2026-07-05 to
+  2026-07-07. First deployment with the worker bond + `uniquePosterCount`;
+  superseded by V4.1 (the three internal-audit fixes above) two days later.
+  All 15 listings reclaimed via `scripts/reclaim-bounties.ts`; arbitrator was
+  the Safe here too.
 - `0x90a976bD4edF7cA66F38bF4E8Bf795bA389b4f05` — V3.3: live 2026-07-05, briefly.
   Added `claimArbitratorTimeout` (closes the arbitrator-liveness gap) and
   replaceable `feeRecipient`. Superseded by V4 the same day once the

@@ -14,13 +14,14 @@ slither src/BountyAdapter.sol \
 
 ## Excluded detectors and why
 
-### `timestamp` (17 findings — all expected)
+### `timestamp` (all findings expected; count grows with each time-windowed feature)
 
 The dispute / rejection / approval system is inherently time-windowed:
 `REJECTION_CHALLENGE_WINDOW`, `DISPUTE_RESPONSE_WINDOW`, `APPROVAL_TIMEOUT`,
-and deadline checks. All windows are ≥ 48h, far beyond the ±15s a validator
-can plausibly skew `block.timestamp`. No sub-minute logic exists, so miner
-timestamp manipulation cannot change any outcome.
+`ARBITRATOR_TIMEOUT`, `MIN_BOND_BOUNTY_DURATION`, and deadline checks. All
+windows are ≥ 24h, far beyond the ±15s a validator can plausibly skew
+`block.timestamp`. No sub-minute logic exists, so miner timestamp
+manipulation cannot change any outcome.
 
 ### `incorrect-equality` (1 finding)
 

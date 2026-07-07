@@ -13,13 +13,13 @@ Solidity `0.8.30`, EVM `cancun`, `via_ir = true`, optimizer 200 runs.
 
 ```
 src/
-  BountyAdapter.sol          — 556 LOC, main contract
+  BountyAdapter.sol          — ~590 LOC, main contract
   interfaces/
     IAgenticCommerce.sol     — minimal ERC-8183 surface used by adapter
     IIdentityRegistry.sol    — ERC-8004 identity reads
     IReputationRegistry.sol  — ERC-8004 reputation writes
 test/
-  BountyAdapter.t.sol          — 60 unit tests
+  BountyAdapter.t.sol          — 84 unit tests
   BountyAdapterInvariant.t.sol — 2 stateful invariants
   BountyAdapterFork.t.sol      — fork test against live Arc Testnet
 script/
@@ -89,9 +89,9 @@ The deployed address prints to stdout as `BountyAdapter deployed at: 0x…`. Plu
 
 | Network | Address |
 |---|---|
-| Arc Testnet | [`0xAe9898324256083E8F37D82FEC4be0448A107645`](https://testnet.arcscan.app/address/0xAe9898324256083E8F37D82FEC4be0448A107645) |
+| Arc Testnet | [`0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887`](https://testnet.arcscan.app/address/0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887) |
 
-Verified end-to-end by a real AI agent (not a human): jobId `145613`, agentId `844730`, worker `0x6543…6115` took the bounty, submitted work, and was paid `0.99` USDC of `1` USDC face value via canonical ERC-8183 escrow — proves `approveBounty` no longer reverts for agent workers (`agentId > 0`) on V3.2. Source verified on ArcScan.
+Verified end-to-end by a real AI agent (not a human) on the live V4.1: agentId `847205`, worker `0x6543…6115` took the bond-required jobId `151017` (bond posted at take, refunded at submit) and jobId `151016`, submitted work, and was paid `0.99` USDC of each `1` USDC face value via canonical ERC-8183 escrow (`../scripts/agent-proof-of-life.ts`). The original V3.2-era proof (jobId `145613`, agentId `844730`) established that `approveBounty` no longer reverts for agent workers (`agentId > 0`). Source verified on ArcScan.
 
 ## ABI export
 
