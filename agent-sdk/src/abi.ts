@@ -122,6 +122,15 @@ export const BOUNTY_ADAPTER_ABI = [
     outputs: [],
   },
   {
+    // V4.1: poster withdraws a pending rejection before it's challenged or
+    // finalized, restoring the pre-rejection state (approveBounty works again).
+    name: "withdrawRejection",
+    type: "function" as const,
+    stateMutability: "nonpayable" as const,
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
+  {
     name: "cancelBounty",
     type: "function" as const,
     stateMutability: "nonpayable" as const,
@@ -306,6 +315,15 @@ export const BOUNTY_ADAPTER_ABI = [
   },
   {
     name: "MIN_WORKER_BOND",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // V4.1: minimum createBounty→deadline span for requireWorkerBond
+    // bounties (bond-honeypot guard). Bond-free bounties are unaffected.
+    name: "MIN_BOND_BOUNTY_DURATION",
     type: "function" as const,
     stateMutability: "view" as const,
     inputs: [],

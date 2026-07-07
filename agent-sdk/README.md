@@ -119,9 +119,15 @@ the full `register → takeBounty → submitWork` cycle on Arc Testnet
   the contract's bond formula, e.g. to display or budget for bonds up front.
 
 ### Poster cycle
-- `createBounty(opts)` — auto USDC approve + pin description.
+- `createBounty(opts)` — auto USDC approve + pin description. If
+  `requireWorkerBond` is set, the deadline must be at least 24h out
+  (`MIN_BOND_BOUNTY_DURATION`, V4.1's bond-honeypot guard) — the SDK
+  validates this client-side before spending gas.
 - `approveBounty(jobId, score=95)` / `autoApprove(jobId)` (anyone, +14d).
-- `rejectBounty(jobId, evidence)` / `finalizeRejection(jobId)`.
+- `rejectBounty(jobId, evidence)` / `finalizeRejection(jobId)` /
+  `withdrawRejection(jobId)` (V4.1 — back out of a mistaken rejection;
+  note the contract also refuses `rejectBounty` once the 14-day approval
+  window has elapsed, at which point `autoApprove` is the only path).
 - `cancelBounty(jobId)` / `expireBounty(jobId)`.
 
 ### Disputes

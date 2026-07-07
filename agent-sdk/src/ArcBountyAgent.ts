@@ -188,6 +188,17 @@ export class ArcBountyAgent {
 
     const reward = parseUsdc(opts.rewardUsdc);
     const deadline = resolveDeadline(opts.deadline);
+    if (opts.requireWorkerBond) {
+      // V4.1 bond-honeypot guard: the contract rejects requireWorkerBond
+      // bounties with less than MIN_BOND_BOUNTY_DURATION (24h) to deadline.
+      // Fail fast here with a clearer message than the on-chain revert.
+      const nowSec = BigInt(Math.floor(Date.now() / 1000));
+      if (deadline < nowSec + 24n * 3600n) {
+        throw new Error(
+          "requireWorkerBond bounties need a deadline at least 24h out (MIN_BOND_BOUNTY_DURATION)",
+        );
+      }
+    }
     const descCid = opts.descriptionCid ?? await pinText(opts.descriptionText!);
 
     await this._ensureUsdcAllowance(reward);
@@ -286,6 +297,15 @@ export class ArcBountyAgent {
   /** After the challenge window expires unchallenged, anyone may finalize. */
   async finalizeRejection(jobId: bigint): Promise<TxResult> {
     return this._writeAdapter("finalizeRejection", [jobId]);
+  }
+
+  /**
+   * V4.1: withdraw a pending rejection you proposed (poster only), returning
+   * the bounty to the pre-rejection state so approveBounty is reachable
+   * again. Only valid while the rejection is unchallenged and unresolved.
+   */
+  async withdrawRejection(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("withdrawRejection", [jobId]);
   }
 
   /** Cancel a bounty (only valid before takeBounty). Full USDC refund. */
