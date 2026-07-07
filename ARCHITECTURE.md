@@ -9,7 +9,8 @@ ArcBounty work *natively* on Arc's standards instead of reimplementing escrow:
    + rejection challenge window**).
 3. How V4 raises the cost of the two economic gaps a naive bounty board
    leaves open — free squatting and cheap reputation farming — without a
-   redesign (the **worker bond + unique-poster count**).
+   redesign (the **worker bond + unique-poster count**), and how V4.1
+   patches the honeypot the bond itself introduced.
 
 All three are uncommon on Arc today and are the core of why ArcBounty is
 infrastructure rather than a demo.
@@ -183,7 +184,7 @@ aspirational through V3.2 is, as of V3.3, actually true.
 |---|---|---|---|
 | Poster | bounty creator | approve / reject / dispute | cannot unilaterally claw back after submission |
 | Worker | human or ERC-8004 agent | submit / challenge / dispute | challenge window + autoApprove protect payout |
-| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator` (completed to the Safe 2026-07-05); bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
+| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator` (completed to the Safe on the live V4.1, 2026-07-07); bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
 | Fee recipient | protocol fee wallet | none over funds in flight, only collects `feeBps` | two-step `transferFeeRecipient`/`acceptFeeRecipient`, self-service, independent of arbitrator |
 | Adapter | this contract | holds AC roles, forwards funds | non-upgradeable, `ReentrancyGuard`, fee-capped ≤10% |
 
@@ -236,6 +237,41 @@ account. It doesn't replace ERC-8004's own `averageScore` (that's Arc's
 registry, not ours to change) — it's an additional, adapter-native signal
 callers can weight however they like.
 
+### V4.1: the honeypot the bond introduced, and what the bond does NOT deter
+
+The bond created a new attack surface of its own, found in the pre-audit
+internal review: nothing required a bond bounty's deadline to be far enough
+out to be completable. A poster could list `requireWorkerBond` with a
+deadline minutes away; an auto-taking agent posts the bond, cannot plausibly
+deliver, and `expireBounty` forfeits the bond **to the poster** — a
+repeatable bond-farming honeypot priced at gas. V4.1 adds
+`MIN_BOND_BOUNTY_DURATION` (24h): `createBounty` rejects bond bounties whose
+deadline is closer than that, so forfeiture again means "worker vanished",
+not "worker was trapped". Bond-free bounties keep any deadline — they put no
+worker funds at risk. (The SDK enforces the same floor client-side for a
+clearer error.)
+
+Two limitations of the bond worth stating plainly, because a security
+reviewer will find them anyway:
+
+- **The bond deters take-and-vanish, not take-and-submit-garbage.** Any
+  submission — the contract can only check the CID's length, not its
+  quality — refunds the bond instantly. A squatter willing to submit junk
+  gets their bond back and pushes the poster into the reject → 48h
+  challenge-window path instead of a clean expiry. That path costs the
+  squatter nothing but gas. This is a deliberate trade-off: holding the bond
+  through approval would punish honest slow-reviewed workers far more often
+  than it would punish spam, and the reject flow (plus reputation
+  consequences for agents) is the designed remedy for junk work.
+- **V4.1's `rejectBounty` bound closes the mirror-image poster delay.** A
+  poster used to be able to sit on a correct submission until just before
+  `autoApprove` fired and then reject, buying another challenge window (or a
+  full dispute) of free delay. `rejectBounty` now reverts once
+  `APPROVAL_TIMEOUT` has elapsed — past that point, `autoApprove` is the only
+  path forward. The companion `withdrawRejection` lets a poster who rejected
+  in error return to the approvable state instead of being locked into the
+  challenge/finalize fork.
+
 ---
 
 ## Component map
@@ -244,7 +280,7 @@ callers can weight however they like.
 Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-8004 agent)
         ▼                                      ▲
    ┌─────────────────────────┐  result CID (IPFS)
-   │      BountyAdapter       │  ← this repo, ~570 LOC, non-upgradeable
+   │      BountyAdapter       │  ← this repo, ~590 LOC, non-upgradeable
    │  client+provider+eval    │
    └────┬──────────────┬──────┘
         │              │
@@ -253,11 +289,14 @@ Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-80
  (escrow rail)    (agentId + on-chain feedback)
 ```
 
-- **Contract** — `contracts/src/BountyAdapter.sol`. 77 unit tests + 2 stateful
-  invariants (79 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
+- **Contract** — `contracts/src/BountyAdapter.sol`. 84 unit tests + 2 stateful
+  invariants (86 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
   (`contracts/SLITHER.md`), verified on ArcScan.
 - **Frontend** — `frontend/`, Next.js 14 + viem/wagmi, real-time via
-  `watchContractEvent`, Porto passkey/SCA login, CSP-hardened.
+  `watchContractEvent`, Porto passkey/SCA login, CSP-hardened. Leaderboard
+  ships the V4-B2 sqrt-of-reward-weighted score + on-chain
+  `uniquePosterCount`; `/stats` renders protocol totals purely from contract
+  events in the browser.
 - **Agent SDK** — `agent-sdk/`, full worker + poster + arbitrator surface +
   `subscribeToNewBounties` event loop.
 

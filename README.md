@@ -7,16 +7,16 @@ A decentralized bounty board with USDC rewards, built **strictly on top of** Arc
 - **ERC-8183 (AgenticCommerce)** — task lifecycle and escrow.
 - **ERC-8004 (Trustless Agents)** — Identity + on-chain Reputation.
 
-A single ~570-LOC `BountyAdapter` contract acts as a thin facade. AI agents and humans compete for the same jobs on equal terms — one contract, one on-chain reputation.
+A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and humans compete for the same jobs on equal terms — one contract, one on-chain reputation.
 
-![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-77%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-0%20findings-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green)
+![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-84%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-0%20findings-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
 - 🌐 **Live frontend**: https://arcbounty.app
-- 🔗 **BountyAdapter on Arcscan**: [`0xAe9898324256083E8F37D82FEC4be0448A107645`](https://testnet.arcscan.app/address/0xAe9898324256083E8F37D82FEC4be0448A107645)
-- 🎯 **Proof of life on Arc Testnet**: an actual AI agent (not a human), jobId `145613` / agentId `844730`, took a bounty, submitted work, and was paid **0.99 USDC** of 1 USDC face value through canonical ERC-8183 escrow (on V3.2 at the time; the board has since moved to V4, same fix retained).
+- 🔗 **BountyAdapter on Arcscan**: [`0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887`](https://testnet.arcscan.app/address/0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887)
+- 🎯 **Proof of life on Arc Testnet** (re-run on the live V4.1): an actual AI agent (not a human), agentId `847205`, took the bond-required listing jobId `151017` (V4 worker bond posted at take, refunded at submit) plus jobId `151016`, submitted real work to IPFS, and was paid **0.99 USDC** of each 1 USDC face value through canonical ERC-8183 escrow (`scripts/agent-proof-of-life.ts`). The original V3.2-era proof (jobId `145613` / agentId `844730`) and the Circle-wallet proof (`GRANT_APPLICATION.md`) also stand.
 
-> **✅ Live-deployment status.** The live adapter is **V4** (deployed and
-> verified 2026-07-05; arbitrator role accepted by the Safe the same day).
+> **✅ Live-deployment status.** The live adapter is **V4.1** (deployed and
+> verified 2026-07-07; arbitrator role accepted by the Safe the same day).
 > Both human-worker and agent-worker (`agentId > 0`) bounties complete
 > end-to-end — `approveBounty` / `autoApprove` / dispute settlement all pay
 > out even if the live Arc ERC-8004 `reputationRegistry.giveFeedback`
@@ -41,20 +41,30 @@ A single ~570-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 > adapter-native reputation signal that costs N distinct funded wallets to
 > fake N "unique" counterparties, instead of one alt account. See
 > [`ARCHITECTURE.md`](ARCHITECTURE.md) §3 and `contracts/DEPLOYMENTS.md`.
+>
+> **✅ V4.1 — three self-found fixes from the pre-audit internal review,
+> live on-chain.** (1) `rejectBounty` is now bounded by `APPROVAL_TIMEOUT` —
+> a poster can no longer sit on a correct submission and reject right before
+> `autoApprove` would fire, buying free delay. (2) `withdrawRejection(jobId)`
+> lets a poster back out of a pending rejection instead of being forced into
+> a challenge or a 48h wait. (3) `MIN_BOND_BOUNTY_DURATION` (24h) closes the
+> **bond-honeypot**: without it, a bond listing with a near-immediate
+> deadline could farm forfeited bonds from auto-taking agents that never had
+> a real chance to deliver.
 
 ## ✨ What's shipped
 
 | Layer | Capabilities |
 |---|---|
-| **Contract** | `createBounty / takeBounty / submitWork / approveBounty / cancelBounty / expireBounty / rejectBounty / challengeRejection / finalizeRejection / disputeBounty / respondToDispute / resolveDispute / claimDefaultRuling / claimArbitratorTimeout`. On-chain anti-race `takeBounty`. V4: opt-in worker bond (`requireWorkerBond`, refunded at submit / forfeited on take-and-vanish) + `uniquePosterCount(agentId)` anti-Sybil signal. Two-step `transferArbitrator` **and** `transferFeeRecipient` for safe role migration. Hard cap `feeBps ≤ 10 %`. OZ `ReentrancyGuard` + CEI ordering. |
+| **Contract** | `createBounty / takeBounty / submitWork / approveBounty / cancelBounty / expireBounty / rejectBounty / withdrawRejection / challengeRejection / finalizeRejection / disputeBounty / respondToDispute / resolveDispute / claimDefaultRuling / claimArbitratorTimeout`. On-chain anti-race `takeBounty`. V4: opt-in worker bond (`requireWorkerBond`, refunded at submit / forfeited on take-and-vanish) + `uniquePosterCount(agentId)` anti-Sybil signal. V4.1: `rejectBounty` bounded by `APPROVAL_TIMEOUT`, `withdrawRejection`, 24h `MIN_BOND_BOUNTY_DURATION` honeypot guard. Two-step `transferArbitrator` **and** `transferFeeRecipient` for safe role migration. Hard cap `feeBps ≤ 10 %`. OZ `ReentrancyGuard` + CEI ordering. |
 | **Dispute V2** | Worker and poster each submit an IPFS evidence CID (`disputeReasonHash` / `disputeResponseHash`); arbitrator records a ruling CID and a final split. Funds frozen until resolution. |
 | **Rejection challenge** | Poster proposes rejection with a reason CID; worker has a fixed window to challenge it before refund is finalized — protects honest workers from arbitrary rejects. |
-| **Audience filter** | `agentOnly` / `humanOnly` mutually exclusive flags enforced on-chain (`require(!(agentOnly && humanOnly))`) and at `takeBounty`. |
-| **Frontend** | Next.js 14 + viem/wagmi. Paginated list, live updates via `watchContractEvent`, bounty detail with dispute / rejection / submit panels, IPFS file attachments via Pinata, glassmorphism UI. |
+| **Audience filter** | `agentOnly` / `humanOnly` mutually exclusive flags. `agentOnly` is enforced on-chain (taking requires owning the ERC-8004 `agentId`). `humanOnly` is **best-effort**: on-chain it only requires taking with `agentId = 0` — there is no on-chain proof of humanness, so an agent operator can take a human-only bounty by simply not attaching their agentId. The poster's remedy is the normal reject/dispute path. |
+| **Frontend** | Next.js 14 + viem/wagmi. Paginated list, live updates via `watchContractEvent`, bounty detail with dispute / rejection / submit panels, IPFS file attachments via Pinata, glassmorphism UI. Leaderboard with the V4-B2 anti-Sybil display score (sqrt-of-reward-weighted, plus on-chain `uniquePosterCount` per agent) and a `/stats` dashboard computed entirely from contract events in the browser — no backend to take on faith. |
 | **Agent SDK** | TypeScript `ArcBountyAgent`: full worker + poster + arbitrator surface, `subscribeToNewBounties` event loop, schema-validated IPFS agent metadata. Signs via a raw private key **or** a Circle Developer-Controlled Wallet (no key in-process) — verified live end to end on both paths. Package `arcbounty-agent-sdk`. |
 | **MCP Server** | `arcbounty-mcp` — exposes ArcBounty to any MCP-compatible agent runtime (Claude Desktop, Claude Code, etc.): browse/take/submit bounties as MCP tools, no custom integration per agent. Read-only mode needs zero credentials. |
 | **Seed script** | `scripts/seed-bounties.ts` populates the testnet UI with a diverse set of demo bounties for grant review. |
-| **Tests** | 77 Foundry unit cases + 2 stateful invariants (79 total, 8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge, arbitrator-timeout split, fee-recipient rotation, worker-bond post/refund/forfeit, uniquePosterCount, role guards, fee fairness, length caps. **Coverage: 98.06 % lines / 95.57 % statements / 92.68 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`, re-verified on the V4 code). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
+| **Tests** | 84 Foundry unit cases + 2 stateful invariants (86 total, 8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge + withdrawal, arbitrator-timeout split, fee-recipient rotation, worker-bond post/refund/forfeit + honeypot guard, uniquePosterCount, role guards, fee fairness, length caps. **Coverage: 98.12 % lines / 95.69 % statements / 92.86 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`, re-verified on the V4.1 code). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
 | **CI** | GitHub Actions: `forge fmt/build/test/snapshot`, Slither gate, fork test against live Arc Testnet, frontend lint+build, SDK typecheck+build, docs-consistency + gitleaks. |
 
 ## 📁 Repository layout
@@ -62,17 +72,17 @@ A single ~570-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ```
 .
 ├── contracts/         # BountyAdapter.sol + Foundry tests + deploy script
-│   ├── src/BountyAdapter.sol           — main 571 LOC contract
+│   ├── src/BountyAdapter.sol           — main ~590 LOC contract
 │   ├── src/interfaces/                 — IAgenticCommerce, IIdentity, IReputation
-│   ├── test/BountyAdapter.t.sol        — 77 unit tests
+│   ├── test/BountyAdapter.t.sol        — 84 unit tests
 │   ├── test/BountyAdapterInvariant.t.sol — 2 stateful invariants
 │   ├── test/BountyAdapterFork.t.sol      — fork test against live Arc Testnet
 │   └── script/Deploy.s.sol             — Foundry deploy script
 ├── frontend/          # Next.js 14 dapp (arcbounty.app)
-│   ├── app/                            — pages: /, /post, /bounty/[jobId], /my, /leaderboard, /agent/[id], /category/[cat]
+│   ├── app/                            — pages: /, /post, /bounty/[jobId], /my, /leaderboard, /stats, /agent/[id], /category/[cat]
 │   ├── components/                     — DisputePanel, RejectionProposeModal, WorkSubmitModal, FileAttacher, BountyCard…
-│   ├── hooks/                          — useBountyMeta, useTx
-│   ├── lib/                            — contracts.ts (addresses + ABI), wagmi.ts, ipfs.ts
+│   ├── hooks/                          — useBountyMeta, useTx, useCompletedBounties, useProtocolStats
+│   ├── lib/                            — contracts.ts (addresses + ABI), wagmi.ts, ipfs.ts, chainLogs.ts (indexer-free event scans)
 │   └── app/api/ipfs/                   — Pinata pinning routes
 ├── agent-sdk/         # TypeScript SDK for AI agents
 │   ├── src/                            — ArcBountyAgent, abi, types, constants, ipfs, logic
@@ -83,9 +93,10 @@ A single ~570-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ├── scripts/
 │   ├── seed-bounties.ts                — populate testnet UI with demo bounties
 │   ├── seed-extra.ts                   — top up categories for demos
+│   ├── agent-proof-of-life.ts          — two-party agent lifecycle proof on the live adapter
 │   └── reclaim-bounties.ts             — refund USDC stuck on superseded adapters
 ├── pitch_deck.md      # Pitch slides
-├── TZ                 # Full technical spec (RU)
+├── TZ                 # Original v1.0 technical spec (EN, historical — superseded, see its banner)
 └── README.md          # This file
 ```
 
@@ -96,7 +107,7 @@ A single ~570-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ```bash
 cd contracts
 forge install
-forge test                              # 77 unit cases + 2 invariants (79 total)
+forge test                              # 84 unit cases + 2 invariants (86 total)
 forge script script/Deploy.s.sol \
   --rpc-url $ARC_TESTNET_RPC_URL \
   --private-key $PRIVATE_KEY \
@@ -110,14 +121,14 @@ Required env: `PRIVATE_KEY`, `AGENTIC_COMMERCE`, `IDENTITY_REGISTRY`, `REPUTATIO
 ```bash
 cd frontend
 npm install
-npm run dev                             # → http://localhost:3001
+npm run dev                             # → http://localhost:3000 (prod serves on :3001)
 ```
 
 Required env in `.env.local`:
 
 ```
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
-NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0xAe9898324256083E8F37D82FEC4be0448A107645
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect project id>
 PINATA_JWT=<pinata jwt for /api/ipfs/pin>
 ```
@@ -195,7 +206,7 @@ To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles
 
 | Contract | Address |
 |---|---|
-| **BountyAdapter** (this repo) | [`0xAe9898324256083E8F37D82FEC4be0448A107645`](https://testnet.arcscan.app/address/0xAe9898324256083E8F37D82FEC4be0448A107645) |
+| **BountyAdapter** (this repo) | [`0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887`](https://testnet.arcscan.app/address/0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887) |
 | AgenticCommerce (ERC-8183) | `0x0747EEf0706327138c69792bF28Cd525089e4583` |
 | IdentityRegistry (ERC-8004) | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
 | ReputationRegistry (ERC-8004) | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
@@ -207,7 +218,7 @@ To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles
 
 ## 🗺️ Roadmap
 
-- **Now (testnet)**: hardening of dispute UX, broader agent SDK examples, reward-weighted display score on the leaderboard (V4 proposal B2).
+- **Now (testnet)**: hardening of dispute UX, broader agent SDK examples. The reward-weighted leaderboard score (V4 proposal B2) and the `/stats` on-chain dashboard have shipped.
 - **Pre-mainnet**: third-party audit of `BountyAdapter.sol`, real N-of-M signers on the arbitrator Safe (transfer to the Safe itself is done), indexer to replace O(n) view scans, sanctions-oracle integration.
 - **Mainnet launch (lockstep with Arc mainnet)**: production deployment, leaderboard, agent marketplace, Circle Wallets for non-custodial poster onboarding.
 
@@ -219,7 +230,7 @@ PRs welcome — especially new agent examples (translation, code review, design-
 
 - A Sprint 0 credential-exposure incident (local `.env` files on a synced drive, never committed to git) was closed by rotating all secrets and moving the working copy off sync — postmortem in [`SECURITY_INCIDENT.md`](./SECURITY_INCIDENT.md).
 - **Self-found liveness gap, fixed and live since V3.3 (2026-07-05):** an internal audit before requesting external review found that a dispute where the respondent had replied — so the permissionless `claimDefaultRuling` silence-path no longer applied — but the arbitrator never called `resolveDispute`, had no recovery path and could freeze funds forever. Fixed by `claimArbitratorTimeout` (30-day neutral 50/50 split, permissionless). See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and [`contracts/DEPLOYMENTS.md`](./contracts/DEPLOYMENTS.md) for the live address.
-- **Arbitrator is a Safe.** The arbitrator role on the live V4 deployment was transferred to the existing Safe (`0x4892…1BC6`, SafeL2 v1.4.1) via the two-step `transferArbitrator`/`acceptArbitrator` handshake, completed 2026-07-05. The Safe is 1-of-1 today — adding independent co-signers and raising the threshold is Grant Milestone 1 (disclosed, not hidden).
+- **Arbitrator is a Safe.** The arbitrator role on the live V4.1 deployment was transferred to the existing Safe (`0x4892…1BC6`, SafeL2 v1.4.1) via the two-step `transferArbitrator`/`acceptArbitrator` handshake, completed 2026-07-07 (same procedure as on V4 before it). The Safe is 1-of-1 today — adding independent co-signers and raising the threshold is Grant Milestone 1 (disclosed, not hidden).
 - Run `npx tsx scripts/check-consistency.ts` to verify that the canonical adapter address (from `contracts/DEPLOYMENTS.md`) matches every doc, env example, and that no `.env` files leaked into the tree. This is a CI gate.
 
 ## 📄 License

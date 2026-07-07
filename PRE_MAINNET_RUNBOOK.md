@@ -5,24 +5,32 @@ Arc mainnet itself has not launched yet (publicly confirmed for summer 2026)
 checklist for everything that needs to happen **before that becomes
 possible**, split by who has to act.
 
-> **Status update (2026-07-05, second pass).** The following items from the
-> original checklist are now DONE and their sections below are kept only as a
-> record of what was done and why:
-> - ✅ **Item 1 — redeploy**: superseded and completed by the **V4** deploy
->   (V3.3 features + worker bond + `uniquePosterCount`) at
->   `0xAe9898324256083E8F37D82FEC4be0448A107645`, source-verified on ArcScan.
->   Board re-seeded (15 bounties, 60-day deadlines) after reclaiming the USDC
->   from the superseded V3.2 listings (`scripts/reclaim-bounties.ts`).
-> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.3.1` is live on npm
->   (0.3.0 = V4 ABI; 0.3.1 adds automatic worker-bond allowance in
->   `takeBounty` + the `workerBondFor` helper).
-> - ✅ **Item 3 — Vercel prod**: confirmed live 2026-07-05; the production
->   bundle serves the canonical V4 adapter address and the Pinata v2 routes.
+> **Status update (2026-07-07, third pass).** The board now runs **V4.1** at
+> `0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887` (source-verified on ArcScan):
+> the three self-found pre-audit fixes — `MIN_BOND_BOUNTY_DURATION` (24h
+> bond-honeypot guard), the `APPROVAL_TIMEOUT` bound on `rejectBounty`, and
+> `withdrawRejection` — went live in one redeploy. Done items, kept below
+> only as a record of what was done and why:
+> - ✅ **Item 1 — redeploy**: V4 (2026-07-05), then V4.1 (2026-07-07). Board
+>   re-seeded each time (currently 19 seeded / 17 open, 60-day deadlines, 3
+>   bond listings) after reclaiming USDC from the superseded listings
+>   (`scripts/reclaim-bounties.ts`). Fresh two-party agent proof-of-life on
+>   V4.1: jobIds `151017` (bond cycle) + `151016`, agentId `847205`
+>   (`scripts/agent-proof-of-life.ts`).
+> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.3.1` is live on npm;
+>   0.4.0 (V4.1 ABI: `withdrawRejection`, `MIN_BOND_BOUNTY_DURATION`,
+>   client-side bond-deadline validation) is built and tested in-repo —
+>   publish is the one remaining manual step. `mcp-server` now depends on
+>   the published semver range instead of `file:../agent-sdk`.
+> - ✅ **Item 3 — Vercel prod**: bundle serves the canonical adapter address
+>   from `contracts/DEPLOYMENTS.md`; re-verify after every redeploy.
 > - ✅ **Item 5 (first half) — Safe**: `acceptArbitrator()` executed from the
->   Safe on 2026-07-05; `arbitrator()` on the live V4 contract is the Safe.
+>   Safe (via `execTransaction`) on the live V4.1 contract, 2026-07-07.
 >   **Still open: adding independent co-signers + raising the threshold.**
 > - ✅ **Item 7 — V4 parameters**: decided (15% / $0.50 floor / opt-in /
->   forfeit-to-poster) and shipped on-chain. See `V4_DESIGN_ANTI_SYBIL.md`.
+>   forfeit-to-poster) and shipped on-chain, hardened in V4.1 with the 24h
+>   bond-deadline floor. Proposal B2 (leaderboard score + `/stats`) shipped
+>   2026-07-07. See `V4_DESIGN_ANTI_SYBIL.md`.
 >
 > Still open: item 4 (WalletConnect rotation check), item 5's co-signers,
 > item 6 (external audit), item 8 (Circle User-Controlled Wallets + Gas
@@ -58,12 +66,12 @@ redeploy" section:
   and re-seed demo bounties (`scripts/seed-bounties.ts`, use
   `SEED_DEADLINE_DAYS=60`).
 
-### 2. Publish the SDK to npm — ✅ done (`0.3.1` live)
+### 2. Publish the SDK to npm — ✅ done (`0.3.1` live; `0.4.0` awaiting publish)
 
-`mcp-server/package.json` still points at `arcbounty-agent-sdk` via a local
-`file:../agent-sdk` reference for development. Now that `0.3.x` is published,
-consider switching it to a real semver range (`^0.3.1`) so the MCP server can
-be installed standalone without a full repo checkout.
+`mcp-server/package.json` now depends on the published semver range
+(`^0.3.1`) instead of `file:../agent-sdk`, so the MCP server installs
+standalone. After `0.4.0` (V4.1 ABI) is published, bump that range to
+`^0.4.0` and refresh the lockfile.
 
 ### 3. Verify Vercel production — ✅ done (2026-07-05)
 
@@ -93,7 +101,7 @@ number.
 ### 6. Procure the external audit (Grant Milestone 2)
 
 `BountyAdapter.sol` — either a paid audit or an audit contest (Sherlock,
-Code4rena, Cantina, etc.). Do this against the deployed **V4** code. Feed
+Code4rena, Cantina, etc.). Do this against the deployed **V4.1** code. Feed
 the auditor `ARCHITECTURE.md`, `V4_DESIGN_ANTI_SYBIL.md`, and
 `contracts/SLITHER.md` directly — they already document the non-obvious
 design decisions (balance-delta payout, the adapter's own custody window
@@ -105,8 +113,9 @@ have to reverse-engineer from the code alone.
 Parameters signed off and live on-chain: opt-in bond,
 `max($0.50, 15% of reward)`, refunded at `submitWork`, forfeited to the
 poster on take-and-vanish; `uniquePosterCount` incrementing on
-`approveBounty`/`autoApprove`. Proposal B2 (reward-weighted display score on
-the leaderboard) remains open — frontend-only, no contract dependency.
+`approveBounty`/`autoApprove`; V4.1 adds the 24h `MIN_BOND_BOUNTY_DURATION`
+honeypot guard. Proposal B2 (reward-weighted display score + `/stats`
+dashboard) shipped 2026-07-07 — frontend-only, exactly as designed.
 
 ### 8. Circle User-Controlled Wallets + Gas Station (Grant Milestone 3)
 

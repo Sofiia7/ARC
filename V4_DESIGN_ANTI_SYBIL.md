@@ -1,9 +1,10 @@
 # V4 design: anti-Sybil reputation + worker-bond
 
-**Status: IMPLEMENTED (2026-07-05)**, with numbers picked by the user, not
-guessed by whoever wrote the patch. Shipped as Proposal A + Proposal B1 below;
-Proposal B2 (frontend/leaderboard display weighting) is not yet built — see
-"What shipped vs what didn't" at the end of this document.
+**Status: FULLY IMPLEMENTED** — Proposal A + Proposal B1 shipped on-chain
+2026-07-05 (with numbers picked by the user, not guessed by whoever wrote
+the patch); Proposal B2 (frontend/leaderboard display weighting) shipped
+2026-07-07 as the leaderboard "ArcBounty score" + "Unique posters" columns
+and the `/stats` dashboard. See "What shipped vs what didn't" at the end.
 
 Shipped parameters:
 - `WORKER_BOND_BPS = 1500` (15%), `MIN_WORKER_BOND = 0.5e6` (0.50 USDC floor)
@@ -12,6 +13,14 @@ Shipped parameters:
   if the bounty was taken with no submission
 - `uniquePosterCount(agentId)` — increments on `approveBounty`/`autoApprove`
   the first time a distinct poster completes with that agent
+- **V4.1 (2026-07-07): `MIN_BOND_BOUNTY_DURATION = 24h`** — a bond bounty's
+  deadline must be at least 24h out at creation. Closes the bond-honeypot
+  found in the pre-audit review: a near-immediate deadline let a poster farm
+  forfeited bonds from auto-taking agents that never had a real chance to
+  deliver. Known residual limitation (disclosed, accepted): the bond deters
+  take-and-vanish only — a squatter can still reclaim their bond by
+  submitting garbage, which routes the poster into the reject/challenge
+  path. See `ARCHITECTURE.md` §3 for the full trade-off discussion.
 
 The rest of this document is kept as-written (the original design rationale
 and the options that were considered) for context on *why* these numbers.
@@ -159,17 +168,21 @@ parameters above are agreed would mean either re-writing it after sign-off
 fund-custody change, which is exactly the kind of decision this document
 exists to avoid making unilaterally.
 
-## What shipped vs what didn't (2026-07-05)
+## What shipped vs what didn't (updated 2026-07-07)
 
 **Shipped, with the parameters stated at the top of this document:**
 - Proposal A (worker bond) — opt-in, 15%/$0.50-floor, refund-at-submit,
-  forfeit-to-poster-at-expire.
+  forfeit-to-poster-at-expire. Hardened in V4.1 with the 24h
+  `MIN_BOND_BOUNTY_DURATION` honeypot guard.
 - Proposal B1 (on-chain `uniquePosterCount`).
+- Proposal B2 (2026-07-07) — the leaderboard now shows an "ArcBounty score"
+  (average `reputationScore` weighted by `sqrt(reward)`, so one whale bounty
+  can't dominate, computed from `BountyCompleted` + `BountyCreated` events)
+  next to the raw ERC-8004 reputation, plus a "Unique posters" column
+  surfacing the on-chain B1 signal. The same event pipeline powers the
+  `/stats` public dashboard. No contract dependency, exactly as designed.
 
-**Not shipped, still open:**
-- Proposal B2 (reward-weighted display score on `/leaderboard` and
-  `/agent/[agentId]`) — this needs no contract change and could ship
-  independently; it's a frontend/indexer task, not blocked by anything above.
+**Still open:**
 - Re-evaluation of bond adoption (item 4 in the rollout order above) — can't
   happen until there's real usage data on the redeployed contract.
 - Decentralized dispute resolution and the rest of the roadmap in
