@@ -25,9 +25,12 @@ mainnet. All exposure was testnet-only.
   address (it's a distinct wallet), so no redeploy was forced by this specifically.
 - [x] **Pinata** — old JWT revoked, new JWT issued and confirmed working
   end-to-end (seed script + frontend IPFS routes, live-tested against V3.2).
-- [ ] **WalletConnect** (`NEXT_PUBLIC_WC_PROJECT_ID`) — rotation status not
-  independently confirmed from this working copy; verify directly in the
-  WalletConnect Cloud dashboard.
+- [x] **WalletConnect** (`NEXT_PUBLIC_WC_PROJECT_ID`) — rotated 2026-07-07:
+  a fresh project ID was issued in the Reown (WalletConnect Cloud)
+  dashboard and deployed to Vercel production + local env. The ID is
+  public by design (it ships in the client bundle) — the real protections
+  are deleting the old project and domain-restricting the new one to
+  `arcbounty.app` in the dashboard; both are dashboard-side settings.
 - [x] **History audit** — full-history `gitleaks --redact` scan run; no real
   secrets found (see "What happened" above).
 - [x] **Pre-commit hook** — `.githooks/pre-commit` installed and

@@ -17,11 +17,10 @@ possible**, split by who has to act.
 >   (`scripts/reclaim-bounties.ts`). Fresh two-party agent proof-of-life on
 >   V4.1: jobIds `151017` (bond cycle) + `151016`, agentId `847205`
 >   (`scripts/agent-proof-of-life.ts`).
-> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.3.1` is live on npm;
->   0.4.0 (V4.1 ABI: `withdrawRejection`, `MIN_BOND_BOUNTY_DURATION`,
->   client-side bond-deadline validation) is built and tested in-repo —
->   publish is the one remaining manual step. `mcp-server` now depends on
->   the published semver range instead of `file:../agent-sdk`.
+> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.4.0` (V4.1 ABI:
+>   `withdrawRejection`, `MIN_BOND_BOUNTY_DURATION`, client-side
+>   bond-deadline validation) is live on npm; `mcp-server` depends on the
+>   published `^0.4.0` instead of `file:../agent-sdk`.
 > - ✅ **Item 3 — Vercel prod**: bundle serves the canonical adapter address
 >   from `contracts/DEPLOYMENTS.md`; re-verify after every redeploy.
 > - ✅ **Item 5 (first half) — Safe**: `acceptArbitrator()` executed from the
@@ -32,9 +31,9 @@ possible**, split by who has to act.
 >   bond-deadline floor. Proposal B2 (leaderboard score + `/stats`) shipped
 >   2026-07-07. See `V4_DESIGN_ANTI_SYBIL.md`.
 >
-> Still open: item 4 (WalletConnect rotation check), item 5's co-signers,
-> item 6 (external audit), item 8 (Circle User-Controlled Wallets + Gas
-> Station), item 9 (the actual mainnet deploy).
+> Still open: item 5's co-signers, item 6 (external audit), item 8 (Circle
+> User-Controlled Wallets + Gas Station), item 9 (the actual mainnet
+> deploy). Item 4 (WalletConnect rotation) closed 2026-07-07.
 
 ---
 
@@ -66,12 +65,10 @@ redeploy" section:
   and re-seed demo bounties (`scripts/seed-bounties.ts`, use
   `SEED_DEADLINE_DAYS=60`).
 
-### 2. Publish the SDK to npm — ✅ done (`0.3.1` live; `0.4.0` awaiting publish)
+### 2. Publish the SDK to npm — ✅ done (`0.4.0` live)
 
-`mcp-server/package.json` now depends on the published semver range
-(`^0.3.1`) instead of `file:../agent-sdk`, so the MCP server installs
-standalone. After `0.4.0` (V4.1 ABI) is published, bump that range to
-`^0.4.0` and refresh the lockfile.
+`mcp-server/package.json` depends on the published semver range (`^0.4.0`)
+instead of `file:../agent-sdk`, so the MCP server installs standalone.
 
 ### 3. Verify Vercel production — ✅ done (2026-07-05)
 
@@ -79,12 +76,12 @@ standalone. After `0.4.0` (V4.1 ABI) is published, bump that range to
 into the client bundle, Pinata v2 pin routes live. Re-check after any future
 redeploy (bundle env-var update + deploy together, not as two separate steps).
 
-### 4. Confirm WalletConnect project ID rotation
+### 4. Confirm WalletConnect project ID rotation — ✅ done (2026-07-07)
 
-Open item from `SECURITY_INCIDENT.md`: `NEXT_PUBLIC_WC_PROJECT_ID` rotation
-was never independently confirmed from the working copy. Check directly in
-the WalletConnect Cloud dashboard that the project ID in use isn't tied to
-the Sprint-0-compromised environment.
+A fresh project ID was issued in the Reown (WalletConnect Cloud) dashboard
+and deployed to Vercel production + local env. Dashboard-side follow-ups
+(quick, in the same dashboard): delete the old project and set the new
+project's allowed domains to `arcbounty.app`.
 
 ### 5. Real N-of-M Safe multisig (Grant Milestone 1) — transfer ✅, signers still open
 
@@ -192,7 +189,5 @@ the original list have since been completed; see the status banner at the top.)
 
 - **No Safe co-signers added.** Requires real people with real keys — item 5.
 - **No audit purchased.** Requires picking and paying a vendor — item 6.
-- **WalletConnect project-ID rotation unconfirmed.** Needs the WalletConnect
-  Cloud dashboard — item 4.
 - **Circle User-Controlled Wallets + Gas Station unbuilt.** Grant Milestone 3,
   a real feature-development task — item 8.
