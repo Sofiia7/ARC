@@ -23,7 +23,12 @@ export type RateLimitResult = {
   retryAfterSec: number;
 };
 
-export function consume(key: string, opts: RateLimitOptions): RateLimitResult {
+/**
+ * @param cost Tokens to consume for this call (default 1). Used for
+ *   volume-based limits (e.g. "N bytes per day") where each request's cost
+ *   varies instead of always being 1 request.
+ */
+export function consume(key: string, opts: RateLimitOptions, cost = 1): RateLimitResult {
   const now = Date.now();
   let b = BUCKETS.get(key);
   if (!b) {
@@ -43,11 +48,11 @@ export function consume(key: string, opts: RateLimitOptions): RateLimitResult {
   b.tokens = Math.min(opts.capacity, b.tokens + elapsed * opts.refillPerSecond);
   b.updatedAt = now;
 
-  if (b.tokens >= 1) {
-    b.tokens -= 1;
+  if (b.tokens >= cost) {
+    b.tokens -= cost;
     return { ok: true, remaining: Math.floor(b.tokens), retryAfterSec: 0 };
   }
-  const retryAfterSec = Math.ceil((1 - b.tokens) / opts.refillPerSecond);
+  const retryAfterSec = Math.ceil((cost - b.tokens) / opts.refillPerSecond);
   return { ok: false, remaining: 0, retryAfterSec };
 }
 
@@ -69,18 +74,18 @@ function upstashConfigured(): boolean {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 }
 
-async function upstashFixedWindow(key: string, max: number, windowSec: number): Promise<RateLimitResult> {
+async function upstashFixedWindow(key: string, max: number, windowSec: number, cost: number): Promise<RateLimitResult> {
   const url = process.env.UPSTASH_REDIS_REST_URL!;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN!;
   const windowId = Math.floor(Date.now() / 1000 / windowSec);
   const redisKey = `rl:${key}:${windowId}`;
 
-  // Pipeline: INCR then EXPIRE-if-new. Upstash returns [{result:n},{result:..}].
+  // Pipeline: INCRBY then EXPIRE-if-new. Upstash returns [{result:n},{result:..}].
   const res = await fetch(`${url}/pipeline`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify([
-      ["INCR", redisKey],
+      ["INCRBY", redisKey, String(cost)],
       ["EXPIRE", redisKey, String(windowSec), "NX"],
     ]),
   });
@@ -100,16 +105,17 @@ async function upstashFixedWindow(key: string, max: number, windowSec: number): 
  * Rate-limit a key, preferring the distributed Upstash backend when configured
  * and falling back to the in-memory token bucket otherwise (or on Redis error).
  * The `opts` are reused: window length is derived as capacity / refillPerSecond.
+ * @param cost Tokens to consume for this call (default 1) — see `consume()`.
  */
-export async function consumeAsync(key: string, opts: RateLimitOptions): Promise<RateLimitResult> {
+export async function consumeAsync(key: string, opts: RateLimitOptions, cost = 1): Promise<RateLimitResult> {
   if (upstashConfigured()) {
     try {
       const windowSec = Math.max(1, Math.round(opts.capacity / opts.refillPerSecond));
-      return await upstashFixedWindow(key, opts.capacity, windowSec);
+      return await upstashFixedWindow(key, opts.capacity, windowSec, cost);
     } catch {
       // Redis unreachable — fail open to in-memory so the API stays up.
-      return consume(key, opts);
+      return consume(key, opts, cost);
     }
   }
-  return consume(key, opts);
+  return consume(key, opts, cost);
 }

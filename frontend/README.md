@@ -48,7 +48,7 @@ Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
-NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0xAe9898324256083E8F37D82FEC4be0448A107645
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect cloud project id>
 PINATA_JWT=<pinata jwt with file upload permission>
 ```
@@ -75,7 +75,7 @@ before either is called, and each call costs one signature prompt.
 
 ```bash
 npm install
-npm run dev     # http://localhost:3001
+npm run dev     # http://localhost:3000
 npm run build   # production build
 npm start       # serve production on :3001
 ```

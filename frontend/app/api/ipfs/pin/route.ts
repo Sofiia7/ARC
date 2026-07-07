@@ -6,7 +6,18 @@ import { verifyWalletAuth } from "@/lib/wallet-auth";
 export const runtime = "nodejs";
 
 const MAX_TEXT_BYTES = 1 * 1024 * 1024; // 1 MB
-const RATE = { capacity: 10, refillPerSecond: 10 / 60 }; // 10 / min, sustained per wallet
+// Wallet-scoped: generous enough for a real user. Wallet creation is free, so
+// this alone doesn't bound a determined attacker — the IP-only bucket below
+// is what actually caps "spin up N wallets from one machine" abuse.
+const WALLET_RATE = { capacity: 10, refillPerSecond: 10 / 60 }; // 10 / min per wallet
+// IP-only: independent of wallet identity, catches many-wallets-one-IP abuse
+// that a wallet-only bucket can't see (a fresh EOA always starts with a full
+// wallet bucket).
+const IP_RATE = { capacity: 20, refillPerSecond: 20 / 60 }; // 20 / min per IP, any wallet
+// Daily volume cap per wallet — bounds sustained abuse even from a client
+// that paces requests just under the per-minute limits.
+const DAILY_BYTES_PER_WALLET = 20 * 1024 * 1024; // 20 MB / day
+const DAILY_RATE = { capacity: DAILY_BYTES_PER_WALLET, refillPerSecond: DAILY_BYTES_PER_WALLET / 86_400 };
 
 function tooBig(s: string): boolean {
   return new TextEncoder().encode(s).byteLength > MAX_TEXT_BYTES;
@@ -23,10 +34,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  // Rate-limit per-wallet (primary) — falls back to IP only as a secondary
-  // dimension so one signed identity can't be smeared across many IPs either.
-  const rl = await consumeAsync(`pin:${auth.address.toLowerCase()}:${clientKey(req)}`, RATE);
-  if (!rl.ok) {
+  const wallet = auth.address.toLowerCase();
+  const ip = clientKey(req);
+
+  // Both dimensions must pass — a fresh wallet doesn't bypass the IP cap, and
+  // rotating IPs (VPN) doesn't bypass the wallet cap.
+  const [walletRl, ipRl] = await Promise.all([
+    consumeAsync(`pin:wallet:${wallet}`, WALLET_RATE),
+    consumeAsync(`pin:ip:${ip}`, IP_RATE),
+  ]);
+  const rl = !walletRl.ok ? walletRl : ipRl;
+  if (!walletRl.ok || !ipRl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
       { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
@@ -46,6 +64,15 @@ export async function POST(req: NextRequest) {
 
   if (tooBig(content)) {
     return NextResponse.json({ error: `content exceeds ${MAX_TEXT_BYTES} bytes` }, { status: 413 });
+  }
+
+  const byteLength = new TextEncoder().encode(content).byteLength;
+  const dailyRl = await consumeAsync(`pin:daily:${wallet}`, DAILY_RATE, byteLength);
+  if (!dailyRl.ok) {
+    return NextResponse.json(
+      { error: `Daily pin volume exceeded (${DAILY_BYTES_PER_WALLET} bytes/day per wallet)` },
+      { status: 429, headers: { "Retry-After": String(dailyRl.retryAfterSec) } },
+    );
   }
 
   const blob = new Blob([content], { type: "text/plain" });

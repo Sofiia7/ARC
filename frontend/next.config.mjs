@@ -15,7 +15,9 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.pinata.cloud https://ipfs.io https://dweb.link https://nftstorage.link https://*.arcscan.app",
   "font-src 'self' data:",
-  "connect-src 'self' https://rpc.testnet.arc.network https://*.arc.network https://*.pinata.cloud https://uploads.pinata.cloud https://ipfs.io https://dweb.link https://nftstorage.link https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org",
+  // *.arcscan.app in connect-src: /stats + leaderboard fetch event logs via
+  // ArcScan's Blockscout API (the RPC caps eth_getLogs at 10k blocks).
+  "connect-src 'self' https://rpc.testnet.arc.network https://*.arc.network https://*.arcscan.app https://*.pinata.cloud https://uploads.pinata.cloud https://ipfs.io https://dweb.link https://nftstorage.link https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org",
   "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org",
   "frame-ancestors 'none'",
   "base-uri 'self'",

@@ -29,6 +29,12 @@ export const CONTRACTS = {
   BOUNTY_ADAPTER:      requireAdapterAddress(),
 } as const;
 
+// Deployment block of the V4.1 adapter (creation tx 0x1d2b2698…3b83c). Anchor
+// for chunked event scans — see lib/chainLogs.ts. A redeploy only moves the
+// true deploy block later, so leaving this at the earliest-known deployment
+// stays correct (scans a few extra empty chunks at worst).
+export const BOUNTY_ADAPTER_DEPLOY_BLOCK = 50_610_373n;
+
 const BOUNTY_META_TUPLE = {
   name: "", type: "tuple",
   components: [
@@ -172,6 +178,11 @@ export const BOUNTY_ADAPTER_ABI = [
     inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
+  {
+    name: "claimArbitratorTimeout", type: "function", stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
   // ── Read ──
   {
     name: "getOpenBounties", type: "function", stateMutability: "view",
@@ -234,6 +245,19 @@ export const BOUNTY_ADAPTER_ABI = [
     name: "REJECTION_CHALLENGE_WINDOW", type: "function", stateMutability: "view",
     inputs: [], outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    name: "ARBITRATOR_TIMEOUT", type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // V4 anti-Sybil signal — see V4_DESIGN_ANTI_SYBIL.md. Public mapping
+    // getter: count of distinct posters who've paid out a completed bounty
+    // to this agent. Costs N real funded wallets to fake N, unlike the raw
+    // ERC-8004 average score.
+    name: "uniquePosterCount", type: "function", stateMutability: "view",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
   // ── Events ──
   {
     name: "BountyCreated", type: "event",
@@ -267,6 +291,14 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "jobId",           type: "uint256", indexed: true  },
       { name: "agentId",         type: "uint256", indexed: false },
       { name: "reputationScore", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "ProtocolFeePaid", type: "event",
+    inputs: [
+      { name: "jobId",     type: "uint256", indexed: true  },
+      { name: "recipient", type: "address", indexed: true  },
+      { name: "amount",    type: "uint256", indexed: false },
     ],
   },
   {
@@ -330,6 +362,14 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "jobId",      type: "uint256", indexed: true },
       { name: "worker",     type: "address", indexed: true },
       { name: "reasonHash", type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "ArbitratorTimeoutClaimed", type: "event",
+    inputs: [
+      { name: "jobId",         type: "uint256", indexed: true  },
+      { name: "posterAmount",  type: "uint256", indexed: false },
+      { name: "providerAmount", type: "uint256", indexed: false },
     ],
   },
 ] as const;

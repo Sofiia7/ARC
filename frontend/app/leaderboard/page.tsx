@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useReadContracts } from "wagmi";
 import { shortAddress } from "@/lib/format";
+import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { useCompletedBounties, aggregateAgentStats, type AgentStats } from "@/hooks/useCompletedBounties";
 
 type Period = "7d" | "30d" | "90d" | "all";
@@ -31,6 +33,29 @@ export default function LeaderboardPage() {
     const filtered = period === "all" ? records : records.filter(r => r.blockNumber >= cutoffBlock);
     return aggregateAgentStats(filtered);
   }, [records, period, cutoffBlock]);
+
+  // V4_DESIGN_ANTI_SYBIL.md Proposal B2: uniquePosterCount(agentId) is a
+  // cheap on-chain anti-Sybil signal — the ERC-8004 averageScore can be
+  // farmed for cents by one alt account at the $1 minimum reward, but faking
+  // N unique posters costs N distinct funded wallets. Batched via multicall
+  // (useReadContracts), same pattern as useAllOpenBountyMetas.
+  const uniquePosterReads = useReadContracts({
+    contracts: stats.map(s => ({
+      address: CONTRACTS.BOUNTY_ADAPTER,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "uniquePosterCount" as const,
+      args: [s.agentId] as const,
+    })),
+    query: { enabled: stats.length > 0 },
+  });
+  const uniquePosterByAgent = useMemo(() => {
+    const m = new Map<string, number>();
+    stats.forEach((s, i) => {
+      const r = uniquePosterReads.data?.[i];
+      if (r?.status === "success") m.set(s.agentId.toString(), Number(r.result as bigint));
+    });
+    return m;
+  }, [stats, uniquePosterReads.data]);
 
   const showAgents = kind !== "humans";
 
@@ -75,6 +100,8 @@ export default function LeaderboardPage() {
         <div>Kind</div>
         <div className="col-num col-earned">Jobs</div>
         <div className="col-num col-rep">Reputation</div>
+        <div className="col-num col-rep">ArcBounty score</div>
+        <div className="col-num col-rep">Unique posters</div>
       </div>
 
       <div className="lb-list">
@@ -95,7 +122,14 @@ export default function LeaderboardPage() {
             No completed bounties in this period yet.
           </div>
         ) : (
-          stats.map((s, idx) => <AgentRow key={s.agentId.toString()} stats={s} rank={idx + 1} />)
+          stats.map((s, idx) => (
+            <AgentRow
+              key={s.agentId.toString()}
+              stats={s}
+              rank={idx + 1}
+              uniquePosters={uniquePosterByAgent.get(s.agentId.toString())}
+            />
+          ))
         )}
       </div>
 
@@ -119,8 +153,15 @@ function rankClass(rank: number): string {
   return "";
 }
 
-function AgentRow({ stats, rank }: { stats: AgentStats; rank: number }) {
+function AgentRow({
+  stats, rank, uniquePosters,
+}: {
+  stats: AgentStats;
+  rank: number;
+  uniquePosters: number | undefined;
+}) {
   const score = Math.round(stats.avgScore);
+  const weighted = Math.round(stats.weightedScore);
   return (
     <Link href={`/agent/${stats.agentId}`} style={{ textDecoration: "none", color: "inherit" }}>
       <article className={`lb-row${rankClass(rank)}`}>
@@ -140,6 +181,14 @@ function AgentRow({ stats, rank }: { stats: AgentStats; rank: number }) {
         <div className="lb-stat rep">
           <div className="num amber">{score}</div>
           <div className="lbl">REP-8004</div>
+        </div>
+        <div className="lb-stat rep" title="Reward-weighted score across this agent's completions — sqrt(reward)-weighted, dampens one whale bounty. See V4_DESIGN_ANTI_SYBIL.md.">
+          <div className="num amber">{weighted}</div>
+          <div className="lbl">${stats.totalVolumeUsdc.toFixed(0)} vol</div>
+        </div>
+        <div className="lb-stat rep" title="Distinct poster wallets who've paid this agent for completed work — costs N real funded wallets to fake N, unlike the raw ERC-8004 score.">
+          <div className="num green">{uniquePosters ?? "…"}</div>
+          <div className="lbl">unique</div>
         </div>
       </article>
     </Link>

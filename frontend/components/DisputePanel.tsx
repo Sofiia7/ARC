@@ -43,6 +43,13 @@ export function DisputePanel({
   const arbitrator = arbitratorRead.data as string | undefined;
   const role = roleFor(address, meta, arbitrator);
 
+  const arbitratorTimeoutRead = useReadContract({
+    address: CONTRACTS.BOUNTY_ADAPTER,
+    abi: BOUNTY_ADAPTER_ABI,
+    functionName: "ARBITRATOR_TIMEOUT",
+  });
+  const arbitratorTimeoutSec = arbitratorTimeoutRead.data as bigint | undefined;
+
   const initiatorIsPoster   = meta.disputeInitiator.toLowerCase() === meta.poster.toLowerCase();
   const initiatorIsProvider = meta.disputeInitiator.toLowerCase() === meta.assignedProvider.toLowerCase();
   const respondentRole: Role = initiatorIsPoster ? "provider" : "poster";
@@ -167,6 +174,27 @@ export function DisputePanel({
         args: [meta.jobId],
       },
       { pending: "Claiming default ruling…", success: "Default ruling applied.", error: "Default ruling failed" }
+    );
+    await refetch();
+  }
+
+  // V3.3 liveness fallback: the respondent DID reply (so claimDefaultRuling no
+  // longer applies), but the arbitrator never called resolveDispute within
+  // ARBITRATOR_TIMEOUT (30d) of disputeRaisedAt. Anyone may trigger a neutral
+  // 50/50 split — this is the one path that used to be reachable only via the
+  // SDK or a raw contract call, never from this UI.
+  const canClaimArbitratorTimeout =
+    !meta.resolved && hasResponse && arbitratorTimeoutSec !== undefined
+    && now > meta.disputeRaisedAt + arbitratorTimeoutSec;
+  async function handleArbitratorTimeout() {
+    await send(
+      {
+        address: CONTRACTS.BOUNTY_ADAPTER,
+        abi: BOUNTY_ADAPTER_ABI as never,
+        functionName: "claimArbitratorTimeout",
+        args: [meta.jobId],
+      },
+      { pending: "Claiming arbitrator timeout…", success: "Neutral 50/50 split applied.", error: "Claim failed" }
     );
     await refetch();
   }
@@ -354,6 +382,19 @@ export function DisputePanel({
           </p>
           <button type="button" onClick={handleDefaultRuling} className="btn btn-primary btn-big">
             Claim default ruling
+          </button>
+        </div>
+      )}
+
+      {/* Arbitrator timeout — anyone, 30d after a response with no ruling */}
+      {canClaimArbitratorTimeout && (
+        <div className="sub-card" style={{ borderColor: "rgba(255,120,120,0.32)" }}>
+          <p style={{ color: "var(--rose)", fontSize: 13, margin: "0 0 10px", lineHeight: 1.5 }}>
+            Both sides submitted evidence, but the arbitrator never ruled within 30 days.
+            Anyone can trigger a neutral 50/50 split between poster and worker — no reputation penalty.
+          </p>
+          <button type="button" onClick={handleArbitratorTimeout} className="btn btn-primary btn-big">
+            Claim arbitrator timeout (50/50 split)
           </button>
         </div>
       )}
