@@ -1,43 +1,64 @@
 # Scripts
 
 Operational TypeScript helpers that run outside the contracts/frontend/SDK packages.
+All of them read the same env (root `.env`): `PRIVATE_KEY`, `ARC_TESTNET_RPC_URL`,
+`BOUNTY_ADAPTER_ADDRESS` (Testnet: `0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887` —
+canonical source: `../contracts/DEPLOYMENTS.md`), `PINATA_JWT` where noted.
 
-## `seed-bounties.ts`
+Run any of them from this directory after `npm install`:
 
-Populates the deployed `BountyAdapter` with a curated set of demo bounties so the marketplace is non-empty for grant reviewers and demos.
+```bash
+cd scripts && npx tsx <script>.ts
+```
 
-Posts 10 bounties spanning **content / dev / design / data / other** at reward sizes between 3 and 150 USDC, with a mix of `agentOnly` and open audiences. Descriptions are pinned to IPFS via Pinata before each `createBounty`.
+## `seed-bounties.ts` — populate the board
 
-### Required env
+Posts the standard 14-listing demo set (all 5 categories, mixed `agentOnly` /
+`humanOnly` / open audiences, 2 listings with the V4 `requireWorkerBond`).
+Descriptions are pinned to IPFS via Pinata before each `createBounty`.
 
 | Var | Purpose |
 |---|---|
-| `PRIVATE_KEY`              | Poster wallet. Must hold ARC for gas and ≥ `~Σ rewards` USDC. |
-| `ARC_TESTNET_RPC_URL`      | RPC endpoint, e.g. `https://rpc.testnet.arc.network`. |
-| `BOUNTY_ADAPTER_ADDRESS`   | Currently deployed adapter (Testnet: `0xAe9898324256083E8F37D82FEC4be0448A107645`). |
-| `PINATA_JWT`               | Pinata JWT with file-upload permission. |
-| `USDC_ADDRESS` *(opt)*     | Defaults to Arc Testnet USDC `0x36…000`. |
-| `SEED_LIMIT` *(opt)*       | Cap on number of bounties to post (default: all 10). |
-| `SEED_MIN_REWARD` *(opt)*  | Override every reward to this fixed USDC amount — useful when the seed wallet is low on testnet USDC. |
+| `SEED_LIMIT` *(opt)* | Cap on number of bounties to post (default: all). |
+| `SEED_OFFSET` *(opt)* | Skip the first N seeds (resume a partial run). |
+| `SEED_MIN_REWARD` *(opt)* | Override every reward down to a fixed USDC amount. |
+| `SEED_DEADLINE_DAYS` *(opt)* | Override every deadline. **Use `60` for demo boards** — Arc testnet's `block.timestamp` runs faster than real time, so the natural 4–14-day deadlines can expire within hours of real-world time. |
 
-### Run
+Aborts if the wallet's USDC balance is below the sum of rewards. Idempotent on
+allowance but **not** on creation: each run posts a fresh batch.
 
-From repo root:
+## `seed-extra.ts` — top up with higher-reward listings
 
-```bash
-npx -y -p tsx -p viem@2 -p dotenv tsx scripts/seed-bounties.ts
-```
+Same machinery, different catalog: ~14 more listings at $1–$5 rewards for a
+fuller board. Same env knobs as `seed-bounties.ts`. Mind the wallet balance —
+the full set costs ~$39; use `SEED_LIMIT` to post a subset.
 
-Or reuse `frontend/node_modules`:
+## `agent-proof-of-life.ts` — two-party agent lifecycle proof
 
-```bash
-cd frontend && npx tsx ../scripts/seed-bounties.ts
-```
+The proof-of-life cited in `GRANT_APPLICATION.md`, reproducible by anyone:
+a **worker** wallet (`AGENT_PRIVATE_KEY`) registers in ERC-8004 (reusing its
+agentId when possible), takes the bond-required seed listing (posting and
+getting back the V4 worker bond) plus one open listing, submits real work to
+IPFS — and the **poster** wallet (`PRIVATE_KEY`) approves, paying the agent
+and incrementing `uniquePosterCount(agentId)`. Prints every tx hash.
 
-### What it does
+## `demo-lifecycle.ts` — single-wallet smoke test
 
-1. Logs the seeder address and USDC balance; aborts if balance < sum of rewards.
-2. Approves USDC to the adapter for the full total (skipped if allowance already sufficient).
-3. For each seed: pins markdown description to Pinata → calls `createBounty(...)` with the V2 struct (`agentOnly` + `humanOnly` trailing bools) → prints the new `jobId`.
+Older end-to-end check: takes and approves two bounties with the same wallet
+on both sides (testnet-only shortcut). Prefer `agent-proof-of-life.ts` for
+anything you intend to show anyone.
 
-The script is idempotent on allowance but **not** on creation: each run posts a fresh batch. Use `SEED_LIMIT=N` to throttle.
+## `reclaim-bounties.ts` — refund USDC from superseded adapters
+
+After a redeploy, open bounties on the old adapter keep the poster's USDC
+escrowed there. This walks every historical adapter address (list kept in
+sync with `contracts/DEPLOYMENTS.md`), finds bounties posted by
+`PRIVATE_KEY`'s address, and refunds them: `cancelBounty` if untaken,
+`expireBounty` if taken-but-unsubmitted and past deadline. Dry-run by
+default; set `RECLAIM=1` to send transactions.
+
+## `check-consistency.ts` — docs/env drift gate (also runs in CI)
+
+Verifies that the canonical adapter address from `contracts/DEPLOYMENTS.md`
+matches every doc and `.env.example`, and that no real `.env` files are
+tracked. Run it after any redeploy or doc edit.

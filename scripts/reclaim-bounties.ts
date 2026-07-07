@@ -32,6 +32,7 @@ if (!PK) {
 // Superseded deployments (contracts/DEPLOYMENTS.md). V2-and-older lack the
 // getMyPostedBounties index and are skipped automatically by the try/catch.
 const OLD_ADAPTERS: { label: string; address: Address }[] = [
+  { label: "V4", address: "0xAe9898324256083E8F37D82FEC4be0448A107645" },
   { label: "V3.3", address: "0x90a976bD4edF7cA66F38bF4E8Bf795bA389b4f05" },
   { label: "V3.2", address: "0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83" },
   { label: "V3.1", address: "0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679" },
