@@ -65,6 +65,23 @@ import "./interfaces/IReputationRegistry.sol";
 ///    the bond to the poster — repeatable at gas cost. A 24h floor makes the
 ///    take genuinely completable, so forfeiture again means "worker vanished",
 ///    not "worker was trapped". Bond-free bounties keep any deadline.
+///
+/// V4.2 changes vs V4.1 (external review findings, not yet deployed):
+///  - disputeBounty is now bounded by APPROVAL_TIMEOUT, exactly like
+///    rejectBounty since V4.1. Without this, the V4.1 fix was only half a
+///    fix: a poster blocked from rejecting right before autoApprove could
+///    open a *dispute* instead — same free delay, and if the arbitrator
+///    never rules the honest worker ends at a 50/50 split via
+///    claimArbitratorTimeout instead of full payment. Past the approval
+///    window, autoApprove is the only path forward for disputes exactly as
+///    for rejections. Harmless to workers: a worker past the window wants
+///    autoApprove (full payout), never a dispute.
+///  - MIN_BOND_TAKE_WINDOW: taking a requireWorkerBond bounty now requires
+///    at least 12h left to the deadline. The V4.1 creation-time floor left a
+///    residual honeypot: an aged bond listing could still be taken minutes
+///    before its deadline, and an auto-taking agent doing so forfeits its
+///    bond with no plausible chance to deliver. Bond-free bounties keep
+///    takeable-until-deadline semantics.
 contract BountyAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -112,6 +129,14 @@ contract BountyAdapter is ReentrancyGuard {
     ///         bonds from auto-taking agents that cannot plausibly deliver
     ///         in time. Does not apply to bond-free bounties.
     uint256 public constant MIN_BOND_BOUNTY_DURATION = 24 hours;
+    /// @notice V4.2: minimum time left to the deadline for TAKING a bond
+    ///         bounty. Complements MIN_BOND_BOUNTY_DURATION (which only
+    ///         bounds the listing's total duration at creation): without it,
+    ///         an aged bond listing taken minutes before its deadline still
+    ///         traps the worker's bond. Set to half the creation floor so a
+    ///         fresh minimal-duration (24h) listing is takeable for its
+    ///         first 12h. Does not apply to bond-free bounties.
+    uint256 public constant MIN_BOND_TAKE_WINDOW = 12 hours;
 
     struct CreateParams {
         address provider; // 0x0 = open. If non-zero, only this address (or owner of agentId) can take.
@@ -272,6 +297,10 @@ contract BountyAdapter is ReentrancyGuard {
         require(meta.poster != address(0), "bounty not found");
         require(!meta.isTaken, "already taken");
         require(block.timestamp <= meta.deadline, "bounty expired");
+        if (meta.requireWorkerBond) {
+            // V4.2 residual-honeypot guard — see MIN_BOND_TAKE_WINDOW natspec.
+            require(block.timestamp + MIN_BOND_TAKE_WINDOW <= meta.deadline, "bond bounty: too close to deadline");
+        }
 
         if (meta.whitelistedProvider != address(0)) {
             require(meta.whitelistedProvider == msg.sender, "not whitelisted");
@@ -529,6 +558,14 @@ contract BountyAdapter is ReentrancyGuard {
         require(!meta.inDispute, "already in dispute");
         require(!meta.resolved, "resolved");
         require(meta.rejectedAt == 0, "use challengeRejection");
+        // V4.2: same bound as rejectBounty (V4.1). Without it, a poster
+        // blocked from rejecting past the approval window could open a
+        // dispute instead — the same free delay the V4.1 fix was meant to
+        // close, with a worse worst case (arbitrator silence ends at a 50/50
+        // split instead of the worker's full autoApprove payout). Harmless
+        // for workers: past the window a worker wants autoApprove, never a
+        // dispute.
+        require(block.timestamp <= meta.submittedAt + APPROVAL_TIMEOUT, "approval window elapsed, use autoApprove");
         _requireCid(ipfsReasonHash, "reason");
 
         meta.inDispute = true;

@@ -930,6 +930,50 @@ contract BountyAdapterTest is Test {
         adapter.disputeBounty(jobId, REASON);
     }
 
+    function testDispute_revertAfterApprovalWindow() public {
+        // V4.2: a poster blocked from rejecting past APPROVAL_TIMEOUT (V4.1)
+        // must not be able to open a dispute instead — same free delay, worse
+        // worst case (arbitrator silence → 50/50 split instead of the
+        // worker's full autoApprove payout).
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+
+        vm.warp(block.timestamp + adapter.APPROVAL_TIMEOUT() + 1);
+        vm.prank(poster);
+        vm.expectRevert("approval window elapsed, use autoApprove");
+        adapter.disputeBounty(jobId, REASON);
+        // The worker-side call hits the same bound — harmless, since past the
+        // window the worker's strictly better move is autoApprove:
+        vm.prank(worker);
+        vm.expectRevert("approval window elapsed, use autoApprove");
+        adapter.disputeBounty(jobId, REASON);
+
+        // autoApprove remains the live path — the bound never strands funds.
+        uint256 before = usdc.balanceOf(worker);
+        vm.prank(stranger);
+        adapter.autoApprove(jobId);
+        assertEq(usdc.balanceOf(worker), before + (reward - reward / 100));
+    }
+
+    function testDispute_allowedAtApprovalWindowBoundary() public {
+        // Exactly at submittedAt + APPROVAL_TIMEOUT is still allowed (<=),
+        // mirroring rejectBounty's V4.1 boundary semantics.
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        uint256 submittedAt = adapter.getBountyMeta(jobId).submittedAt;
+
+        vm.warp(submittedAt + adapter.APPROVAL_TIMEOUT());
+        vm.prank(poster);
+        adapter.disputeBounty(jobId, REASON);
+        assertTrue(adapter.getBountyMeta(jobId).inDispute);
+    }
+
     // ─── arbitrator 2-step ────────────────────────────────────────────────────
 
     function testArbitratorTransfer_twoStep() public {
@@ -1352,6 +1396,37 @@ contract BountyAdapterTest is Test {
         vm.prank(poster);
         uint256 jobId = adapter.createBounty(p);
         assertTrue(adapter.getBountyMeta(jobId).requireWorkerBond);
+    }
+
+    function testWorkerBond_revertTakeTooCloseToDeadline() public {
+        // V4.2: the V4.1 creation-time floor alone leaves a residual
+        // honeypot — an aged bond listing taken minutes before its deadline
+        // still traps the taker's bond. Taking now requires at least
+        // MIN_BOND_TAKE_WINDOW left on the clock.
+        uint256 jobId = _createWithBond();
+        vm.warp(deadline - adapter.MIN_BOND_TAKE_WINDOW() + 1);
+        vm.prank(worker);
+        vm.expectRevert(bytes("bond bounty: too close to deadline"));
+        adapter.takeBounty(jobId, 0);
+    }
+
+    function testWorkerBond_takeAtWindowBoundaryAllowed() public {
+        // Exactly MIN_BOND_TAKE_WINDOW remaining is allowed (boundary).
+        uint256 jobId = _createWithBond();
+        vm.warp(deadline - adapter.MIN_BOND_TAKE_WINDOW());
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        assertEq(adapter.getBountyMeta(jobId).workerBond, 1.5e6);
+    }
+
+    function testTake_noBond_nearDeadlineStillAllowed() public {
+        // The take window is scoped to bond bounties only — taking a
+        // bond-free bounty at the last second risks no worker funds.
+        uint256 jobId = _create();
+        vm.warp(deadline - 1);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        assertEq(adapter.getBountyMeta(jobId).assignedProvider, worker);
     }
 
     function testCreate_shortDeadlineStillAllowedWithoutBond() public {
