@@ -17,7 +17,14 @@ Shipped parameters:
   deadline must be at least 24h out at creation. Closes the bond-honeypot
   found in the pre-audit review: a near-immediate deadline let a poster farm
   forfeited bonds from auto-taking agents that never had a real chance to
-  deliver. Known residual limitation (disclosed, accepted): the bond deters
+  deliver.
+- **V4.2 (2026-07-08): `MIN_BOND_TAKE_WINDOW = 12h`** — closes the residual
+  gap the V4.1 fix left open: the 24h floor only bounds a listing's total
+  duration *at creation*, so an aged bond listing could still be *taken*
+  minutes before its deadline, trapping the taker's bond with no realistic
+  chance to submit. `takeBounty` now additionally requires ≥ 12h left on the
+  clock for bond bounties (bond-free bounties are unaffected). Known residual
+  limitation (disclosed, accepted, unchanged by either fix): the bond deters
   take-and-vanish only — a squatter can still reclaim their bond by
   submitting garbage, which routes the poster into the reject/challenge
   path. See `ARCHITECTURE.md` §3 for the full trade-off discussion.
@@ -173,7 +180,9 @@ exists to avoid making unilaterally.
 **Shipped, with the parameters stated at the top of this document:**
 - Proposal A (worker bond) — opt-in, 15%/$0.50-floor, refund-at-submit,
   forfeit-to-poster-at-expire. Hardened in V4.1 with the 24h
-  `MIN_BOND_BOUNTY_DURATION` honeypot guard.
+  `MIN_BOND_BOUNTY_DURATION` honeypot guard, then in V4.2 with the 12h
+  `MIN_BOND_TAKE_WINDOW` that closes the residual take-near-deadline gap the
+  V4.1 fix left open.
 - Proposal B1 (on-chain `uniquePosterCount`).
 - Proposal B2 (2026-07-07) — the leaderboard now shows an "ArcBounty score"
   (average `reputationScore` weighted by `sqrt(reward)`, so one whale bounty

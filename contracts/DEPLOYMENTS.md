@@ -6,39 +6,48 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V4.1 — live, current frontend target)
+### BountyAdapter (V4.2 — live, current frontend target)
 
 | Field | Value |
 |---|---|
-| Address | `0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887` |
+| Address | `0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572` |
 | RPC | `https://rpc.testnet.arc.network` |
-| Source | `src/BountyAdapter.sol` (at V4.1) |
-| Features | V4 (opt-in worker bond + `uniquePosterCount(agentId)` anti-Sybil signal) **plus the V4.1 internal-audit fixes**: `rejectBounty` bounded by `APPROVAL_TIMEOUT` (no more free delay by rejecting right before `autoApprove`), `withdrawRejection(jobId)` (poster can back out of a pending rejection), and `MIN_BOND_BOUNTY_DURATION` (24h floor on bond-bounty deadlines — closes the bond-honeypot where a near-immediate deadline farmed forfeited bonds from auto-taking agents). See `V4_DESIGN_ANTI_SYBIL.md` and `ARCHITECTURE.md` §3. |
+| Source | `src/BountyAdapter.sol` (at V4.2) |
+| Features | V4 (opt-in worker bond + `uniquePosterCount(agentId)` anti-Sybil signal) + V4.1 (`rejectBounty` bounded by `APPROVAL_TIMEOUT`, `withdrawRejection(jobId)`, `MIN_BOND_BOUNTY_DURATION` 24h creation floor) **plus the V4.2 external-review fixes**: `disputeBounty` now shares `rejectBounty`'s `APPROVAL_TIMEOUT` bound (a poster blocked from a late rejection could otherwise open a late dispute instead — same free delay, worse worst case), and `MIN_BOND_TAKE_WINDOW` (12h floor on **taking** a bond bounty — closes the residual honeypot where an aged bond listing could still be taken minutes before its deadline). See `ARCHITECTURE.md` §3 ("V4.2: closing the two mirror paths"). |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe**, SafeL2 v1.4.1 — two-step transfer completed 2026-07-07; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
+| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe**, SafeL2 v1.4.1 — two-step transfer completed on this deployment; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
 | Verified | ✅ ArcScan (Blockscout) |
-| Deployed | 2026-07-07, block `50610373`, tx `0x1d2b2698470ca8ff65fe0d22513756919a19a66449b8ad8a5be162c6b0d3b83c`, from the rotated Sprint-0 deployer `0xde427f…` |
+| Deployed | 2026-07-08, block `50644939`, tx `0x95d19367b44b66cf481bde50963a5c3c3d51dd48e667c0066465a78cc79e3663`, from the rotated Sprint-0 deployer `0xde427f…` |
 
 > **✅ Arbitrator transfer complete.** `transferArbitrator(0x4892232f0dD235cC1B92a3A87fc8990553691BC6)`
-> was called from the deployer, and `acceptArbitrator()` was executed **from
-> the Safe itself** (Safe `execTransaction`, tx `0xd9a3c5aa…93c84`) on
-> 2026-07-07. Verified on-chain: `arbitrator()` returns the Safe,
-> `pendingArbitrator()` is zero.
+> was called from the deployer (tx `0xd4174c41dc6a6eb6097f6dda4cb475ec11a9537b0e2f7183d12e09615d32816b`),
+> and `acceptArbitrator()` was executed **from the Safe itself** (Safe
+> `execTransaction`, tx
+> `0xd7690941a0e58bf687691438af8a852b7671266306328ca79110e4614c1a3ea7`,
+> block `50650819`) via app.safe.global. Verified on-chain: `arbitrator()`
+> returns the Safe, `pendingArbitrator()` is zero.
 >
 > On-chain wiring verified via `cast call`: all four registries, fee
 > recipient, 100 bps fee, `WORKER_BOND_BPS() == 1500`, `MIN_WORKER_BOND() ==
-> 500000`, `MIN_BOND_BOUNTY_DURATION() == 86400` (24h), and
+> 500000`, `MIN_BOND_BOUNTY_DURATION() == 86400` (24h), `MIN_BOND_TAKE_WINDOW()
+> == 43200` (12h, new in V4.2), `APPROVAL_TIMEOUT() == 1209600` (14d), and
 > `ARBITRATOR_TIMEOUT() == 2592000` (30 days exactly) all confirmed correct
 > post-deploy.
 >
-> **Board state:** re-seeded 2026-07-07 — 19 bounties across all 5
-> categories (3 with `requireWorkerBond`, rewards $1–$5), 60-day deadlines.
-> Two were then completed end-to-end by a real agent as the V4.1
-> proof-of-life (jobIds `151017` — the bond listing, bond posted and
-> refunded — and `151016`; agentId `847205`; see
-> `scripts/agent-proof-of-life.ts`), leaving 17 open. USDC from the
-> superseded V4 listings was reclaimed via `scripts/reclaim-bounties.ts`.
+> **Board state:** all 17 open listings on superseded V4.1 were reclaimed via
+> `scripts/reclaim-bounties.ts` (~28 USDC returned to the poster wallet across
+> 17 `cancelBounty` txs, 2026-07-08) before this deployment's re-seed.
+> Re-seeded the same day: `seed-bounties.ts` full set (14 listings, 2 with
+> `requireWorkerBond`) + `seed-extra.ts` with `SEED_LIMIT=5` (5 listings, 1
+> with `requireWorkerBond`) — **19 total across all 5 categories, 3 bond
+> listings, 60-day deadlines** (`SEED_DEADLINE_DAYS=60`), matching the prior
+> board's composition. Two were then completed end-to-end by a real agent as
+> the V4.2 proof-of-life (jobIds `151547` — the bond listing, bond posted
+> and refunded — and `151546`; agentId `847205`, same identity reused from
+> the prior V4.1 run; see `scripts/agent-proof-of-life.ts`), leaving 17
+> open. `uniquePosterCount(847205)` = 1 on this deployment (first completion
+> with this poster since the contract redeployed and the counter reset).
 
 Wired dependencies:
 
@@ -54,6 +63,16 @@ Wired dependencies:
 These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 **not** the canonical adapter. Do not point clients at them.
 
+- `0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887` — V4.1: live 2026-07-07 to
+  2026-07-08. Added the `APPROVAL_TIMEOUT` bound on `rejectBounty`,
+  `withdrawRejection`, and the `MIN_BOND_BOUNTY_DURATION` (24h) creation-time
+  honeypot guard. Superseded by V4.2 the next day once an external review
+  found the two mirror-path gaps (late `disputeBounty`, take-near-deadline
+  bond honeypot). All 17 open listings reclaimed via
+  `scripts/reclaim-bounties.ts` (~28 USDC). Arbitrator transfer to the Safe
+  was completed here (`acceptArbitrator()` executed from the Safe
+  2026-07-07) — that acceptance is specific to this address and does not
+  carry over to V4.2, which needs its own `acceptArbitrator()` call.
 - `0xAe9898324256083E8F37D82FEC4be0448A107645` — V4: live 2026-07-05 to
   2026-07-07. First deployment with the worker bond + `uniquePosterCount`;
   superseded by V4.1 (the three internal-audit fixes above) two days later.

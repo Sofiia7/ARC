@@ -16,8 +16,8 @@ mainnet. All exposure was testnet-only.
 
 - [x] **New deployer wallet** — generated fresh, funded, and used for the
   then-current V3.2 deployment (`0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83`)
-  and every deployment since (V3.3/V4/V4.1 — see `contracts/DEPLOYMENTS.md`
-  for the live address). Old key's remaining testnet ARC/USDC swept.
+  and every deployment since (V3.3/V4/V4.1/V4.2 — see `contracts/DEPLOYMENTS.md`
+  for the current live address). Old key's remaining testnet ARC/USDC swept.
 - [x] **Arbitrator** — moot for the handover procedure: V3.2 is a fresh deploy, so
   `arbitrator()` was set to the new wallet at construction, not transferred from
   the old one. Confirmed on-chain via `cast call ... arbitrator()(address)`.

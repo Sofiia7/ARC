@@ -48,7 +48,7 @@ Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
-NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect cloud project id>
 PINATA_JWT=<pinata jwt with file upload permission>
 ```

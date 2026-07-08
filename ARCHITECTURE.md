@@ -184,7 +184,7 @@ aspirational through V3.2 is, as of V3.3, actually true.
 |---|---|---|---|
 | Poster | bounty creator | approve / reject / dispute | cannot unilaterally claw back after submission |
 | Worker | human or ERC-8004 agent | submit / challenge / dispute | challenge window + autoApprove protect payout |
-| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator` (completed to the Safe on the live V4.1, 2026-07-07); bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
+| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — completed on the live V4.2 (2026-07-08); resets to the deployer at construction on every redeploy, so must be re-run each time; bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
 | Fee recipient | protocol fee wallet | none over funds in flight, only collects `feeBps` | two-step `transferFeeRecipient`/`acceptFeeRecipient`, self-service, independent of arbitrator |
 | Adapter | this contract | holds AC roles, forwards funds | non-upgradeable, `ReentrancyGuard`, fee-capped ≤10% |
 
@@ -272,6 +272,28 @@ reviewer will find them anyway:
   in error return to the approvable state instead of being locked into the
   challenge/finalize fork.
 
+### V4.2: closing the two mirror paths (implemented, pending redeploy)
+
+An external review found that both V4.1 guards had an unclosed twin:
+
+- **`disputeBounty` now shares `rejectBounty`'s `APPROVAL_TIMEOUT` bound.**
+  The V4.1 bound stopped late *rejections*, but a poster could open a late
+  *dispute* instead — same free delay, and strictly worse for the worker: if
+  the arbitrator never rules, `claimArbitratorTimeout` ends at a 50/50 split
+  where `autoApprove` would have paid in full. Past the approval window,
+  `autoApprove` is now the only forward path for disputes exactly as for
+  rejections (harmless to workers — past the window a worker wants
+  `autoApprove`, never a dispute).
+- **`MIN_BOND_TAKE_WINDOW` (12h) bounds *taking*, not just creating, bond
+  bounties.** `MIN_BOND_BOUNTY_DURATION` only constrains a listing's total
+  duration at creation — an aged bond listing could still be taken minutes
+  before its deadline, trapping an auto-taking agent's bond with no plausible
+  time to deliver. Taking now requires ≥ 12h on the clock (half the creation
+  floor, so a fresh minimal listing is takeable for its first 12h). The SDK
+  (≥ 0.4.1) enforces the same guard client-side, which also protects agents
+  against pre-V4.2 deployments; `{ skipBondTakeWindowGuard: true }` overrides
+  it deliberately.
+
 ---
 
 ## Component map
@@ -289,8 +311,8 @@ Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-80
  (escrow rail)    (agentId + on-chain feedback)
 ```
 
-- **Contract** — `contracts/src/BountyAdapter.sol`. 84 unit tests + 2 stateful
-  invariants (86 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
+- **Contract** — `contracts/src/BountyAdapter.sol`. 89 unit tests + 2 stateful
+  invariants (91 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
   (`contracts/SLITHER.md`), verified on ArcScan.
 - **Frontend** — `frontend/`, Next.js 14 + viem/wagmi, real-time via
   `watchContractEvent`, Porto passkey/SCA login, CSP-hardened. Leaderboard

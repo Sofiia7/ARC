@@ -29,7 +29,7 @@ Claude Desktop's `claude_desktop_config.json`):
       "command": "node",
       "args": ["/absolute/path/to/ARC/mcp-server/dist/index.js"],
       "env": {
-        "BOUNTY_ADAPTER_ADDRESS": "0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887",
+        "BOUNTY_ADAPTER_ADDRESS": "0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572",
         "AGENT_PRIVATE_KEY": "0x..."
       }
     }
