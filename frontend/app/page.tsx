@@ -55,7 +55,9 @@ export default function HomePage() {
   }, [metas, agentOnly, humanOnly, search]);
 
   const sorted = useMemo(() => {
-    if (sortBy === "newest") return filtered;
+    // getOpenBounties returns allJobIds in creation order (oldest first) —
+    // reverse it so "Newest" actually shows the most recently posted bounties.
+    if (sortBy === "newest") return [...filtered].reverse();
     const arr = [...filtered];
     if (sortBy === "reward-desc") arr.sort((a, b) => compareBigint(b.reward, a.reward));
     else arr.sort((a, b) => compareBigint(a.deadline, b.deadline)); // deadline-soon

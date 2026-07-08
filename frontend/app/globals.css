@@ -422,6 +422,7 @@ p.lede {
 .tag.cat-other   { background: rgba(147,162,184,0.14); color: #d3dae6; border-color: rgba(147,162,184,0.32); text-transform: lowercase; }
 .tag.agent-only  { background: var(--warm-tag-bg); color: var(--warm-tag-fg); border-color: var(--warm-tag-bd); }
 .tag.human-only  { background: rgba(122,184,255,0.14); color: #c7defc; border-color: rgba(122,184,255,0.32); }
+.tag.bond-required { background: rgba(186,148,255,0.16); color: #ddc9ff; border-color: rgba(186,148,255,0.38); }
 
 .status {
   font-size: 12.5px;

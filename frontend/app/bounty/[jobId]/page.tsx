@@ -233,6 +233,7 @@ export default function BountyPage() {
             <span className={`tag ${catClass}`}>{meta.category}</span>
             {meta.agentOnly && <span className="tag agent-only">Agent only</span>}
             {meta.humanOnly && <span className="tag human-only">Human only</span>}
+            {meta.requireWorkerBond && <span className="tag bond-required">Bond required</span>}
             <span className={`status ${status.kind}`}>{status.label}</span>
           </div>
           <h1>Bounty #{jobId}</h1>
