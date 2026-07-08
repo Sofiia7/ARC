@@ -6,12 +6,29 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V4.2 — live, current frontend target)
+### BountyAdapter (V4.3 — live, current frontend target)
+
+| Field | Value |
+|---|---|
+| Address | `0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7` |
+| RPC | `https://rpc.testnet.arc.network` |
+| Source | `src/BountyAdapter.sol` (at V4.3) |
+| Features | Same on-chain behavior as V4.2 (opt-in worker bond, `uniquePosterCount`, the `disputeBounty`/`MIN_BOND_TAKE_WINDOW` fixes) **plus the V4.3 reputation-registry fix**: `IReputationRegistry` was mirroring an assumed/older ERC-8004 draft (`giveFeedback(agentId, score, feedbackType, context, field1-3, hash)`, `getReputation(agentId)`) that never matched the real deployed registry — every `giveFeedback` call had a wrong selector and silently reverted (swallowed by the adapter's own `try/catch`) since the very first integration, so no agent had ever actually received on-chain feedback despite completed bounties. Confirmed via the verified registry source (`ReputationRegistryUpgradeable` v2.0.0 at `0x16e0fa7f7c56b9a767e34b192b51f921be31da34`, behind the `0x8004B663…` proxy): real interface is `giveFeedback(agentId, int128 value, uint8 valueDecimals, tag1, tag2, endpoint, feedbackURI, hash)` / `getSummary(agentId, clientAddresses[], tag1, tag2)`. Rewired to the real interface — writes pass the 0-100 score as `value` with `valueDecimals=0`; `getAgentReputation` now proxies `getSummary(agentId, [address(this)], "", "")` and reshapes it into the same `averageScore/totalFeedbacks/totalJobs` struct the frontend already expected, so no frontend ABI change was needed. |
+| Fee | 100 bps (1%) |
+| Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
+| Arbitrator | `msg.sender` at deploy (`0xde427f…`) — **transfer to the Safe (`0x4892232f0dD235cC1B92a3A87fc8990553691BC6`) not yet completed on this deployment.** `transferArbitrator` + the Safe's own `acceptArbitrator()` (via app.safe.global) are still pending as of this writing. |
+| Verified | ✅ ArcScan (Blockscout) |
+| Deployed | 2026-07-08, block `50813922`, tx `0x4ff7afb10531cb5f8739cfbe561af6ea7369d39358980a1e29e69273b1c43daa`, from the same rotated Sprint-0 deployer `0xde427f…` |
+
+> **Board state:** all 17 open listings on superseded V4.2 were reclaimed via
+> `scripts/reclaim-bounties.ts` (~28 USDC returned to the poster wallet across
+> 17 `cancelBounty` txs, 2026-07-08) before this deployment's re-seed.
+
+### BountyAdapter (V4.2 — superseded, reputation-registry integration broken)
 
 | Field | Value |
 |---|---|
 | Address | `0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572` |
-| RPC | `https://rpc.testnet.arc.network` |
 | Source | `src/BountyAdapter.sol` (at V4.2) |
 | Features | V4 (opt-in worker bond + `uniquePosterCount(agentId)` anti-Sybil signal) + V4.1 (`rejectBounty` bounded by `APPROVAL_TIMEOUT`, `withdrawRejection(jobId)`, `MIN_BOND_BOUNTY_DURATION` 24h creation floor) **plus the V4.2 external-review fixes**: `disputeBounty` now shares `rejectBounty`'s `APPROVAL_TIMEOUT` bound (a poster blocked from a late rejection could otherwise open a late dispute instead — same free delay, worse worst case), and `MIN_BOND_TAKE_WINDOW` (12h floor on **taking** a bond bounty — closes the residual honeypot where an aged bond listing could still be taken minutes before its deadline). See `ARCHITECTURE.md` §3 ("V4.2: closing the two mirror paths"). |
 | Fee | 100 bps (1%) |
@@ -19,6 +36,7 @@ overwritten or out of date.
 | Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe**, SafeL2 v1.4.1 — two-step transfer completed on this deployment; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
 | Verified | ✅ ArcScan (Blockscout) |
 | Deployed | 2026-07-08, block `50644939`, tx `0x95d19367b44b66cf481bde50963a5c3c3d51dd48e667c0066465a78cc79e3663`, from the rotated Sprint-0 deployer `0xde427f…` |
+| Superseded because | `IReputationRegistry` didn't match the real deployed registry — see V4.3 above. All other V4.2 behavior (worker bond, dispute/rejection timing fixes) carried forward unchanged. |
 
 > **✅ Arbitrator transfer complete.** `transferArbitrator(0x4892232f0dD235cC1B92a3A87fc8990553691BC6)`
 > was called from the deployer (tx `0xd4174c41dc6a6eb6097f6dda4cb475ec11a9537b0e2f7183d12e09615d32816b`),

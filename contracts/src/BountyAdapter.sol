@@ -182,6 +182,16 @@ contract BountyAdapter is ReentrancyGuard {
         uint256 workerBond; // 0 once refunded (submitWork) or forfeited (expireBounty)
     }
 
+    /// @dev Our own view-convenience shape for getAgentReputation — NOT a type from
+    ///      the registry itself (see IReputationRegistry: it only exposes
+    ///      count/summaryValue/summaryValueDecimals via getSummary). Kept identical
+    ///      to the pre-V4.3 shape so the frontend ABI didn't need to change.
+    struct ReputationScore {
+        uint256 averageScore;
+        uint256 totalFeedbacks;
+        uint256 totalJobs;
+    }
+
     mapping(uint256 => BountyMeta) private _bounties;
     uint256[] public allJobIds;
 
@@ -393,7 +403,7 @@ contract BountyAdapter is ReentrancyGuard {
             // (e.g. unauthorized feedback), so swallow any failure.
             try reputationRegistry.giveFeedback(
                 meta.agentId,
-                reputationScore,
+                int128(uint128(reputationScore)),
                 0,
                 "bounty_completed",
                 "",
@@ -668,8 +678,8 @@ contract BountyAdapter is ReentrancyGuard {
         // settle funds even if the live registry rejects the feedback write.
         try reputationRegistry.giveFeedback(
             meta.agentId,
-            penalty,
-            1,
+            int128(uint128(penalty)),
+            0,
             "bounty_failed",
             "",
             "",
@@ -836,8 +846,21 @@ contract BountyAdapter is ReentrancyGuard {
         return _byAgent[agentId].length;
     }
 
-    function getAgentReputation(uint256 agentId) external view returns (IReputationRegistry.ReputationScore memory) {
-        return reputationRegistry.getReputation(agentId);
+    function getAgentReputation(uint256 agentId) external view returns (ReputationScore memory) {
+        address[] memory clients = new address[](1);
+        clients[0] = address(this);
+        (uint64 count, int128 summaryValue, uint8 summaryValueDecimals) =
+            reputationRegistry.getSummary(agentId, clients, "", "");
+        // casting to 'uint256' is safe because every value we write via
+        // giveFeedback is a uint8 score/penalty (0-255); the `< 0` guard above
+        // handles the only other sign this int128 could carry.
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint256 avg = summaryValue < 0 ? 0 : uint256(int256(summaryValue));
+        // We always write valueDecimals=0 (a plain 0-100 scale), so this is a
+        // no-op in practice — kept so the read stays correct even if a future
+        // write path (or a differently-configured caller) starts using decimals.
+        if (summaryValueDecimals > 0) avg = avg / (10 ** summaryValueDecimals);
+        return ReputationScore({averageScore: avg, totalFeedbacks: count, totalJobs: count});
     }
 
     function totalBounties() external view returns (uint256) {

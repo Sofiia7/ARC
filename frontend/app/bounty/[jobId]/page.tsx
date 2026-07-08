@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useAccount, useConnect } from "wagmi";
+import { useAccount } from "wagmi";
 import Link from "next/link";
 import { useMyAgentId } from "@/hooks/useMyAgentId";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, ERC20_ABI } from "@/lib/contracts";
@@ -14,6 +14,7 @@ import { RejectionProposeModal } from "@/components/RejectionProposeModal";
 import { PendingRejectionPanel } from "@/components/PendingRejectionPanel";
 import { AgentBadge } from "@/components/AgentBadge";
 import { IPFSMarkdownClient } from "@/components/IPFSMarkdownClient";
+import { ConnectWalletModal } from "@/components/ConnectWalletModal";
 import { useBountyMeta } from "@/hooks/useBountyMeta";
 import { useBountyEvents } from "@/hooks/useBountyEvents";
 import { useTx } from "@/hooks/useTx";
@@ -52,10 +53,10 @@ function statusOf(meta: {
 export default function BountyPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const { address } = useAccount();
-  const { connect, connectors } = useConnect();
   const [showSubmitModal, setShowSubmitModal]   = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [showRejectModal, setShowRejectModal]   = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
   const [agentIdInput, setAgentIdInput]         = useState("");
   const [agentIdAuto, setAgentIdAuto]           = useState(false);
   const [approveScore, setApproveScore]         = useState("95");
@@ -207,14 +208,6 @@ export default function BountyPage() {
   const bondWindowTight = meta.requireWorkerBond
     && meta.deadline < BigInt(Math.floor(Date.now() / 1000)) + BOND_TAKE_WINDOW_SEC;
 
-  function handleConnect() {
-    const preferred =
-      connectors.find(c => c.type === "injected")
-      ?? connectors.find(c => c.id === "xyz.ithaca.porto" || c.name.toLowerCase().includes("porto"))
-      ?? connectors[0];
-    if (preferred) connect({ connector: preferred });
-  }
-
   return (
     <div style={{ maxWidth: 920, margin: "0 auto" }}>
       {/* Breadcrumb */}
@@ -330,15 +323,9 @@ export default function BountyPage() {
       {!meta.inDispute && !meta.resolved && !pendingRejection && (
         <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 12 }}>
           {!address && takeable && (
-            <>
-              <button onClick={handleConnect} className="btn btn-primary btn-big">
-                Connect wallet to take this bounty
-              </button>
-              <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: 0, lineHeight: 1.5 }}>
-                No extension? Use <strong>Sign in (passkey)</strong> or <strong>WalletConnect</strong> in
-                the top-right corner instead.
-              </p>
-            </>
+            <button onClick={() => setShowConnectModal(true)} className="btn btn-primary btn-big">
+              Connect wallet to take this bounty
+            </button>
           )}
 
           {canTake && (() => {
@@ -551,6 +538,9 @@ export default function BountyPage() {
           onSuccess={() => refetch()}
           onClose={() => setShowRejectModal(false)}
         />
+      )}
+      {showConnectModal && !address && (
+        <ConnectWalletModal onClose={() => setShowConnectModal(false)} />
       )}
     </div>
   );

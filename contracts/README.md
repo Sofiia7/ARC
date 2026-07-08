@@ -89,7 +89,7 @@ The deployed address prints to stdout as `BountyAdapter deployed at: 0x…`. Plu
 
 | Network | Address |
 |---|---|
-| Arc Testnet | [`0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572`](https://testnet.arcscan.app/address/0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572) |
+| Arc Testnet | [`0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7`](https://testnet.arcscan.app/address/0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7) |
 
 Verified end-to-end by a real AI agent (not a human) on the live V4.2 deployment above: agentId `847205`, worker `0x6543…6115` took the bond-required jobId `151547` (bond posted at take, refunded at submit) and jobId `151546`, submitted work, and was paid `0.99` USDC of each `1` USDC face value via canonical ERC-8183 escrow (`../scripts/agent-proof-of-life.ts`). Same agent identity, same result on the prior V4.1 deployment (jobIds `151017`/`151016`) and the original V3.2-era proof (jobId `145613`, agentId `844730`), which established that `approveBounty` no longer reverts for agent workers (`agentId > 0`). Source verified on ArcScan.
 

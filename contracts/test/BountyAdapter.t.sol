@@ -175,19 +175,26 @@ contract MockReputationRegistry {
 
     function giveFeedback(
         uint256 a,
-        uint256 s,
-        uint256,
+        int128 value,
+        uint8,
         string calldata,
         string calldata,
         string calldata,
         string calldata,
         bytes32 h
     ) external {
-        feedbackCalls.push(FeedbackCall(a, s, h));
+        // casting is safe: BountyAdapter only ever passes a uint8 score/penalty (0-255).
+        // forge-lint: disable-next-line(unsafe-typecast)
+        feedbackCalls.push(FeedbackCall(a, uint256(uint128(value)), h));
     }
 
-    function getReputation(uint256) external pure returns (IReputationRegistry.ReputationScore memory) {
-        return IReputationRegistry.ReputationScore({averageScore: 90, totalFeedbacks: 5, totalJobs: 5});
+    function getSummary(uint256, address[] calldata clients, string calldata, string calldata)
+        external
+        pure
+        returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)
+    {
+        require(clients.length > 0, "clientAddresses required");
+        return (5, 90, 0);
     }
 
     function getFeedbackCount() external view returns (uint256) {
@@ -457,6 +464,16 @@ contract BountyAdapterTest is Test {
         (uint256 a, uint256 s,) = reputation.feedbackCalls(0);
         assertEq(a, agentId);
         assertEq(s, 95);
+    }
+
+    // getAgentReputation proxies to the real registry's getSummary(agentId,
+    // [address(this)], "", "") and reshapes it into the pre-V4.3 struct shape —
+    // this is the read path AgentBadge.tsx depends on.
+    function testGetAgentReputation_proxiesToRegistrySummary() public view {
+        BountyAdapter.ReputationScore memory rep = adapter.getAgentReputation(agentId);
+        assertEq(rep.averageScore, 90);
+        assertEq(rep.totalFeedbacks, 5);
+        assertEq(rep.totalJobs, 5);
     }
 
     function testReject_pendingThenFinalize() public {

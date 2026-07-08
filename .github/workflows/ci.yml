@@ -89,7 +89,7 @@ jobs:
       - run: npm run lint
       - name: build
         env:
-          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0x83117287A0C1eCBCF33B0F11aD5BD8Ae9F379887"
+          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7"
           NEXT_PUBLIC_RPC_URL: "https://rpc.testnet.arc.network"
         run: npm run build
 

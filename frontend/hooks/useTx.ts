@@ -17,7 +17,7 @@ type WriteParams = {
  */
 export function useTx() {
   const { writeContractAsync, isPending } = useWriteContract();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const publicClient = usePublicClient();
 
   async function send(
@@ -33,7 +33,25 @@ export function useTx() {
     const toastId = toast.loading(labels.pending ?? "Sending transaction…");
 
     try {
-      const hash = await writeContractAsync(params as Parameters<typeof writeContractAsync>[0]);
+      // Pad the estimate generously: functions with a `try/catch` around an
+      // external call (e.g. approveBounty's reputationRegistry.giveFeedback)
+      // can need meaningfully more gas on a cold storage write than
+      // eth_estimateGas accounts for, and since EVM only charges for gas
+      // actually used, a fat ceiling here costs nothing on a success path.
+      let gas: bigint | undefined;
+      try {
+        const estimate = await publicClient?.estimateContractGas({
+          ...(params as Parameters<typeof writeContractAsync>[0]),
+          account: address,
+        });
+        if (estimate) gas = (estimate * 150n) / 100n;
+      } catch {
+        // fall back to wallet/RPC default estimation
+      }
+      const hash = await writeContractAsync({
+        ...(params as Parameters<typeof writeContractAsync>[0]),
+        ...(gas ? { gas } : {}),
+      });
 
       toast.loading("Waiting for confirmation…", { id: toastId });
       await publicClient?.waitForTransactionReceipt({ hash });

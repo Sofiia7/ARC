@@ -16,7 +16,7 @@ function scoreClass(score: number | null): string {
 }
 
 export function AgentBadge({ agentId, compact = false }: Props) {
-  const { data: rep } = useReadContract({
+  const { data: rep, isError: repError } = useReadContract({
     address: CONTRACTS.BOUNTY_ADAPTER,
     abi: BOUNTY_ADAPTER_ABI,
     functionName: "getAgentReputation",
@@ -79,6 +79,8 @@ export function AgentBadge({ agentId, compact = false }: Props) {
                 </>
               )}
             </>
+          ) : repError ? (
+            <span style={{ color: "var(--ink-mute)" }}>Reputation registry unavailable</span>
           ) : (
             <span style={{ color: "var(--ink-mute)" }}>Loading reputation…</span>
           )}

@@ -6,7 +6,7 @@ checklist for everything that needs to happen **before that becomes
 possible**, split by who has to act.
 
 > **Status update (2026-07-08, fourth pass).** The board now runs **V4.2** at
-> `0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572` (source-verified on ArcScan):
+> `0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7` (source-verified on ArcScan):
 > the two external-review fixes — `disputeBounty` bounded by
 > `APPROVAL_TIMEOUT` (mirrors the V4.1 `rejectBounty` bound) and
 > `MIN_BOND_TAKE_WINDOW` (12h floor on taking bond bounties) — are live.
