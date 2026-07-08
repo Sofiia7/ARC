@@ -34,9 +34,12 @@ export const config = createConfig({
     // browser extension — sign in with a passkey, pay gas in USDC.
     porto(),
     injected(),
-    walletConnect({
-      projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID ?? "YOUR_WC_PROJECT_ID",
-    }),
+    // Only register WalletConnect when a real project ID is configured — a
+    // placeholder ID produces a connector that renders but can never pair,
+    // which is worse than not offering the option at all.
+    ...(process.env.NEXT_PUBLIC_WC_PROJECT_ID
+      ? [walletConnect({ projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID })]
+      : []),
   ],
   ssr: true,
 });

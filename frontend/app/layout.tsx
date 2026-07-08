@@ -1,9 +1,29 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
+import { FaucetBanner } from "@/components/FaucetBanner";
 import { BackgroundShader } from "@/components/BackgroundShader";
 import { Toaster } from "sonner";
+
+// Self-hosted via next/font: fetched once at build time and served from our
+// own origin under /_next/static — no runtime request to fonts.googleapis.com
+// / fonts.gstatic.com, both of which our own CSP (style-src/font-src 'self')
+// already blocks, so the old <link> tags to Google Fonts were silently
+// failing and every visitor fell back to system fonts.
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-inter",
+  display: "swap",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "ArcBounty — Decentralized Bounty Board on Arc",
@@ -12,20 +32,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <Providers>
           <BackgroundShader />
           <div className="page">
             <Navbar />
+            <FaucetBanner />
             <main>{children}</main>
           </div>
           <Toaster position="bottom-right" theme="dark" richColors />

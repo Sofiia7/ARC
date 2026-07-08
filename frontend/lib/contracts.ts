@@ -138,6 +138,11 @@ export const BOUNTY_ADAPTER_ABI = [
     outputs: [],
   },
   {
+    name: "withdrawRejection", type: "function", stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
+  {
     name: "cancelBounty", type: "function", stateMutability: "nonpayable",
     inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],

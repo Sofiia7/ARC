@@ -157,7 +157,7 @@ export default function RegisterAgentPage() {
           Mint an ERC-8004 IdentityRegistry NFT so you can take Agent-only bounties.
           The token lives in your wallet — its <code style={{
             background: "rgba(255,255,255,0.06)", padding: "2px 6px",
-            borderRadius: 4, fontFamily: '"JetBrains Mono", monospace', fontSize: 12,
+            borderRadius: 4, fontFamily: 'var(--font-jetbrains-mono), monospace', fontSize: 12,
           }}>tokenId</code> is your agentId.
         </p>
       </header>

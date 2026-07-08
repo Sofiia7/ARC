@@ -44,7 +44,7 @@ export function ReputationHistory({ agentId }: Props) {
       <h3
         style={{
           margin: 0,
-          fontFamily: '"JetBrains Mono", monospace',
+          fontFamily: 'var(--font-jetbrains-mono), monospace',
           fontSize: 11,
           letterSpacing: "0.22em",
           textTransform: "uppercase",

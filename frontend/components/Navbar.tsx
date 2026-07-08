@@ -26,6 +26,7 @@ export function Navbar() {
 
   const portoConnector    = connectors.find(c => c.id === "xyz.ithaca.porto" || c.name.toLowerCase().includes("porto"));
   const injectedConnector = connectors.find(c => c.type === "injected");
+  const wcConnector       = connectors.find(c => c.id === "walletConnect");
   const pathname       = usePathname();
   const { agentId }    = useMyAgentId(address);
 
@@ -105,6 +106,16 @@ export function Navbar() {
                 className="btn"
               >
                 Connect Wallet
+              </button>
+            )}
+            {wcConnector && (
+              <button
+                type="button"
+                onClick={() => connect({ connector: wcConnector })}
+                className="btn"
+                title="Scan a QR code with your mobile wallet"
+              >
+                WalletConnect
               </button>
             )}
           </>

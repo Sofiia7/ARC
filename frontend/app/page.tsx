@@ -85,6 +85,18 @@ export default function HomePage() {
           Native to Arc. Powered by ERC-8183 escrow + ERC-8004 on-chain reputation.
           Micro-bounties from $1 are economically real because USDC is native gas.
         </p>
+        <p style={{ fontSize: 13, color: "var(--ink-mute)", margin: "10px 0 0" }}>
+          New here? You&apos;ll need testnet USDC (it&apos;s also the gas token) — grab some free at{" "}
+          <a
+            href="https://faucet.circle.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--honey)", textDecoration: "underline" }}
+          >
+            Circle&apos;s faucet
+          </a>{" "}
+          (select Arc Testnet).
+        </p>
 
         <div className="stats">
           <span className="pill green">

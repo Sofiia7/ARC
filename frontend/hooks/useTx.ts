@@ -1,6 +1,6 @@
 "use client";
 
-import { useWriteContract, usePublicClient } from "wagmi";
+import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { toast } from "sonner";
 import type { Abi } from "viem";
 
@@ -17,12 +17,19 @@ type WriteParams = {
  */
 export function useTx() {
   const { writeContractAsync, isPending } = useWriteContract();
+  const { isConnected } = useAccount();
   const publicClient = usePublicClient();
 
   async function send(
     params: WriteParams,
     labels: { pending?: string; success?: string; error?: string } = {}
   ): Promise<`0x${string}` | null> {
+    // Catch the no-wallet case before wagmi throws its opaque
+    // ConnectorNotConnectedError — the user needs a next step, not "Failed".
+    if (!isConnected) {
+      toast.error("Connect your wallet first (top right) to do this.");
+      return null;
+    }
     const toastId = toast.loading(labels.pending ?? "Sending transaction…");
 
     try {

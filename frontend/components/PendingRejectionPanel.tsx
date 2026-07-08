@@ -25,6 +25,7 @@ export function PendingRejectionPanel({
 }) {
   const { send } = useTx();
   const isWorker = address?.toLowerCase() === meta.assignedProvider.toLowerCase();
+  const isPoster = address?.toLowerCase() === meta.poster.toLowerCase();
 
   const challengeDeadline = meta.rejectedAt + CHALLENGE_WINDOW;
   const [now, setNow] = useState(() => BigInt(Math.floor(Date.now() / 1000)));
@@ -82,6 +83,19 @@ export function PendingRejectionPanel({
       { pending: "Challenging rejection on-chain…", success: "Rejection challenged — arbitrator will decide.", error: "Challenge failed" }
     );
     setText("");
+    await refetch();
+  }
+
+  async function handleWithdraw() {
+    await send(
+      {
+        address: CONTRACTS.BOUNTY_ADAPTER,
+        abi: BOUNTY_ADAPTER_ABI as never,
+        functionName: "withdrawRejection",
+        args: [meta.jobId],
+      },
+      { pending: "Withdrawing rejection…", success: "Rejection withdrawn — you can approve the work again.", error: "Withdraw failed" }
+    );
     await refetch();
   }
 
@@ -146,6 +160,18 @@ export function PendingRejectionPanel({
             style={{ marginTop: 12 }}
           >
             Challenge rejection
+          </button>
+        </div>
+      )}
+
+      {isPoster && (
+        <div className="sub-card">
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 10px", lineHeight: 1.5 }}>
+            Changed your mind? Withdrawing the rejection returns the bounty to its submitted
+            state, so you can approve the work (or reject again with a different reason).
+          </p>
+          <button type="button" onClick={handleWithdraw} className="btn">
+            Withdraw rejection
           </button>
         </div>
       )}

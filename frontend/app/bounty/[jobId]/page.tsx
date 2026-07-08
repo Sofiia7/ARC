@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useAccount } from "wagmi";
+import { useAccount, useConnect } from "wagmi";
 import Link from "next/link";
 import { useMyAgentId } from "@/hooks/useMyAgentId";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, ERC20_ABI } from "@/lib/contracts";
@@ -52,11 +52,13 @@ function statusOf(meta: {
 export default function BountyPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const { address } = useAccount();
+  const { connect, connectors } = useConnect();
   const [showSubmitModal, setShowSubmitModal]   = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [showRejectModal, setShowRejectModal]   = useState(false);
   const [agentIdInput, setAgentIdInput]         = useState("");
   const [agentIdAuto, setAgentIdAuto]           = useState(false);
+  const [approveScore, setApproveScore]         = useState("95");
   const { agentId: myAgentId }                  = useMyAgentId(address);
 
   // Prefill the agent-id input once the connected wallet's agent is known.
@@ -141,12 +143,15 @@ export default function BountyPage() {
   }
 
   async function handleApprove() {
+    // Contract accepts 0–100; the poster's rating feeds the worker's ERC-8004
+    // reputation, so it must be theirs to choose, not a hardcoded constant.
+    const score = Math.max(0, Math.min(100, Number(approveScore) || 0));
     await send(
       {
         address: CONTRACTS.BOUNTY_ADAPTER,
         abi: BOUNTY_ADAPTER_ABI as never,
         functionName: "approveBounty",
-        args: [jobIdBig, 95],
+        args: [jobIdBig, score],
       },
       { pending: "Approving work…", success: "Work approved! USDC sent to provider.", error: "Approval failed" }
     );
@@ -194,7 +199,21 @@ export default function BountyPage() {
 
   const whitelisted = meta.whitelistedProvider !== ZERO_ADDRESS;
   const isWhitelistedCaller = address && whitelisted && address.toLowerCase() === meta.whitelistedProvider.toLowerCase();
-  const canTake = isOpen && !isPoster && !expired && !meta.resolved && (!whitelisted || isWhitelistedCaller);
+  const takeable = isOpen && !expired && !meta.resolved;
+  const canTake = !!address && takeable && !isPoster && (!whitelisted || isWhitelistedCaller);
+  // Mirrors the SDK's MIN_BOND_TAKE_WINDOW guard (enforced on-chain from
+  // V4.2): taking a bond bounty with under 12h left risks forfeiting the bond.
+  const BOND_TAKE_WINDOW_SEC = 12n * 3600n;
+  const bondWindowTight = meta.requireWorkerBond
+    && meta.deadline < BigInt(Math.floor(Date.now() / 1000)) + BOND_TAKE_WINDOW_SEC;
+
+  function handleConnect() {
+    const preferred =
+      connectors.find(c => c.type === "injected")
+      ?? connectors.find(c => c.id === "xyz.ithaca.porto" || c.name.toLowerCase().includes("porto"))
+      ?? connectors[0];
+    if (preferred) connect({ connector: preferred });
+  }
 
   return (
     <div style={{ maxWidth: 920, margin: "0 auto" }}>
@@ -263,7 +282,7 @@ export default function BountyPage() {
           }}
         >
           <span style={{ color: "var(--ink-mute)" }}>Assigned to: </span>
-          <code style={{ fontFamily: '"JetBrains Mono", monospace', color: "var(--ink)" }}>
+          <code style={{ fontFamily: 'var(--font-jetbrains-mono), monospace', color: "var(--ink)" }}>
             {shortAddress(meta.assignedProvider)}
           </code>
         </div>
@@ -279,7 +298,7 @@ export default function BountyPage() {
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                fontFamily: '"JetBrains Mono", monospace',
+                fontFamily: 'var(--font-jetbrains-mono), monospace',
                 fontSize: 11,
                 color: "var(--ink-mute)",
                 textDecoration: "underline",
@@ -309,6 +328,18 @@ export default function BountyPage() {
       {/* Action bar */}
       {!meta.inDispute && !meta.resolved && !pendingRejection && (
         <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 12 }}>
+          {!address && takeable && (
+            <>
+              <button onClick={handleConnect} className="btn btn-primary btn-big">
+                Connect wallet to take this bounty
+              </button>
+              <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: 0, lineHeight: 1.5 }}>
+                No extension? Use <strong>Sign in (passkey)</strong> or <strong>WalletConnect</strong> in
+                the top-right corner instead.
+              </p>
+            </>
+          )}
+
           {canTake && (() => {
             const parsedId = (() => {
               const s = agentIdInput.trim();
@@ -356,6 +387,12 @@ export default function BountyPage() {
                     (refunded in full when you submit; forfeited to the poster if you take it and never submit).
                   </p>
                 )}
+                {bondWindowTight && (
+                  <p style={{ fontSize: 12, color: "#FFC9BC", margin: "0 2px 8px", lineHeight: 1.5 }}>
+                    ⚠ Under 12 hours left to the deadline. If you can&apos;t finish and submit in time,
+                    your bond will be forfeited — take this only if you&apos;re sure.
+                  </p>
+                )}
                 <button
                   onClick={handleTake}
                   disabled={!canSubmit}
@@ -392,6 +429,22 @@ export default function BountyPage() {
 
           {isPoster && hasSubmission && (
             <>
+              <div className="form-row" style={{ maxWidth: 260 }}>
+                <label className="form-label" htmlFor="approve-score">
+                  Worker rating
+                  <span className="hint">0–100, recorded on-chain (ERC-8004)</span>
+                </label>
+                <input
+                  id="approve-score"
+                  className="input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={approveScore}
+                  onChange={e => setApproveScore(e.target.value)}
+                />
+              </div>
               <div className="action-bar">
                 <button onClick={handleApprove} className="btn btn-primary btn-big">
                   Approve &amp; Pay

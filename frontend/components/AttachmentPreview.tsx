@@ -108,7 +108,7 @@ export function AttachmentPreview({ text }: { text: string }) {
           )}
           <span
             style={{
-              fontFamily: '"JetBrains Mono", monospace',
+              fontFamily: 'var(--font-jetbrains-mono), monospace',
               fontSize: 11,
               color: "var(--ink-soft)",
               overflow: "hidden",

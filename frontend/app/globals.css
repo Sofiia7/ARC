@@ -46,7 +46,7 @@ html, body {
   margin: 0; padding: 0;
   background: var(--sky-deep);
   color: var(--ink);
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -191,7 +191,7 @@ nav.top {
 }
 
 .wallet {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
   font-size: 12.5px;
   letter-spacing: 0.02em;
   padding: 10px 14px;
@@ -277,7 +277,7 @@ p.lede {
   margin-top: 36px; margin-bottom: 18px;
 }
 .filters-head .label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -445,7 +445,7 @@ p.lede {
 
 .subtags { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
 .subtag {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11px;
   padding: 3px 9px;
   border-radius: 6px;
@@ -455,7 +455,7 @@ p.lede {
 }
 .hash {
   margin-top: 12px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11.5px;
   color: var(--ink-faint);
   word-break: break-all;
@@ -474,7 +474,7 @@ p.lede {
   text-shadow: 0 0 24px rgba(70,211,145,0.25);
 }
 .time {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11.5px;
   color: var(--ink-mute);
   letter-spacing: 0.04em;
@@ -568,7 +568,7 @@ p.lede {
   min-height: 200px;
   resize: vertical;
   line-height: 1.6;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
   font-size: 13px;
 }
 .input[type="number"]::-webkit-outer-spin-button,
@@ -744,7 +744,7 @@ p.lede {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
 }
 .stat-card .stat-label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 10.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -770,7 +770,7 @@ p.lede {
   grid-template-columns: 64px 1fr 120px 130px 130px 130px 120px;
   gap: 18px;
   padding: 0 22px 14px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 10.5px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -802,7 +802,7 @@ p.lede {
     0 12px 40px rgba(255,140,80,0.14);
 }
 .lb-rank {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 22px;
   font-weight: 700;
   color: var(--ink-soft);
@@ -828,7 +828,7 @@ p.lede {
   background: radial-gradient(110% 110% at 25% 20%, rgba(255,255,255,0.45), rgba(255,255,255,0) 60%);
 }
 .lb-name { font-size: 14.5px; font-weight: 600; color: var(--ink); letter-spacing: 0.005em; }
-.lb-addr { font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; }
+.lb-addr { font-family: var(--font-jetbrains-mono), monospace; font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; }
 
 .lb-kind {
   display: inline-flex; align-items: center;
@@ -857,7 +857,7 @@ p.lede {
   letter-spacing: 0.20em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   margin-top: 4px;
 }
 
@@ -880,7 +880,7 @@ p.lede {
 .breadcrumb .sep { color: var(--ink-faint); }
 .breadcrumb .current {
   color: var(--ink);
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 12.5px;
 }
 
@@ -915,7 +915,7 @@ p.lede {
   gap: 8px;
 }
 .bounty-head .posted-by code {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 12px;
   color: var(--ink-soft);
   background: rgba(255,255,255,0.06);
@@ -936,7 +936,7 @@ p.lede {
 }
 .bounty-head .bounty-price .time {
   margin-top: 8px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 12px;
   color: var(--ink-mute);
   letter-spacing: 0.04em;
@@ -955,7 +955,7 @@ p.lede {
     0 16px 48px rgba(0,0,0,0.30);
 }
 .desc-card .label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -1013,7 +1013,7 @@ p.lede {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   color: var(--ink-mute);
   pointer-events: none;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 10px;
   letter-spacing: 0.22em;
 }
@@ -1113,7 +1113,7 @@ footer.spacer { height: 200px; }
   flex-wrap: wrap;
 }
 .panel-head .title {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -1122,7 +1122,7 @@ footer.spacer { height: 200px; }
 .panel.warning .panel-head .title { color: var(--honey); }
 .panel.danger  .panel-head .title { color: #FFC9BC; }
 .panel-head .meta {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11px;
   color: var(--ink-mute);
   letter-spacing: 0.06em;
@@ -1139,14 +1139,14 @@ footer.spacer { height: 200px; }
   margin-bottom: 10px;
 }
 .sub-card-head .label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 10.5px;
   letter-spacing: 0.20em;
   text-transform: uppercase;
   color: var(--ink-mute);
 }
 .sub-card-head .addr {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-jetbrains-mono), monospace;
   font-size: 11px;
   color: var(--ink-faint);
 }

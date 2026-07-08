@@ -61,6 +61,19 @@ export default function PostPage() {
   function toggleHumanOnly() {
     setForm(f => ({ ...f, humanOnly: !f.humanOnly, agentOnly: !f.humanOnly ? false : f.agentOnly }));
   }
+  // Bond bounties need ≥ 24h to the deadline ON-CHAIN AT MINING TIME
+  // (MIN_BOND_BOUNTY_DURATION). A 1-day deadline computed at click time
+  // clears the floor by zero seconds and is guaranteed to revert a few
+  // seconds later — after the user already paid for the approve tx. A 2-day
+  // UI floor keeps an honest margin.
+  const minDays = form.requireWorkerBond ? 2 : 1;
+  function toggleWorkerBond() {
+    setForm(f => ({
+      ...f,
+      requireWorkerBond: !f.requireWorkerBond,
+      days: !f.requireWorkerBond && Number(f.days) < 2 ? "2" : f.days,
+    }));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,6 +83,11 @@ export default function PostPage() {
     const rewardRaw = parseUsdc(form.reward);
     const deadline  = BigInt(Math.floor(Date.now() / 1000) + Number(form.days) * 86400);
     const tags      = form.tags.split(",").map(t => t.trim()).filter(Boolean);
+
+    if (form.requireWorkerBond && Number(form.days) < 2) {
+      setError("Bounties with a worker bond need a deadline of at least 2 days.");
+      return;
+    }
 
     try {
       setStep("pinning");
@@ -207,12 +225,15 @@ export default function PostPage() {
             />
           </div>
           <div className="form-row">
-            <label className="form-label" htmlFor="days">Deadline (days)</label>
+            <label className="form-label" htmlFor="days">
+              Deadline (days)
+              {form.requireWorkerBond && <span className="hint">min 2 with a worker bond</span>}
+            </label>
             <input
               id="days"
               className="input"
               type="number"
-              min="1"
+              min={minDays}
               max="90"
               step="1"
               value={form.days}
@@ -240,7 +261,7 @@ export default function PostPage() {
           <div
             className="checkbox-row"
             data-on={form.requireWorkerBond}
-            onClick={() => set("requireWorkerBond", !form.requireWorkerBond)}
+            onClick={toggleWorkerBond}
             role="button"
           >
             <span className="check" />
@@ -248,7 +269,8 @@ export default function PostPage() {
               <div className="name">Require worker bond</div>
               <div className="desc">
                 Worker posts max($0.50, 15% of reward) to take this bounty — refunded in full when
-                they submit, forfeited to you if they vanish without submitting
+                they submit, forfeited to you if they vanish without submitting. Requires a
+                deadline of at least 2 days.
               </div>
             </div>
           </div>
