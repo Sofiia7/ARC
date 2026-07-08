@@ -24,7 +24,15 @@ import {
   ZERO_ADDRESS,
 } from "./constants.js";
 import { pinText, fetchIpfsText } from "./ipfs.js";
-import { parseUsdc, resolveDeadline, matchesBountyFilter, agentIdFromReceiptLogs, workerBondFor } from "./logic.js";
+import {
+  parseUsdc,
+  resolveDeadline,
+  matchesBountyFilter,
+  agentIdFromReceiptLogs,
+  workerBondFor,
+  bondCreateDeadlineOk,
+  bondTakeWindowOk,
+} from "./logic.js";
 import type {
   ArcBountyAgentConfig,
   BountyMeta,
@@ -191,11 +199,15 @@ export class ArcBountyAgent {
     if (opts.requireWorkerBond) {
       // V4.1 bond-honeypot guard: the contract rejects requireWorkerBond
       // bounties with less than MIN_BOND_BOUNTY_DURATION (24h) to deadline.
-      // Fail fast here with a clearer message than the on-chain revert.
+      // Fail fast here with a clearer message than the on-chain revert. The
+      // safety buffer keeps a deadline that clears the floor only at signing
+      // time from reverting on-chain a few seconds later — after the USDC
+      // approve (tx 1 of 2) already went through.
       const nowSec = BigInt(Math.floor(Date.now() / 1000));
-      if (deadline < nowSec + 24n * 3600n) {
+      if (!bondCreateDeadlineOk(deadline, nowSec)) {
         throw new Error(
-          "requireWorkerBond bounties need a deadline at least 24h out (MIN_BOND_BOUNTY_DURATION)",
+          "requireWorkerBond bounties need a deadline at least 24h out (MIN_BOND_BOUNTY_DURATION) " +
+          "plus a safety margin — use 25h or more from now",
         );
       }
     }
@@ -243,7 +255,7 @@ export class ArcBountyAgent {
 
   // ─── Take / submit ──────────────────────────────────────────────────────────
 
-  async takeBounty(jobId: bigint): Promise<TxResult> {
+  async takeBounty(jobId: bigint, opts: { skipBondTakeWindowGuard?: boolean } = {}): Promise<TxResult> {
     const agentId = this._agentId ?? 0n;
     // V4: a requireWorkerBond bounty pulls the bond from the worker via
     // transferFrom inside takeBounty — without a USDC allowance the take
@@ -251,6 +263,18 @@ export class ArcBountyAgent {
     // the SDK stays correct if a future deployment tunes them.
     const meta = await this.getBounty(jobId);
     if (meta.requireWorkerBond) {
+      // V4.2 take-window guard: taking a bond bounty with under 12h to its
+      // deadline is a bond-forfeiture trap (no plausible time to deliver).
+      // Enforced client-side even against pre-V4.2 deployments, which allow
+      // the take on-chain. Pass skipBondTakeWindowGuard to override
+      // deliberately (e.g. a task you know takes minutes, not hours).
+      const nowSec = BigInt(Math.floor(Date.now() / 1000));
+      if (!opts.skipBondTakeWindowGuard && !bondTakeWindowOk(meta.deadline, nowSec)) {
+        throw new Error(
+          `takeBounty(${jobId}): bond bounty has under 12h to its deadline (MIN_BOND_TAKE_WINDOW) — ` +
+          "taking it risks forfeiting your bond. Pass { skipBondTakeWindowGuard: true } to override.",
+        );
+      }
       const [bondBps, minBond] = await Promise.all([
         this.publicClient.readContract({
           address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "WORKER_BOND_BPS",

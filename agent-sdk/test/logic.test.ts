@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { Address } from "viem";
-import { parseUsdc, resolveDeadline, matchesBountyFilter, agentIdFromReceiptLogs, workerBondFor } from "../src/logic.js";
+import {
+  parseUsdc,
+  resolveDeadline,
+  matchesBountyFilter,
+  agentIdFromReceiptLogs,
+  workerBondFor,
+  bondCreateDeadlineOk,
+  bondTakeWindowOk,
+} from "../src/logic.js";
 import type { BountyMeta } from "../src/types.js";
 
 const ZERO: Address = "0x0000000000000000000000000000000000000000";
@@ -150,6 +158,37 @@ describe("agentIdFromReceiptLogs", () => {
 
   it("returns null when no logs match", () => {
     expect(agentIdFromReceiptLogs([], registry, self)).toBeNull();
+  });
+});
+
+describe("bondCreateDeadlineOk (V4.1 floor + safety buffer)", () => {
+  const now = 1_800_000_000n;
+  const DAY = 24n * 3600n;
+  const BUFFER = 15n * 60n;
+
+  it("rejects a deadline exactly at the 24h floor — it would revert on-chain by mining time", () => {
+    expect(bondCreateDeadlineOk(now + DAY, now)).toBe(false);
+  });
+
+  it("rejects anything under floor + buffer, accepts at and above it", () => {
+    expect(bondCreateDeadlineOk(now + DAY + BUFFER - 1n, now)).toBe(false);
+    expect(bondCreateDeadlineOk(now + DAY + BUFFER, now)).toBe(true);
+    expect(bondCreateDeadlineOk(now + 2n * DAY, now)).toBe(true);
+  });
+});
+
+describe("bondTakeWindowOk (V4.2 take window)", () => {
+  const now = 1_800_000_000n;
+  const WINDOW = 12n * 3600n;
+
+  it("rejects a take with under 12h left to the deadline", () => {
+    expect(bondTakeWindowOk(now + WINDOW - 1n, now)).toBe(false);
+    expect(bondTakeWindowOk(now + 60n, now)).toBe(false);
+  });
+
+  it("accepts a take with 12h or more remaining (boundary inclusive, matching the contract's <=)", () => {
+    expect(bondTakeWindowOk(now + WINDOW, now)).toBe(true);
+    expect(bondTakeWindowOk(now + 7n * 24n * 3600n, now)).toBe(true);
   });
 });
 

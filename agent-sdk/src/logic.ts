@@ -1,6 +1,11 @@
 import type { Address } from "viem";
 import type { BountyMeta, OpenBountiesFilter } from "./types.js";
-import { USDC_DECIMALS } from "./constants.js";
+import {
+  USDC_DECIMALS,
+  MIN_BOND_BOUNTY_DURATION_SEC,
+  MIN_BOND_TAKE_WINDOW_SEC,
+  DEADLINE_SAFETY_BUFFER_SEC,
+} from "./constants.js";
 
 // Pure logic extracted out of ArcBountyAgent so it's testable without a
 // network client. Also de-duplicates what used to be two separate copies of
@@ -26,6 +31,27 @@ export function resolveDeadline(d: number | Date, nowSec: number = Math.floor(Da
 export function workerBondFor(reward: bigint, bondBps: bigint = 1500n, minBond: bigint = 500_000n): bigint {
   const pct = (reward * bondBps) / 10_000n;
   return pct > minBond ? pct : minBond;
+}
+
+/**
+ * Client-side mirror of the contract's MIN_BOND_BOUNTY_DURATION check for
+ * createBounty, padded by DEADLINE_SAFETY_BUFFER_SEC: a deadline that clears
+ * the 24h floor by only a few seconds at signing time will fail it by the
+ * time the tx mines (clock skew + mining delay), reverting tx 2 of 2 after
+ * the USDC approve already went through.
+ */
+export function bondCreateDeadlineOk(deadline: bigint, nowSec: bigint): boolean {
+  return deadline >= nowSec + MIN_BOND_BOUNTY_DURATION_SEC + DEADLINE_SAFETY_BUFFER_SEC;
+}
+
+/**
+ * Client-side mirror of the contract's MIN_BOND_TAKE_WINDOW check (V4.2) for
+ * takeBounty: taking a bond bounty with less than 12h to its deadline is a
+ * bond-forfeiture trap for an auto-taking agent. Enforced here even against
+ * pre-V4.2 deployments, which allow the take on-chain.
+ */
+export function bondTakeWindowOk(deadline: bigint, nowSec: bigint): boolean {
+  return deadline >= nowSec + MIN_BOND_TAKE_WINDOW_SEC;
 }
 
 export function matchesBountyFilter(m: BountyMeta, f: OpenBountiesFilter): boolean {

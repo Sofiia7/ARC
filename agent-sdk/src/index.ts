@@ -11,8 +11,21 @@ export type {
   TxResult,
   CircleWalletConfig,
 } from "./types.js";
-export { CONTRACTS, ARC_TESTNET_RPC, ARC_TESTNET_CHAIN_ID } from "./constants.js";
-export { parseUsdc, resolveDeadline, matchesBountyFilter, workerBondFor } from "./logic.js";
+export {
+  CONTRACTS,
+  ARC_TESTNET_RPC,
+  ARC_TESTNET_CHAIN_ID,
+  MIN_BOND_BOUNTY_DURATION_SEC,
+  MIN_BOND_TAKE_WINDOW_SEC,
+} from "./constants.js";
+export {
+  parseUsdc,
+  resolveDeadline,
+  matchesBountyFilter,
+  workerBondFor,
+  bondCreateDeadlineOk,
+  bondTakeWindowOk,
+} from "./logic.js";
 export { BOUNTY_ADAPTER_ABI, IDENTITY_REGISTRY_ABI, ERC20_ABI } from "./abi.js";
 export { pinText, fetchIpfsText, fetchIpfsJson, isPinningConfigured } from "./ipfs.js";
 export {
