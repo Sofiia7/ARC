@@ -8,6 +8,7 @@ import {
   workerBondFor,
   type AgentMetadata,
   type BountyMeta,
+  type PendingAction,
 } from "arcbounty-agent-sdk";
 
 // ─── Agent instance ────────────────────────────────────────────────────────
@@ -260,6 +261,32 @@ if (hasSigner) {
       try {
         const mine = await agent!.getMyBounties();
         return json(mine.map(summarize));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_pending_actions",
+    {
+      description:
+        "Check this wallet's own bounties for anything needing attention RIGHT NOW: a dispute opened against " +
+        "it with no response yet, a rejection not yet challenged, or funds it can claim permissionlessly " +
+        "(auto-approve after the poster went silent, or a default arbitrator ruling after a timeout). Read-only " +
+        "— reports, never acts. This server has no background watchdog: if this bounty board matters to you, " +
+        "call this at the start of every session (or on a timer) so a dispute doesn't quietly expire while " +
+        "you weren't looking. An empty list means nothing needs you right now.",
+    },
+    async () => {
+      try {
+        const actions = await agent!.getPendingActions();
+        return json(actions.map((a: PendingAction) => ({
+          kind: a.kind,
+          jobId: a.jobId.toString(),
+          message: a.message,
+          bounty: summarize(a.meta),
+        })));
       } catch (err) {
         return errorResult(err);
       }
