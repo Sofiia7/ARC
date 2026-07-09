@@ -10,6 +10,8 @@ export type {
   AgentInfo,
   TxResult,
   CircleWalletConfig,
+  PendingAction,
+  PendingActionKind,
 } from "./types.js";
 export {
   CONTRACTS,

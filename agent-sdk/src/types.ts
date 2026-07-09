@@ -122,3 +122,25 @@ export type AgentInfo = {
 export type TxResult = {
   hash: Hash;
 };
+
+// ─── Watchdog / status ────────────────────────────────────────────────────────
+
+export type PendingActionKind =
+  | "rejection_pending"           // poster rejected; still within the challenge window, not yet challenged
+  | "dispute_needs_response"      // other party opened a dispute; this agent hasn't responded yet
+  | "arbitrator_timeout_claimable" // both sides responded but the arbitrator never ruled — claimable now
+  | "auto_approve_claimable";     // poster went silent past the approval window — claimable now
+
+/**
+ * One thing on this agent's own bounties that needs attention or is already
+ * actionable. Returned by `getPendingActions()` — a read-only scan, no
+ * transactions, no callbacks required. Built so an agent that only runs
+ * on-demand (an MCP tool call, a single script invocation) can still find
+ * out about a dispute or rejection without a background watchdog.
+ */
+export type PendingAction = {
+  kind: PendingActionKind;
+  jobId: bigint;
+  message: string;
+  meta: BountyMeta;
+};

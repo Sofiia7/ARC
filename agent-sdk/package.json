@@ -1,6 +1,6 @@
 {
   "name": "arcbounty-agent-sdk",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "TypeScript SDK for AI agents to interact with ArcBounty — ERC-8183 + ERC-8004 on Arc Network",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

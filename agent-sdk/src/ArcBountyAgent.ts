@@ -43,7 +43,14 @@ import type {
   DisputeEvidenceOptions,
   AgentInfo,
   TxResult,
+  PendingAction,
 } from "./types.js";
+
+/** Used when `protect()` is called without an `onEvent` callback, so
+ * actionable events are never fully silent even with zero configuration. */
+function defaultOnEvent(event: string, meta: BountyMeta): void {
+  console.warn(`[ArcBountyAgent] ${event} — bounty #${meta.jobId.toString()}`);
+}
 
 const arcTestnet = defineChain({
   id: ARC_TESTNET_CHAIN_ID,
@@ -592,11 +599,17 @@ export class ArcBountyAgent {
     };
   }
 
-  private async _protectOnce(options: {
-    onRejection?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
-    onDisputeAgainstMe?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
-    onEvent?: (event: string, meta: BountyMeta) => void;
-  }): Promise<void> {
+  /**
+   * Read-only scan of this agent's own bounties (posted or assigned, via
+   * `getMyBounties()`) for anything needing attention: a dispute raised
+   * against it with no response yet, a pending rejection not yet challenged,
+   * or funds it can now unstick permissionlessly (auto-approve / arbitrator
+   * timeout). No transactions, no callbacks, no side effects — safe to call
+   * from anywhere, including once per turn from an MCP tool. This is what
+   * lets an agent that only runs on-demand (no background `protect()` loop)
+   * still find out about a dispute instead of it passing silently.
+   */
+  async getPendingActions(): Promise<PendingAction[]> {
     const [rejectionWindow, disputeWindow, approvalTimeout, arbitratorTimeout] = await Promise.all([
       this.publicClient.readContract({
         address: this.bountyAdapter, abi: BOUNTY_ADAPTER_ABI, functionName: "REJECTION_CHALLENGE_WINDOW",
@@ -614,61 +627,96 @@ export class ArcBountyAgent {
 
     const now = BigInt(Math.floor(Date.now() / 1000));
     const mine = await this.getMyBounties();
+    const actions: PendingAction[] = [];
 
     for (const meta of mine) {
       if (meta.resolved) continue;
 
+      // 1. Pending rejection, still within the challenge window, not yet challenged.
+      if (meta.rejectedAt > 0n && !meta.inDispute && now <= meta.rejectedAt + rejectionWindow) {
+        actions.push({
+          kind: "rejection_pending", jobId: meta.jobId, meta,
+          message: `Bounty #${meta.jobId}: poster rejected your submission — challenge it within the window or it finalizes against you.`,
+        });
+        continue;
+      }
+
+      // 2. Dispute open, raised by the OTHER party, this agent hasn't responded.
+      if (
+        meta.inDispute
+        && meta.disputeResponseHash.length === 0
+        && meta.disputeInitiator.toLowerCase() !== this.address.toLowerCase()
+        && now <= meta.disputeRaisedAt + disputeWindow
+      ) {
+        actions.push({
+          kind: "dispute_needs_response", jobId: meta.jobId, meta,
+          message: `Bounty #${meta.jobId}: a dispute was opened against you — respond before the window closes or the other side wins by default.`,
+        });
+        continue;
+      }
+
+      // 3. Dispute answered on both sides but the arbitrator ghosted (V3.3).
+      if (meta.inDispute && meta.disputeResponseHash.length > 0 && now > meta.disputeRaisedAt + arbitratorTimeout) {
+        actions.push({
+          kind: "arbitrator_timeout_claimable", jobId: meta.jobId, meta,
+          message: `Bounty #${meta.jobId}: arbitrator never ruled — you can claim a default resolution now (claimArbitratorTimeout).`,
+        });
+        continue;
+      }
+
+      // 4. Submitted, poster silent past the approval window.
+      if (meta.submittedAt > 0n && meta.rejectedAt === 0n && !meta.inDispute && now > meta.submittedAt + approvalTimeout) {
+        actions.push({
+          kind: "auto_approve_claimable", jobId: meta.jobId, meta,
+          message: `Bounty #${meta.jobId}: poster went silent past the approval window — you can claim payout now (autoApprove).`,
+        });
+      }
+    }
+
+    return actions;
+  }
+
+  private async _protectOnce(options: {
+    onRejection?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
+    onDisputeAgainstMe?: (meta: BountyMeta) => Promise<DisputeEvidenceOptions>;
+    onEvent?: (event: string, meta: BountyMeta) => void;
+  }): Promise<void> {
+    const onEvent = options.onEvent ?? defaultOnEvent;
+    const actions = await this.getPendingActions();
+
+    for (const action of actions) {
       try {
-        // 1. Pending rejection, still within the challenge window, not yet challenged.
-        if (meta.rejectedAt > 0n && !meta.inDispute && now <= meta.rejectedAt + rejectionWindow) {
-          options.onEvent?.("rejection_pending", meta);
-          if (options.onRejection) {
-            const evidence = await options.onRejection(meta);
-            await this.challengeRejection(meta.jobId, evidence);
-            options.onEvent?.("rejection_challenged", meta);
-          }
-          continue;
-        }
+        switch (action.kind) {
+          case "rejection_pending":
+            onEvent("rejection_pending", action.meta);
+            if (options.onRejection) {
+              const evidence = await options.onRejection(action.meta);
+              await this.challengeRejection(action.jobId, evidence);
+              onEvent("rejection_challenged", action.meta);
+            }
+            break;
 
-        // 2. Dispute open, raised by the OTHER party, this agent hasn't responded.
-        if (
-          meta.inDispute
-          && meta.disputeResponseHash.length === 0
-          && meta.disputeInitiator.toLowerCase() !== this.address.toLowerCase()
-          && now <= meta.disputeRaisedAt + disputeWindow
-        ) {
-          options.onEvent?.("dispute_needs_response", meta);
-          if (options.onDisputeAgainstMe) {
-            const evidence = await options.onDisputeAgainstMe(meta);
-            await this.respondToDispute(meta.jobId, evidence);
-            options.onEvent?.("dispute_responded", meta);
-          }
-          continue;
-        }
+          case "dispute_needs_response":
+            onEvent("dispute_needs_response", action.meta);
+            if (options.onDisputeAgainstMe) {
+              const evidence = await options.onDisputeAgainstMe(action.meta);
+              await this.respondToDispute(action.jobId, evidence);
+              onEvent("dispute_responded", action.meta);
+            }
+            break;
 
-        // 3. Dispute answered on both sides but the arbitrator ghosted (V3.3).
-        if (
-          meta.inDispute
-          && meta.disputeResponseHash.length > 0
-          && now > meta.disputeRaisedAt + arbitratorTimeout
-        ) {
-          await this.claimArbitratorTimeout(meta.jobId);
-          options.onEvent?.("arbitrator_timeout_claimed", meta);
-          continue;
-        }
+          case "arbitrator_timeout_claimable":
+            await this.claimArbitratorTimeout(action.jobId);
+            onEvent("arbitrator_timeout_claimed", action.meta);
+            break;
 
-        // 4. Submitted, poster silent past the approval window.
-        if (
-          meta.submittedAt > 0n
-          && meta.rejectedAt === 0n
-          && !meta.inDispute
-          && now > meta.submittedAt + approvalTimeout
-        ) {
-          await this.autoApprove(meta.jobId);
-          options.onEvent?.("auto_approved", meta);
+          case "auto_approve_claimable":
+            await this.autoApprove(action.jobId);
+            onEvent("auto_approved", action.meta);
+            break;
         }
       } catch (err) {
-        console.error(`[ArcBountyAgent.protect] error handling bounty #${meta.jobId}:`, err);
+        console.error(`[ArcBountyAgent.protect] error handling bounty #${action.jobId}:`, err);
       }
     }
   }
