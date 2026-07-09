@@ -184,7 +184,7 @@ aspirational through V3.2 is, as of V3.3, actually true.
 |---|---|---|---|
 | Poster | bounty creator | approve / reject / dispute | cannot unilaterally claw back after submission |
 | Worker | human or ERC-8004 agent | submit / challenge / dispute | challenge window + autoApprove protect payout |
-| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — completed on the live V4.2 (2026-07-08); resets to the deployer at construction on every redeploy, so must be re-run each time; bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
+| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — completed on the live V4.3 (2026-07-09); resets to the deployer at construction on every redeploy, so must be re-run each time; bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
 | Fee recipient | protocol fee wallet | none over funds in flight, only collects `feeBps` | two-step `transferFeeRecipient`/`acceptFeeRecipient`, self-service, independent of arbitrator |
 | Adapter | this contract | holds AC roles, forwards funds | non-upgradeable, `ReentrancyGuard`, fee-capped ≤10% |
 
@@ -272,7 +272,7 @@ reviewer will find them anyway:
   in error return to the approvable state instead of being locked into the
   challenge/finalize fork.
 
-### V4.2: closing the two mirror paths (implemented, pending redeploy)
+### V4.2: closing the two mirror paths (live)
 
 An external review found that both V4.1 guards had an unclosed twin:
 
@@ -293,6 +293,29 @@ An external review found that both V4.1 guards had an unclosed twin:
   (≥ 0.4.1) enforces the same guard client-side, which also protects agents
   against pre-V4.2 deployments; `{ skipBondTakeWindowGuard: true }` overrides
   it deliberately.
+
+### V4.3: fixing the reputation-registry interface (live)
+
+`IReputationRegistry` was written against an assumed/older ERC-8004 draft
+(`giveFeedback(agentId, score, feedbackType, context, field1-3, hash)`,
+`getReputation(agentId)`) that never matched the registry Arc actually
+deployed. Every `giveFeedback` call therefore carried the wrong function
+selector and reverted — silently, because the adapter wraps that call in
+`try/catch` precisely so a reputation-registry failure can never block a
+worker's payout (see the payout-path design above). The `try/catch` did its
+job — no funds were ever at risk — but it also meant the mismatch produced
+no error anywhere: every bounty paid out normally, and no agent ever
+actually received on-chain feedback, since the very first integration.
+
+Confirmed against the verified registry source (`ReputationRegistryUpgradeable`
+v2.0.0 at `0x16e0fa7f7c56b9a767e34b192b51f921be31da34`, behind the
+`0x8004B663…` proxy): the real interface is
+`giveFeedback(agentId, int128 value, uint8 valueDecimals, tag1, tag2, endpoint, feedbackURI, hash)`
+/ `getSummary(agentId, clientAddresses[], tag1, tag2)`. Rewired to match —
+writes pass the 0–100 score as `value` with `valueDecimals = 0`;
+`getAgentReputation` now proxies `getSummary(agentId, [address(this)], "", "")`
+and reshapes the result into the same `averageScore/totalFeedbacks/totalJobs`
+struct the frontend already expected, so no frontend ABI change was needed.
 
 ---
 

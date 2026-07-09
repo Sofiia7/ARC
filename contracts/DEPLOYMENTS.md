@@ -16,13 +16,28 @@ overwritten or out of date.
 | Features | Same on-chain behavior as V4.2 (opt-in worker bond, `uniquePosterCount`, the `disputeBounty`/`MIN_BOND_TAKE_WINDOW` fixes) **plus the V4.3 reputation-registry fix**: `IReputationRegistry` was mirroring an assumed/older ERC-8004 draft (`giveFeedback(agentId, score, feedbackType, context, field1-3, hash)`, `getReputation(agentId)`) that never matched the real deployed registry — every `giveFeedback` call had a wrong selector and silently reverted (swallowed by the adapter's own `try/catch`) since the very first integration, so no agent had ever actually received on-chain feedback despite completed bounties. Confirmed via the verified registry source (`ReputationRegistryUpgradeable` v2.0.0 at `0x16e0fa7f7c56b9a767e34b192b51f921be31da34`, behind the `0x8004B663…` proxy): real interface is `giveFeedback(agentId, int128 value, uint8 valueDecimals, tag1, tag2, endpoint, feedbackURI, hash)` / `getSummary(agentId, clientAddresses[], tag1, tag2)`. Rewired to the real interface — writes pass the 0-100 score as `value` with `valueDecimals=0`; `getAgentReputation` now proxies `getSummary(agentId, [address(this)], "", "")` and reshapes it into the same `averageScore/totalFeedbacks/totalJobs` struct the frontend already expected, so no frontend ABI change was needed. |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `msg.sender` at deploy (`0xde427f…`) — **transfer to the Safe (`0x4892232f0dD235cC1B92a3A87fc8990553691BC6`) not yet completed on this deployment.** `transferArbitrator` + the Safe's own `acceptArbitrator()` (via app.safe.global) are still pending as of this writing. |
+| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe** — two-step transfer completed 2026-07-09; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
 | Verified | ✅ ArcScan (Blockscout) |
 | Deployed | 2026-07-08, block `50813922`, tx `0x4ff7afb10531cb5f8739cfbe561af6ea7369d39358980a1e29e69273b1c43daa`, from the same rotated Sprint-0 deployer `0xde427f…` |
 
+> **✅ Arbitrator transfer complete (2026-07-09).** `transferArbitrator(0x4892232f0dD235cC1B92a3A87fc8990553691BC6)`
+> was called from the deployer (block `50893874`, tx
+> `0x09234cc842e985647d02d3b37625b82b893e263fcf67560ffa31830440c07fe8`), and
+> `acceptArbitrator()` was executed **from the Safe itself** (block
+> `50894030`, tx `0xa0a1a20cdac6b0c9347ad4c7a6c7ebcd0a49274a0ecfac7eed696e03f21c0179`)
+> via app.safe.global. Verified on-chain: `arbitrator()` returns the Safe,
+> `pendingArbitrator()` is zero.
+
 > **Board state:** all 17 open listings on superseded V4.2 were reclaimed via
 > `scripts/reclaim-bounties.ts` (~28 USDC returned to the poster wallet across
-> 17 `cancelBounty` txs, 2026-07-08) before this deployment's re-seed.
+> 17 `cancelBounty` txs, 2026-07-08) before this deployment's re-seed. Two
+> more listings — "viem script: watch BountyCreated and print new bounties"
+> and "TypeScript snippet: pin a Buffer to Pinata v3" (bond-required) — were
+> posted 2026-07-09 (`SEED_LIMIT=2 SEED_DEADLINE_DAYS=60`) specifically to
+> re-run the agent proof-of-life flow on this deployment, then completed
+> end-to-end by the same reused agent identity (jobIds `154216`/`154217`,
+> agentId `847205`) — see `scripts/agent-proof-of-life.ts`. `totalBounties()`
+> is 22, 14 open.
 
 ### BountyAdapter (V4.2 — superseded, reputation-registry integration broken)
 

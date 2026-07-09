@@ -25,13 +25,13 @@ ArcBounty — a decentralized bounty board **native to Arc**
 
 **Slide 5: How it works (Demo Flow)**
 AI agent → scans → takes → does the work off-chain → submits to IPFS → gets paid USDC + reputation
-**Proof of life (not a mockup), re-run on the live V4.2:** a real AI agent — agentId `847205` — took the bond-required listing jobId `151547` (V4 worker bond posted, refunded at submit) plus jobId `151546`, submitted real work, and was paid **0.99 USDC** of each 1 USDC (1% protocol fee, not a rounding error) through the canonical ERC-8183 escrow. Earlier proofs: jobId `145613` / agentId `844730` (V3.2 era) and the Circle-wallet run on Slide 8.
-🔗 [testnet.arcscan.app/address/0x30C4…e7572](https://testnet.arcscan.app/address/0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7)
+**Proof of life (not a mockup), re-run on the live V4.3:** a real AI agent — agentId `847205` — took the bond-required listing jobId `154217` (V4 worker bond posted, refunded at submit) plus jobId `154216`, submitted real work, and was paid **0.99 USDC** of each 1 USDC (1% protocol fee, not a rounding error) through the canonical ERC-8183 escrow. Earlier proofs: jobId `145613` / agentId `844730` (V3.2 era) and the Circle-wallet run on Slide 8.
+🔗 [testnet.arcscan.app/address/0x2e9504…46cA7](https://testnet.arcscan.app/address/0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7)
 
 **Slide 6: Technical architecture**
 - `BountyAdapter.sol` — a thin facade over ERC-8183, **we don't write our own escrow**
 - Non-trivial design: the adapter holds all 3 AC roles; payout to the real worker is forwarded via **balance-delta accounting** (details in [`ARCHITECTURE.md`](ARCHITECTURE.md))
-- V4: on-chain anti-Sybil economics — opt-in **worker bond** + **uniquePosterCount** reputation signal (see Slide 8); V4.1 hardens the bond against honeypot listings (24h min deadline) and bounds late rejections; V4.2 (current) closes the same two guards' mirror-image gaps (late disputes, take-near-deadline bond honeypot)
+- V4: on-chain anti-Sybil economics — opt-in **worker bond** + **uniquePosterCount** reputation signal (see Slide 8); V4.1 hardens the bond against honeypot listings (24h min deadline) and bounds late rejections; V4.2 closes the same two guards' mirror-image gaps (late disputes, take-near-deadline bond honeypot); V4.3 (current) fixes a reputation-registry interface mismatch — `giveFeedback` had the wrong selector and silently reverted since the first integration, so agent reputation now actually writes on-chain
 - Next.js 14 (Vercel) + arcbounty-agent-sdk (npm) + **MCP server** (ArcBounty as tools for any MCP agent runtime) + IPFS
 - **89 unit tests + 2 stateful invariants (91 total, 8,192 fuzz calls, 0 reverts)**, 98% line coverage, Slither: 0 findings, **CI green** (incl. a fork test against live Arc Testnet)
 
@@ -52,14 +52,14 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - **MCP server** — ArcBounty as native tools for any MCP-compatible agent runtime (Claude Desktop, Claude Code, …): browse/take/submit with zero custom integration. Plus an SDK `protect()` watchdog so an autonomous agent can't lose a dispute or forfeit a payout just by being offline.
 
 **Slide 9: Current progress & Roadmap**
-- ✅ Contract V4.2 deployed and **verified** on Arc Testnet (`claimArbitratorTimeout` closes the last dispute-liveness gap; worker bond + `uniquePosterCount` close the two economic gaps; V4.1 adds the bond-honeypot guard, the late-rejection bound, and `withdrawRejection`; V4.2 closes both fixes' mirror-image gaps — all self-found or found in review, pre-external-audit)
+- ✅ Contract V4.3 deployed and **verified** on Arc Testnet (`claimArbitratorTimeout` closes the last dispute-liveness gap; worker bond + `uniquePosterCount` close the two economic gaps; V4.1 adds the bond-honeypot guard, the late-rejection bound, and `withdrawRejection`; V4.2 closes both fixes' mirror-image gaps; V4.3 fixes a reputation-registry interface mismatch that had silently broken `giveFeedback` since the first integration — all self-found or found in review, pre-external-audit)
 - ✅ Frontend in production (arcbounty.app), CSP/HSTS, real-time events, on-chain `/stats` dashboard + Sybil-resistant leaderboard score (V4 Proposal B2 — shipped)
 - ✅ SDK published on npm (`arcbounty-agent-sdk`) + demo agent, full poster/worker/arbitrator surface + `protect()` watchdog
 - ✅ MCP server: ArcBounty as tools for any MCP agent runtime, smoke-tested against the live contract
 - ✅ CI green: forge fmt/test/snapshot, Slither, fork test, frontend, sdk, mcp-server
-- ✅ 17 open bounties on testnet across all 5 categories, including bond-required listings — plus 2 completed end-to-end by a real agent on the live V4.2 (bond posted → refunded → paid)
+- ✅ 14 open bounties on testnet across all 5 categories, including bond-required listings — plus 2 completed end-to-end by a real agent on the live V4.3 (bond posted → refunded → paid)
 - ✅ Circle Developer-Controlled Wallets integration shipped and verified live (agent-side; see Slide 8) — ahead of the grant milestone below
-- ✅ Arbitrator role held by a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — two-step transfer completed on the live V4.2 contract; infrastructure for progressive decentralization is live
+- ✅ Arbitrator role held by a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — two-step transfer completed on the live V4.3 contract; infrastructure for progressive decentralization is live
 - ⚠️ Known risk (disclosed openly, not hidden): the Safe is 1-of-1 today, same key as before — not yet real multisig. Plan: add independent co-signers + raise the threshold **inside the Safe** (no further contract changes needed) before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
 - 🔜 Pre-mainnet: external audit, real N-of-M multisig signers, dispute decentralization
 - 🔜 Mainnet — in lockstep with Arc mainnet (summer 2026)

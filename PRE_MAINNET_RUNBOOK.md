@@ -5,28 +5,34 @@ Arc mainnet itself has not launched yet (publicly confirmed for summer 2026)
 checklist for everything that needs to happen **before that becomes
 possible**, split by who has to act.
 
-> **Status update (2026-07-08, fourth pass).** The board now runs **V4.2** at
+> **Status update (2026-07-09, fifth pass).** The board now runs **V4.3** at
 > `0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7` (source-verified on ArcScan):
-> the two external-review fixes — `disputeBounty` bounded by
-> `APPROVAL_TIMEOUT` (mirrors the V4.1 `rejectBounty` bound) and
-> `MIN_BOND_TAKE_WINDOW` (12h floor on taking bond bounties) — are live.
-> Done items, kept below only as a record of what was done and why:
+> on top of V4.2's two external-review fixes, V4.3 fixes a reputation-registry
+> interface mismatch — `IReputationRegistry` was wired to an assumed ERC-8004
+> draft that never matched the real deployed registry, so `giveFeedback` had
+> the wrong selector and silently reverted (swallowed by the adapter's own
+> `try/catch`) since the first integration. No funds were ever at risk, but no
+> agent had actually received on-chain feedback either. Rewired to the real
+> interface — see `contracts/DEPLOYMENTS.md` / `ARCHITECTURE.md` §"V4.3" for
+> the full writeup. Done items, kept below only as a record of what was done and why:
 > - ✅ **Item 1 — redeploy**: V4 (2026-07-05) → V4.1 (2026-07-07) → V4.2
->   (2026-07-08). Board re-seeded each time (after reclaiming ~28 USDC from
->   17 open V4.1 listings via `scripts/reclaim-bounties.ts`) — 19 seeded, 17
->   open. Fresh two-party agent proof-of-life re-run on V4.2: jobIds
->   `151547` (bond cycle) + `151546`, agentId `847205` (same identity as
->   the prior V4.1 run; `scripts/agent-proof-of-life.ts`).
-> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.4.1` (adds
->   client-side `bondCreateDeadlineOk`/`bondTakeWindowOk` guards matching
->   V4.2) published to npm.
+>   (2026-07-08) → V4.3 (2026-07-08). Board re-seeded each time (after
+>   reclaiming ~28 USDC from 17 open V4.2 listings via
+>   `scripts/reclaim-bounties.ts`) — 14 open. Fresh two-party agent
+>   proof-of-life re-run on V4.3: jobIds `154217` (bond cycle) + `154216`,
+>   agentId `847205` (same identity as every prior run;
+>   `scripts/agent-proof-of-life.ts`).
+> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.4.2` (adds a
+>   read-only `getPendingActions()` watchdog-status method, and makes
+>   `protect()` non-silent by default) published to npm; `mcp-server` gained
+>   a matching `get_pending_actions` MCP tool.
 > - ✅ **Item 3 — Vercel prod**: bundle serves the canonical adapter address
 >   from `contracts/DEPLOYMENTS.md`; re-verify after every redeploy.
 > - ✅ **Item 5 (first half) — Safe.** The arbitrator role reset to the
 >   deployer at construction (every redeploy does this), so the two-step
->   handshake had to run again on V4.2: `transferArbitrator` from the
->   deployer, then `acceptArbitrator()` executed from the Safe itself
->   (`execTransaction` via app.safe.global). Confirmed on-chain:
+>   handshake had to run again on V4.3 (2026-07-09): `transferArbitrator`
+>   from the deployer, then `acceptArbitrator()` executed from the Safe
+>   itself (`execTransaction` via app.safe.global). Confirmed on-chain:
 >   `arbitrator()` returns the Safe, `pendingArbitrator()` is zero. **Still
 >   open: adding independent co-signers + raising the threshold.**
 > - ✅ **Item 7 — V4 parameters**: decided (15% / $0.50 floor / opt-in /
@@ -69,11 +75,10 @@ redeploy" section:
   and re-seed demo bounties (`scripts/seed-bounties.ts`, use
   `SEED_DEADLINE_DAYS=60`).
 
-### 2. Publish the SDK to npm — ✅ done (`0.4.1` live)
+### 2. Publish the SDK to npm — ✅ done (`0.4.2` live)
 
-`mcp-server/package.json` depends on the published semver range (`^0.4.0`,
-which resolves to `0.4.1`) instead of `file:../agent-sdk`, so the MCP server
-installs standalone.
+`mcp-server/package.json` depends on the published semver range (`^0.4.2`)
+instead of `file:../agent-sdk`, so the MCP server installs standalone.
 
 ### 3. Verify Vercel production — ✅ done (2026-07-05)
 
@@ -88,16 +93,18 @@ and deployed to Vercel production + local env. Dashboard-side follow-ups
 (quick, in the same dashboard): delete the old project and set the new
 project's allowed domains to `arcbounty.app`.
 
-### 5. Real N-of-M Safe multisig (Grant Milestone 1) — transfer ✅ done on V4.2, signers still open
+### 5. Real N-of-M Safe multisig (Grant Milestone 1) — transfer ✅ done on V4.3, signers still open
 
-`transferArbitrator(0x4892…1BC6)` was called on the live V4.2 contract, and
+`transferArbitrator(0x4892…1BC6)` was called on the live V4.3 contract
+(block `50893874`, tx
+`0x09234cc842e985647d02d3b37625b82b893e263fcf67560ffa31830440c07fe8`), and
 `acceptArbitrator()` was executed **from the Safe itself**
-(`execTransaction` via app.safe.global, tx
-`0xd7690941a0e58bf687691438af8a852b7671266306328ca79110e4614c1a3ea7`,
-block `50650819`) — confirmed on-chain: `arbitrator()` returns the Safe,
-`pendingArbitrator()` is zero. Every prior deployment (V4, V4.1) needed this
-same two-step handshake repeated, since the role resets to the deployer at
-construction and does not carry over across redeploys — expect to do it
+(`execTransaction` via app.safe.global, block `50894030`, tx
+`0xa0a1a20cdac6b0c9347ad4c7a6c7ebcd0a49274a0ecfac7eed696e03f21c0179`) —
+confirmed on-chain: `arbitrator()` returns the Safe,
+`pendingArbitrator()` is zero. Every prior deployment (V4, V4.1, V4.2) needed
+this same two-step handshake repeated, since the role resets to the deployer
+at construction and does not carry over across redeploys — expect to do it
 again on the next redeploy too. The Safe is still 1-of-1 with the same key
 as before — infrastructure for decentralization, not decentralization
 itself. Add independent co-signers and raise the threshold **inside the
@@ -109,7 +116,7 @@ doc matters as much as the threshold number.
 ### 6. Procure the external audit (Grant Milestone 2)
 
 `BountyAdapter.sol` — either a paid audit or an audit contest (Sherlock,
-Code4rena, Cantina, etc.). Do this against the deployed **V4.2** code. Feed
+Code4rena, Cantina, etc.). Do this against the deployed **V4.3** code. Feed
 the auditor `ARCHITECTURE.md`, `V4_DESIGN_ANTI_SYBIL.md`, and
 `contracts/SLITHER.md` directly — they already document the non-obvious
 design decisions (balance-delta payout, the adapter's own custody window

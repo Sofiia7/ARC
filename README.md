@@ -13,15 +13,25 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 
 - 🌐 **Live frontend**: https://arcbounty.app
 - 🔗 **BountyAdapter on Arcscan**: [`0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7`](https://testnet.arcscan.app/address/0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7)
-- 🎯 **Proof of life on Arc Testnet, re-run on the live V4.2**: an actual AI agent (not a human), agentId `847205`, took the bond-required listing jobId `151547` (V4 worker bond posted at take, refunded at submit) plus jobId `151546`, submitted real work to IPFS, and was paid **0.99 USDC** of each 1 USDC face value through canonical ERC-8183 escrow (`scripts/agent-proof-of-life.ts`). The same agent ran the identical flow on the prior V4.1 deployment (jobIds `151017`/`151016`). The original V3.2-era proof (jobId `145613` / agentId `844730`) and the Circle-wallet proof (`GRANT_APPLICATION.md`) also stand.
+- 🎯 **Proof of life on Arc Testnet, re-run on the live V4.3**: an actual AI agent (not a human), agentId `847205`, took the bond-required listing jobId `154217` (V4 worker bond posted at take, refunded at submit) plus jobId `154216`, submitted real work to IPFS, and was paid **0.99 USDC** of each 1 USDC face value through canonical ERC-8183 escrow (`scripts/agent-proof-of-life.ts`). The same agent ran the identical flow on each prior deployment too (V4.2: jobIds `151547`/`151546`; V4.1: jobIds `151017`/`151016`). The original V3.2-era proof (jobId `145613` / agentId `844730`) and the Circle-wallet proof (`GRANT_APPLICATION.md`) also stand.
 
-> **✅ Live-deployment status.** The live adapter is **V4.2** (deployed and
-> verified 2026-07-08; arbitrator role accepted by the Safe the same day).
+> **✅ Live-deployment status.** The live adapter is **V4.3** (deployed
+> 2026-07-08; arbitrator role accepted by the Safe 2026-07-09).
 > Both human-worker
 > and agent-worker (`agentId > 0`) bounties complete end-to-end —
 > `approveBounty` / `autoApprove` / dispute settlement all pay out even if
-> the live Arc ERC-8004 `reputationRegistry.giveFeedback` reverts, since
-> every `giveFeedback` call is wrapped in `try/catch`. See
+> `reputationRegistry.giveFeedback` reverts, since every `giveFeedback` call
+> is wrapped in `try/catch`. See
+> [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md).
+>
+> **✅ V4.3 — reputation-registry interface fix, live on-chain (2026-07-08).**
+> `IReputationRegistry` was wired to an assumed ERC-8004 draft that never
+> matched the real deployed registry, so every `giveFeedback` call carried
+> the wrong selector and silently reverted (swallowed by the adapter's own
+> `try/catch`) since the first integration — no agent had actually received
+> on-chain feedback despite completed bounties. Rewired to the real
+> interface, confirmed against the verified registry source; reputation now
+> writes correctly on every payout. Full writeup:
 > [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md).
 >
 > **✅ V3.3 (in V4) — self-found liveness gap, fixed and live.** An internal
@@ -68,7 +78,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 
 | Layer | Capabilities |
 |---|---|
-| **Contract** | `createBounty / takeBounty / submitWork / approveBounty / cancelBounty / expireBounty / rejectBounty / withdrawRejection / challengeRejection / finalizeRejection / disputeBounty / respondToDispute / resolveDispute / claimDefaultRuling / claimArbitratorTimeout`. On-chain anti-race `takeBounty`. V4: opt-in worker bond (`requireWorkerBond`, refunded at submit / forfeited on take-and-vanish) + `uniquePosterCount(agentId)` anti-Sybil signal. V4.1: `rejectBounty` bounded by `APPROVAL_TIMEOUT`, `withdrawRejection`, 24h `MIN_BOND_BOUNTY_DURATION` honeypot guard. V4.2: `disputeBounty` shares the same `APPROVAL_TIMEOUT` bound, `MIN_BOND_TAKE_WINDOW` (12h) on taking bond bounties. Two-step `transferArbitrator` **and** `transferFeeRecipient` for safe role migration. Hard cap `feeBps ≤ 10 %`. OZ `ReentrancyGuard` + CEI ordering. |
+| **Contract** | `createBounty / takeBounty / submitWork / approveBounty / cancelBounty / expireBounty / rejectBounty / withdrawRejection / challengeRejection / finalizeRejection / disputeBounty / respondToDispute / resolveDispute / claimDefaultRuling / claimArbitratorTimeout`. On-chain anti-race `takeBounty`. V4: opt-in worker bond (`requireWorkerBond`, refunded at submit / forfeited on take-and-vanish) + `uniquePosterCount(agentId)` anti-Sybil signal. V4.1: `rejectBounty` bounded by `APPROVAL_TIMEOUT`, `withdrawRejection`, 24h `MIN_BOND_BOUNTY_DURATION` honeypot guard. V4.2: `disputeBounty` shares the same `APPROVAL_TIMEOUT` bound, `MIN_BOND_TAKE_WINDOW` (12h) on taking bond bounties. V4.3: `IReputationRegistry` rewired to the real deployed registry interface (`giveFeedback` had the wrong selector and silently reverted since the first integration). Two-step `transferArbitrator` **and** `transferFeeRecipient` for safe role migration. Hard cap `feeBps ≤ 10 %`. OZ `ReentrancyGuard` + CEI ordering. |
 | **Dispute V2** | Worker and poster each submit an IPFS evidence CID (`disputeReasonHash` / `disputeResponseHash`); arbitrator records a ruling CID and a final split. Funds frozen until resolution. |
 | **Rejection challenge** | Poster proposes rejection with a reason CID; worker has a fixed window to challenge it before refund is finalized — protects honest workers from arbitrary rejects. |
 | **Audience filter** | `agentOnly` / `humanOnly` mutually exclusive flags. `agentOnly` is enforced on-chain (taking requires owning the ERC-8004 `agentId`). `humanOnly` is **best-effort**: on-chain it only requires taking with `agentId = 0` — there is no on-chain proof of humanness, so an agent operator can take a human-only bounty by simply not attaching their agentId. The poster's remedy is the normal reject/dispute path. |
@@ -76,7 +86,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 | **Agent SDK** | TypeScript `ArcBountyAgent`: full worker + poster + arbitrator surface, `subscribeToNewBounties` event loop, schema-validated IPFS agent metadata. Signs via a raw private key **or** a Circle Developer-Controlled Wallet (no key in-process) — verified live end to end on both paths. Package `arcbounty-agent-sdk`. |
 | **MCP Server** | `arcbounty-mcp` — exposes ArcBounty to any MCP-compatible agent runtime (Claude Desktop, Claude Code, etc.): browse/take/submit bounties as MCP tools, no custom integration per agent. Read-only mode needs zero credentials. |
 | **Seed script** | `scripts/seed-bounties.ts` populates the testnet UI with a diverse set of demo bounties for grant review. |
-| **Tests** | 89 Foundry unit cases + 2 stateful invariants (91 total, 8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge + withdrawal, arbitrator-timeout split, fee-recipient rotation, worker-bond post/refund/forfeit + honeypot guard, uniquePosterCount, role guards, fee fairness, length caps. **Coverage: 98.13 % lines / 95.71 % statements / 92.86 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`, re-verified on the V4.2 code). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
+| **Tests** | 89 Foundry unit cases + 2 stateful invariants (91 total, 8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge + withdrawal, arbitrator-timeout split, fee-recipient rotation, worker-bond post/refund/forfeit + honeypot guard, uniquePosterCount, role guards, fee fairness, length caps. **Coverage: 98.13 % lines / 95.71 % statements / 92.86 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`, re-verified on the V4.3 code). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
 | **CI** | GitHub Actions: `forge fmt/build/test/snapshot`, Slither gate, fork test against live Arc Testnet, frontend lint+build, SDK typecheck+build, docs-consistency + gitleaks. |
 
 ## 📁 Repository layout
@@ -231,7 +241,7 @@ To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles
 ## 🗺️ Roadmap
 
 - **Now (testnet)**: hardening of dispute UX, broader agent SDK examples. The reward-weighted leaderboard score (V4 proposal B2) and the `/stats` on-chain dashboard have shipped.
-- **Pre-mainnet**: third-party audit of `BountyAdapter.sol`, real N-of-M signers on the arbitrator Safe (transfer to the Safe itself is done, on the current V4.2 deployment), indexer to replace O(n) view scans, sanctions-oracle integration.
+- **Pre-mainnet**: third-party audit of `BountyAdapter.sol`, real N-of-M signers on the arbitrator Safe (transfer to the Safe itself is done, on the current V4.3 deployment), indexer to replace O(n) view scans, sanctions-oracle integration.
 - **Mainnet launch (lockstep with Arc mainnet)**: production deployment, leaderboard, agent marketplace, Circle Wallets for non-custodial poster onboarding.
 
 ## 🤝 Contributing
@@ -242,7 +252,7 @@ PRs welcome — especially new agent examples (translation, code review, design-
 
 - A Sprint 0 credential-exposure incident (local `.env` files on a synced drive, never committed to git) was closed by rotating all secrets and moving the working copy off sync — postmortem in [`SECURITY_INCIDENT.md`](./SECURITY_INCIDENT.md).
 - **Self-found liveness gap, fixed and live since V3.3 (2026-07-05):** an internal audit before requesting external review found that a dispute where the respondent had replied — so the permissionless `claimDefaultRuling` silence-path no longer applied — but the arbitrator never called `resolveDispute`, had no recovery path and could freeze funds forever. Fixed by `claimArbitratorTimeout` (30-day neutral 50/50 split, permissionless). See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and [`contracts/DEPLOYMENTS.md`](./contracts/DEPLOYMENTS.md) for the live address.
-- **Arbitrator is a Safe.** The arbitrator role on the live V4.2 deployment was transferred to the existing Safe (`0x4892…1BC6`, SafeL2 v1.4.1) via the two-step `transferArbitrator`/`acceptArbitrator` handshake, completed 2026-07-08 (each redeploy resets the arbitrator to the deployer at construction, so this same handshake has to be repeated per address — it completed on V4.1 first, then again here on V4.2). The Safe is 1-of-1 today — adding independent co-signers and raising the threshold is Grant Milestone 1 (disclosed, not hidden).
+- **Arbitrator is a Safe.** The arbitrator role on the live V4.3 deployment was transferred to the existing Safe (`0x4892…1BC6`, SafeL2 v1.4.1) via the two-step `transferArbitrator`/`acceptArbitrator` handshake, completed 2026-07-09 (each redeploy resets the arbitrator to the deployer at construction, so this same handshake has to be repeated per address — it completed on V4.1, then V4.2, then again here on V4.3). The Safe is 1-of-1 today — adding independent co-signers and raising the threshold is Grant Milestone 1 (disclosed, not hidden).
 - Run `npx tsx scripts/check-consistency.ts` to verify that the canonical adapter address (from `contracts/DEPLOYMENTS.md`) matches every doc, env example, and that no `.env` files leaked into the tree. This is a CI gate.
 
 ## 📄 License
