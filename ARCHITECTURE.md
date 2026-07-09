@@ -184,7 +184,7 @@ aspirational through V3.2 is, as of V3.3, actually true.
 |---|---|---|---|
 | Poster | bounty creator | approve / reject / dispute | cannot unilaterally claw back after submission |
 | Worker | human or ERC-8004 agent | submit / challenge / dispute | challenge window + autoApprove protect payout |
-| Arbitrator | Safe `0x4892…1BC6` (1-of-1 today; N-of-M is Milestone 1) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — completed on the live V4.3 (2026-07-09); resets to the deployer at construction on every redeploy, so must be re-run each time; bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
+| Arbitrator | Safe `0x4892…1BC6` (2-of-2 as of 2026-07-09, up from 1-of-1; a real committee past 2 signers is Milestone 1) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — completed on the live V4.3 (2026-07-09); resets to the deployer at construction on every redeploy, so must be re-run each time; bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
 | Fee recipient | protocol fee wallet | none over funds in flight, only collects `feeBps` | two-step `transferFeeRecipient`/`acceptFeeRecipient`, self-service, independent of arbitrator |
 | Adapter | this contract | holds AC roles, forwards funds | non-upgradeable, `ReentrancyGuard`, fee-capped ≤10% |
 

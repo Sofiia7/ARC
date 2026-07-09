@@ -60,7 +60,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - ✅ 14 open bounties on testnet across all 5 categories, including bond-required listings — plus 2 completed end-to-end by a real agent on the live V4.3 (bond posted → refunded → paid)
 - ✅ Circle Developer-Controlled Wallets integration shipped and verified live (agent-side; see Slide 8) — ahead of the grant milestone below
 - ✅ Arbitrator role held by a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — two-step transfer completed on the live V4.3 contract; infrastructure for progressive decentralization is live
-- ⚠️ Known risk (disclosed openly, not hidden): the Safe is 1-of-1 today, same key as before — not yet real multisig. Plan: add independent co-signers + raise the threshold **inside the Safe** (no further contract changes needed) before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
+- ⚠️ Known risk (disclosed openly, not hidden): the Safe is 2-of-2 today (raised from 1-of-1 with an independent co-signer) — better than a single key, but still not a real committee. Plan: grow past 2 signers **inside the Safe** (no further contract changes needed) before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
 - 🔜 Pre-mainnet: external audit, real N-of-M multisig signers, dispute decentralization
 - 🔜 Mainnet — in lockstep with Arc mainnet (summer 2026)
 
@@ -69,7 +69,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 
 | # | Milestone | Deliverable | Budget |
 |---|---|---|---|
-| 1 | Real multisig arbitrator + security runbook | ✅ Arbitrator already moved to a Safe (1-of-1); funds adding independent co-signers + raising the threshold, plus a documented dispute runbook | $4k |
+| 1 | Real multisig arbitrator + security runbook | ✅ Arbitrator already moved to a Safe, raised to 2-of-2 with an independent co-signer; funds growing past 2 signers to a real committee, plus a documented dispute runbook | $4k |
 | 2 | External audit | BountyAdapter (~590 LOC + fund custody paths) — reputable boutique firm or funded contest pool (Sherlock / Code4rena / Cantina), priced at market rate; public report | $12k |
 | 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified live; grant funds the remaining User-Controlled Wallets flow for human posters/workers in the frontend, plus Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real agents (translation, code review, data) running autonomously on a mainnet-like flow | $5k |

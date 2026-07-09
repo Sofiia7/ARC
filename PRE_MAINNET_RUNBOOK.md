@@ -22,26 +22,30 @@ possible**, split by who has to act.
 >   proof-of-life re-run on V4.3: jobIds `154217` (bond cycle) + `154216`,
 >   agentId `847205` (same identity as every prior run;
 >   `scripts/agent-proof-of-life.ts`).
-> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.4.2` (adds a
->   read-only `getPendingActions()` watchdog-status method, and makes
->   `protect()` non-silent by default) published to npm; `mcp-server` gained
->   a matching `get_pending_actions` MCP tool.
+> - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.4.3` (adds a
+>   read-only `getPendingActions()` watchdog-status method, makes
+>   `protect()` non-silent by default, and fixes `register()` silently
+>   ignoring a freshly pinned `metadataURI`) published to npm; `mcp-server`
+>   gained a matching `get_pending_actions` MCP tool and now passes the
+>   pinned CID through to `register()` explicitly.
 > - ✅ **Item 3 — Vercel prod**: bundle serves the canonical adapter address
 >   from `contracts/DEPLOYMENTS.md`; re-verify after every redeploy.
-> - ✅ **Item 5 (first half) — Safe.** The arbitrator role reset to the
+> - ✅ **Item 5 — Safe, now 2-of-2.** The arbitrator role reset to the
 >   deployer at construction (every redeploy does this), so the two-step
 >   handshake had to run again on V4.3 (2026-07-09): `transferArbitrator`
 >   from the deployer, then `acceptArbitrator()` executed from the Safe
 >   itself (`execTransaction` via app.safe.global). Confirmed on-chain:
->   `arbitrator()` returns the Safe, `pendingArbitrator()` is zero. **Still
->   open: adding independent co-signers + raising the threshold.**
+>   `arbitrator()` returns the Safe, `pendingArbitrator()` is zero. The Safe
+>   was then raised from 1-of-1 to **2-of-2** the same day with an
+>   independent co-signer (`addOwnerWithThreshold`, `scripts/safe-add-signer.ts`).
+>   **Still open: growing past 2 signers to a real committee.**
 > - ✅ **Item 7 — V4 parameters**: decided (15% / $0.50 floor / opt-in /
 >   forfeit-to-poster) and shipped on-chain, hardened in V4.1 with the 24h
 >   bond-deadline floor and in V4.2 with the 12h take-window floor. Proposal
 >   B2 (leaderboard score + `/stats`) shipped 2026-07-07. See
 >   `V4_DESIGN_ANTI_SYBIL.md`.
 >
-> Still open: item 5's co-signers (see above), item 6 (external audit), item 8
+> Still open: item 5's growth past 2-of-2 (see above), item 6 (external audit), item 8
 > (Circle User-Controlled Wallets + Gas Station), item 9 (the actual mainnet
 > deploy), item 10 (Next.js 14→16, deliberately deferred — see below). Item 4
 > (WalletConnect rotation) closed 2026-07-07.
@@ -76,9 +80,9 @@ redeploy" section:
   and re-seed demo bounties (`scripts/seed-bounties.ts`, use
   `SEED_DEADLINE_DAYS=60`).
 
-### 2. Publish the SDK to npm — ✅ done (`0.4.2` live)
+### 2. Publish the SDK to npm — ✅ done (`0.4.3` live)
 
-`mcp-server/package.json` depends on the published semver range (`^0.4.2`)
+`mcp-server/package.json` depends on the published semver range (`^0.4.3`)
 instead of `file:../agent-sdk`, so the MCP server installs standalone.
 
 ### 3. Verify Vercel production — ✅ done (2026-07-05)
@@ -94,7 +98,7 @@ and deployed to Vercel production + local env. Dashboard-side follow-ups
 (quick, in the same dashboard): delete the old project and set the new
 project's allowed domains to `arcbounty.app`.
 
-### 5. Real N-of-M Safe multisig (Grant Milestone 1) — transfer ✅ done on V4.3, signers still open
+### 5. Real N-of-M Safe multisig (Grant Milestone 1) — transfer ✅ done on V4.3, raised to 2-of-2, real committee still open
 
 `transferArbitrator(0x4892…1BC6)` was called on the live V4.3 contract
 (block `50893874`, tx
@@ -106,13 +110,20 @@ confirmed on-chain: `arbitrator()` returns the Safe,
 `pendingArbitrator()` is zero. Every prior deployment (V4, V4.1, V4.2) needed
 this same two-step handshake repeated, since the role resets to the deployer
 at construction and does not carry over across redeploys — expect to do it
-again on the next redeploy too. The Safe is still 1-of-1 with the same key
-as before — infrastructure for decentralization, not decentralization
-itself. Add independent co-signers and raise the threshold **inside the
-Safe UI** — no contract change needed, `BountyAdapter` already only talks to
+again on the next redeploy too.
+
+The Safe itself was then raised from 1-of-1 to **2-of-2** the same day —
+`addOwnerWithThreshold(0xed733FC13B1413966cf056866B6d80eF7b490eEc, 2)` via
+`execTransaction` (`scripts/safe-add-signer.ts`, block `50974445`, tx
+`0xe44b243c70428204dd6f7602a2c121e4595626047e4d19039ea0077cd9cf0347`),
+confirmed on-chain: `getOwners()` returns both addresses, `getThreshold()`
+is 2. No single compromised key can unilaterally rule a dispute anymore —
+real progress, not just infrastructure for it, but two signers is still a
+small, informal committee. Grow past 2 signers **inside the Safe UI** — no
+contract change needed, `BountyAdapter` already only talks to
 `arbitrator()`, whatever address that resolves to. Write the accompanying
 dispute runbook (who signs, under what evidence, SLA) alongside this — the
-doc matters as much as the threshold number.
+doc matters as much as the signer count.
 
 ### 6. Procure the external audit (Grant Milestone 2)
 
@@ -228,7 +239,7 @@ last-minute change days before review. Documented as a disclosed risk in
 (As updated 2026-07-05, second pass — the deploy/publish/Vercel/V4 items from
 the original list have since been completed; see the status banner at the top.)
 
-- **No Safe co-signers added.** Requires real people with real keys — item 5.
+- ~~No Safe co-signers added.~~ **Done 2026-07-09** — raised to 2-of-2, see item 5 above. Growing past 2 signers to a real committee is still open.
 - **No audit purchased.** Requires picking and paying a vendor — item 6.
 - **Circle User-Controlled Wallets + Gas Station unbuilt.** Grant Milestone 3,
   a real feature-development task — item 8.

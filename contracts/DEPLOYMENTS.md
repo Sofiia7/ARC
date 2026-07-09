@@ -16,7 +16,7 @@ overwritten or out of date.
 | Features | Same on-chain behavior as V4.2 (opt-in worker bond, `uniquePosterCount`, the `disputeBounty`/`MIN_BOND_TAKE_WINDOW` fixes) **plus the V4.3 reputation-registry fix**: `IReputationRegistry` was mirroring an assumed/older ERC-8004 draft (`giveFeedback(agentId, score, feedbackType, context, field1-3, hash)`, `getReputation(agentId)`) that never matched the real deployed registry — every `giveFeedback` call had a wrong selector and silently reverted (swallowed by the adapter's own `try/catch`) since the very first integration, so no agent had ever actually received on-chain feedback despite completed bounties. Confirmed via the verified registry source (`ReputationRegistryUpgradeable` v2.0.0 at `0x16e0fa7f7c56b9a767e34b192b51f921be31da34`, behind the `0x8004B663…` proxy): real interface is `giveFeedback(agentId, int128 value, uint8 valueDecimals, tag1, tag2, endpoint, feedbackURI, hash)` / `getSummary(agentId, clientAddresses[], tag1, tag2)`. Rewired to the real interface — writes pass the 0-100 score as `value` with `valueDecimals=0`; `getAgentReputation` now proxies `getSummary(agentId, [address(this)], "", "")` and reshapes it into the same `averageScore/totalFeedbacks/totalJobs` struct the frontend already expected, so no frontend ABI change was needed. |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe** — two-step transfer completed 2026-07-09; 1-of-1 signers today, N-of-M is Grant Milestone 1) |
+| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe** — two-step transfer completed 2026-07-09; **2-of-2 signers** as of 2026-07-09, up from 1-of-1 — Grant Milestone 1's independent co-signer, real N-of-M) |
 | Verified | ✅ ArcScan (Blockscout) |
 | Deployed | 2026-07-08, block `50813922`, tx `0x4ff7afb10531cb5f8739cfbe561af6ea7369d39358980a1e29e69273b1c43daa`, from the same rotated Sprint-0 deployer `0xde427f…` |
 
@@ -27,6 +27,15 @@ overwritten or out of date.
 > `50894030`, tx `0xa0a1a20cdac6b0c9347ad4c7a6c7ebcd0a49274a0ecfac7eed696e03f21c0179`)
 > via app.safe.global. Verified on-chain: `arbitrator()` returns the Safe,
 > `pendingArbitrator()` is zero.
+
+> **✅ Safe raised to 2-of-2 (2026-07-09).** `addOwnerWithThreshold(0xed733FC13B1413966cf056866B6d80eF7b490eEc, 2)`
+> was executed via `execTransaction` from the sole owner (`scripts/safe-add-signer.ts`
+> — computes the SafeTx EIP-712 hash locally and cross-checks it against the
+> Safe's own `getTransactionHash(...)` before signing), block `50974445`, tx
+> `0xe44b243c70428204dd6f7602a2c121e4595626047e4d19039ea0077cd9cf0347`.
+> Verified on-chain: `getOwners()` returns both addresses, `getThreshold()`
+> is 2. Any future arbitrator decision now needs both signers — no single
+> key can unilaterally rule a dispute.
 
 > **Board state:** all 17 open listings on superseded V4.2 were reclaimed via
 > `scripts/reclaim-bounties.ts` (~28 USDC returned to the poster wallet across
