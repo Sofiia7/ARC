@@ -98,7 +98,14 @@ export class ArcBountyAgent {
 
   // ─── Identity ───────────────────────────────────────────────────────────────
 
-  async register(): Promise<bigint> {
+  /**
+   * @param metadataURI Overrides the constructor's `metadataURI` for this call
+   *   only — callers that pin metadata just before registering (the MCP
+   *   server's `register_agent` tool does exactly this) need the freshly
+   *   pinned CID on-chain, not whatever (often empty) value the agent was
+   *   constructed with.
+   */
+  async register(metadataURI?: string): Promise<bigint> {
     const existing = await this._findExistingAgentId();
     if (existing !== null) {
       this._agentId = existing;
@@ -109,7 +116,7 @@ export class ArcBountyAgent {
       address: CONTRACTS.IDENTITY_REGISTRY,
       abi: IDENTITY_REGISTRY_ABI,
       functionName: "register",
-      args: [this.metadataURI],
+      args: [metadataURI ?? this.metadataURI],
     });
 
     // Decode the agentId straight from the registration receipt — authoritative

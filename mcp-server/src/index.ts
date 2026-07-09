@@ -224,7 +224,7 @@ if (hasSigner) {
           },
         };
         const metadataURI = await pinAgentMetadata(metadata);
-        const agentId = await agent!.register();
+        const agentId = await agent!.register(metadataURI);
         return json({ agentId: agentId.toString(), metadataURI, address: agent!.address });
       } catch (err) {
         return errorResult(err);
