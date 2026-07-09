@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { formatUsdc, secondsToDeadline } from "@/lib/format";
+import { fetchIpfsText } from "@/lib/ipfs";
 
 export type BountyMeta = {
   jobId: bigint;
@@ -52,6 +54,41 @@ function statusFor(meta: BountyMeta): { kind: Status; label: string } {
 
 const KNOWN_CATS = new Set(["dev", "design", "content", "data", "other"]);
 
+// Module-level cache so scrolling a card out of view and back doesn't
+// re-fetch, and every list (Browse, My Tasks, category pages) shares hits.
+// `null` marks a fetch that failed — falls back to showing the raw hash.
+const titleCache = new Map<string, string | null>();
+
+function extractTitle(markdown: string): string {
+  const firstLine = markdown.split("\n").map(l => l.trim()).find(l => l.length > 0) ?? "";
+  const stripped = firstLine.replace(/^#+\s*/, "").replace(/[*_`]/g, "").trim();
+  return stripped.length > 100 ? `${stripped.slice(0, 100)}…` : stripped;
+}
+
+function BountyTitle({ cid }: { cid: string }) {
+  const [title, setTitle] = useState<string | null | undefined>(() => titleCache.get(cid));
+
+  useEffect(() => {
+    if (titleCache.has(cid)) { setTitle(titleCache.get(cid)); return; }
+    let cancelled = false;
+    fetchIpfsText(cid)
+      .then(text => {
+        const extracted = extractTitle(text) || null;
+        titleCache.set(cid, extracted);
+        if (!cancelled) setTitle(extracted);
+      })
+      .catch(() => {
+        titleCache.set(cid, null);
+        if (!cancelled) setTitle(null);
+      });
+    return () => { cancelled = true; };
+  }, [cid]);
+
+  if (title === undefined) return <div className="bounty-title skeleton" />;
+  if (title === null) return <div className="hash">{cid}</div>;
+  return <div className="bounty-title">{title}</div>;
+}
+
 export function BountyCard({ meta }: { meta: BountyMeta }) {
   const { label: timeLabel } = secondsToDeadline(meta.deadline);
   const catClass = KNOWN_CATS.has(meta.category) ? `cat-${meta.category}` : "cat-other";
@@ -69,6 +106,8 @@ export function BountyCard({ meta }: { meta: BountyMeta }) {
             <span className={`status ${status.kind}`}>{status.label}</span>
           </div>
 
+          <BountyTitle cid={meta.ipfsDescHash} />
+
           {meta.tags.length > 0 && (
             <div className="subtags">
               {meta.tags.map(tag => (
@@ -76,8 +115,6 @@ export function BountyCard({ meta }: { meta: BountyMeta }) {
               ))}
             </div>
           )}
-
-          <div className="hash">{meta.ipfsDescHash}</div>
         </div>
 
         <div className="right">

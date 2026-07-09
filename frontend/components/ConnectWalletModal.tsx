@@ -34,7 +34,15 @@ function sortOrder(connector: Connector): number {
 export function ConnectWalletModal({ onClose }: Props) {
   const { connect, connectors } = useConnect();
 
-  const options = [...connectors].sort((a, b) => sortOrder(a) - sortOrder(b));
+  // The plain "injected" connector (id "injected", name "Injected" → shown
+  // as "Browser wallet") is a fallback for wallets that don't support
+  // EIP-6963. When a real wallet (e.g. Rabby) has announced itself via
+  // EIP-6963, it's a separate connector targeting the same window.ethereum
+  // slot — showing both is just the same wallet listed twice.
+  const hasNamedInjected = connectors.some(c => c.type === "injected" && c.id !== "injected");
+  const options = connectors
+    .filter(c => !(hasNamedInjected && c.type === "injected" && c.id === "injected"))
+    .sort((a, b) => sortOrder(a) - sortOrder(b));
 
   function handlePick(connector: Connector) {
     connect(

@@ -18,29 +18,18 @@ export function ipfsUrl(uriOrCid: string, gatewayIndex = 0): string {
   return `${gateway}${cid}`;
 }
 
-const GATEWAY_TIMEOUT_MS = 8000;
-
-// Race all gateways instead of trying them one at a time — sequential
-// fallback meant a single slow/unresponsive gateway (no timeout) could stall
-// the whole chain for 20s+ before the next one was even attempted.
+// Goes through our own /api/ipfs/read/[cid] instead of racing public gateways
+// straight from the browser. That route does the same 4-gateway race, but
+// server-side, backed by a ~forever cache (CIDs are content-addressed, so the
+// bytes for a given CID never change) — the gateway race only actually runs
+// for the first visitor ever to load a given CID; everyone after gets it
+// from cache. Racing from the browser meant EVERY visitor, EVERY time, paid
+// several seconds of public-gateway latency for content that never changes.
 export async function fetchIpfsText(uriOrCid: string): Promise<string> {
   const cid = cidFromUri(uriOrCid);
-  const attempts = GATEWAYS.map(async gateway => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), GATEWAY_TIMEOUT_MS);
-    try {
-      const res = await fetch(`${gateway}${cid}`, { next: { revalidate: 3600 }, signal: controller.signal });
-      if (!res.ok) throw new Error(`gateway ${gateway} responded ${res.status}`);
-      return await res.text();
-    } finally {
-      clearTimeout(timer);
-    }
-  });
-  try {
-    return await Promise.any(attempts);
-  } catch {
-    throw new Error(`Failed to fetch IPFS content: ${uriOrCid}`);
-  }
+  const res = await fetch(`/api/ipfs/read/${cid}`);
+  if (!res.ok) throw new Error(`Failed to fetch IPFS content: ${uriOrCid}`);
+  return await res.text();
 }
 
 export async function fetchIpfsJson<T = unknown>(uriOrCid: string): Promise<T> {

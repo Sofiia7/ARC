@@ -7,6 +7,7 @@ import { useAccount, useDisconnect } from "wagmi";
 import { shortAddress } from "@/lib/format";
 import { useMyAgentId } from "@/hooks/useMyAgentId";
 import { ConnectWalletModal } from "@/components/ConnectWalletModal";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV = [
   { href: "/",            label: "Browse" },
@@ -57,6 +58,7 @@ export function Navbar() {
 
           {isConnected && address ? (
             <>
+              <NotificationBell />
               {agentId !== null && agentId !== undefined ? (
                 <Link
                   href={`/agent/${agentId.toString()}`}

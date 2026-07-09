@@ -93,6 +93,10 @@ function MyBountyLoader({ jobId }: { jobId: bigint }) {
     abi: BOUNTY_ADAPTER_ABI,
     functionName: "getBountyMeta",
     args: [jobId],
+    // This list has no per-row event subscription (that's 13 watchers ×
+    // every row, expensive) — poll instead so a submission or dispute someone
+    // else triggers shows up without a manual page reload.
+    query: { refetchInterval: 8_000 },
   });
 
   if (!meta) return <div className="row" style={{ height: 92, opacity: 0.5 }} />;

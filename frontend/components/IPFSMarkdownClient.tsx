@@ -68,16 +68,32 @@ const COMPONENTS: Components = {
 export function IPFSMarkdownClient({ cid }: Props) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError]     = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setError(false);
     fetchIpfsText(cid)
       .then(text => { if (!cancelled) setContent(text); })
       .catch(()   => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
-  }, [cid]);
+  }, [cid, attempt]);
 
-  if (error)   return <p className="text-gray-400 text-sm italic">Failed to load from IPFS. CID: {cid}</p>;
+  if (error) {
+    return (
+      <p className="text-gray-400 text-sm italic">
+        Failed to load from IPFS (public gateways are occasionally slow/unreachable). CID: {cid}
+        {" "}
+        <button
+          type="button"
+          onClick={() => { setContent(null); setAttempt(a => a + 1); }}
+          className="text-blue-300 hover:text-blue-200 underline not-italic"
+        >
+          Retry
+        </button>
+      </p>
+    );
+  }
   if (content === null)
     return <div className="h-16 bg-white/5 border border-white/10 rounded animate-pulse" />;
 

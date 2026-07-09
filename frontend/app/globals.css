@@ -444,6 +444,29 @@ p.lede {
 .status.expired    { color: var(--slate); }
 .status.expired::before    { background: var(--slate); box-shadow: 0 0 8px rgba(147,162,184,0.4); }
 
+.activity-item:hover { background: rgba(255,255,255,0.06); }
+
+.bounty-title {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.bounty-title.skeleton {
+  height: 18px;
+  width: 60%;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  animation: title-pulse 1.4s ease-in-out infinite;
+}
+@keyframes title-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
 .subtags { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
 .subtag {
   font-family: var(--font-jetbrains-mono), monospace;

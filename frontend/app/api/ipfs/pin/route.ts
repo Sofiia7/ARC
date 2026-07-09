@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
 import { verifyWalletAuth } from "@/lib/wallet-auth";
+import { fetchIpfsServerCached } from "@/lib/ipfsServer";
 
 export const runtime = "nodejs";
 
@@ -93,5 +94,14 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await res.json() as { IpfsHash: string };
+
+  // Warm the read cache now, while the poster is already waiting on this
+  // request, so the FIRST person to view this bounty never pays gateway
+  // latency either — not just the second one. Best-effort: Pinata's own
+  // gateway (first in the race) usually serves what it just stored
+  // immediately, but if every gateway is slow this just no-ops and the
+  // normal /api/ipfs/read race handles it on first view instead.
+  await fetchIpfsServerCached(data.IpfsHash).catch(() => {});
+
   return NextResponse.json({ cid: data.IpfsHash });
 }
