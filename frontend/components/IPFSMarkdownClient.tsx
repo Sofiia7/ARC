@@ -9,8 +9,6 @@ import { fetchIpfsText } from "@/lib/ipfs";
 
 type Props = { cid: string };
 
-const GATEWAY = "https://ipfs.io/ipfs/";
-
 /**
  * rehype-sanitize schema:
  *  - href / src only from http(s), ipfs, mailto.
@@ -31,9 +29,15 @@ const SCHEMA: Schema = {
   },
 };
 
+// Through our own cached, multi-gateway-raced endpoint instead of pointing
+// straight at one public gateway from the browser — see lib/ipfsServer.ts.
+// A single hardcoded gateway (previously ipfs.io) means an image the poster
+// can see (their own upload, likely already warm from posting) can still be
+// a broken icon for the taker if that one gateway hasn't yet picked the
+// content up from Pinata's DHT announcement.
 function rewriteUrl(raw: string | undefined): string {
   if (!raw) return "";
-  if (raw.startsWith("ipfs://")) return `${GATEWAY}${raw.slice(7)}`;
+  if (raw.startsWith("ipfs://")) return `/api/ipfs/read/${raw.slice(7)}`;
   return raw;
 }
 

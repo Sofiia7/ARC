@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
 import { verifyWalletAuth } from "@/lib/wallet-auth";
+import { fetchIpfsServerCached } from "@/lib/ipfsServer";
 
 export const runtime = "nodejs";
 
@@ -127,6 +128,11 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await res.json() as { IpfsHash: string; PinSize?: number };
+
+  // Same reasoning as pin/route.ts: warm the cache now so the takes/viewers
+  // who load this attachment next don't race gateways for it themselves.
+  await fetchIpfsServerCached(data.IpfsHash).catch(() => {});
+
   return NextResponse.json({
     cid:      data.IpfsHash,
     name,

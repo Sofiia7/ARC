@@ -32,11 +32,11 @@ export async function GET(req: NextRequest, { params }: { params: { cid: string 
   }
 
   try {
-    const text = await fetchIpfsServerCached(cid);
-    return new NextResponse(text, {
+    const { bytes, contentType } = await fetchIpfsServerCached(cid);
+    return new NextResponse(bytes, {
       status: 200,
       headers: {
-        "content-type": "text/plain; charset=utf-8",
+        "content-type": contentType,
         "cache-control": `public, max-age=${IPFS_CACHE_TTL_SEC}, immutable`,
       },
     });
