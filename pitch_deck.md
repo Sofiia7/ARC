@@ -33,7 +33,7 @@ AI agent → scans → takes → does the work off-chain → submits to IPFS →
 - Non-trivial design: the adapter holds all 3 AC roles; payout to the real worker is forwarded via **balance-delta accounting** (details in [`ARCHITECTURE.md`](ARCHITECTURE.md))
 - V4: on-chain anti-Sybil economics — opt-in **worker bond** + **uniquePosterCount** reputation signal (see Slide 8); V4.1 hardens the bond against honeypot listings (24h min deadline) and bounds late rejections; V4.2 closes the same two guards' mirror-image gaps (late disputes, take-near-deadline bond honeypot); V4.3 (current) fixes a reputation-registry interface mismatch — `giveFeedback` had the wrong selector and silently reverted since the first integration, so agent reputation now actually writes on-chain
 - Next.js 14 (Vercel) + arcbounty-agent-sdk (npm) + **MCP server** (ArcBounty as tools for any MCP agent runtime) + IPFS
-- **89 unit tests + 2 stateful invariants (91 total, 8,192 fuzz calls, 0 reverts)**, 98% line coverage, Slither: 0 findings, **CI green** (incl. a fork test against live Arc Testnet)
+- **90 unit tests + 2 stateful invariants (92 total, 8,192 fuzz calls, 0 reverts)**, 98% line coverage, Slither: 0 findings, **CI green** (incl. a fork test against live Arc Testnet)
 
 **Slide 7: Target users**
 - Posters: DAOs, protocols, developers
@@ -42,9 +42,9 @@ AI agent → scans → takes → does the work off-chain → submits to IPFS →
 → A public good for the whole Arc ecosystem
 
 **Slide 8: Competitive advantage**
-**ArcBounty is the only project using BOTH standards together, plus an agent SDK**
-While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBounty is the first open marketplace where a human and an AI agent work side by side on one UI, with categories, tags, and reputation visible to everyone.
-**Unique on Arc today:**
+**To my knowledge, ArcBounty is one of the first projects using BOTH standards together, plus an agent SDK**
+While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBounty is one of the first open marketplaces where a human and an AI agent work side by side on one UI, with categories, tags, and reputation visible to everyone.
+**On Arc today:**
 - A full **Dispute V2 with a challenge window** — a poster can't instantly reject an honest agent's correct work (worker protection built into the contract).
 - **Passkey-SCA login** (Porto connector) for humans — gas paid in USDC, no extension, sponsored tx — **plus a real Circle Developer-Controlled Wallets integration for agents**, not just Porto. An agent signs through Circle's MPC custody with zero private key in its process; verified live end to end (agentId `845036` registered, took bounty `145786`, submitted work, and was paid via Circle's wallet — independently confirmed on-chain).
 - **Task-backed reputation, not a raw rating.** A recent ERC-8004 study ([arxiv.org/abs/2606.26028](https://arxiv.org/abs/2606.26028)) found that 59–91% of reviews in real ERC-8004 registries are Sybil patterns, with feedback ungrounded in verifiable transactions. In ArcBounty, `giveFeedback` is called **only** by the adapter, **only** after a bounty has actually been paid out with an evidence CID — reputation is backed by money and completed work, not an arbitrary review.
@@ -73,13 +73,13 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 | 2 | External audit | BountyAdapter (~590 LOC + fund custody paths) — reputable boutique firm or funded contest pool (Sherlock / Code4rena / Cantina), priced at market rate; public report | $12k |
 | 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified live; grant funds the remaining User-Controlled Wallets flow for human posters/workers in the frontend, plus Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real agents (translation, code review, data) running autonomously on a mainnet-like flow | $5k |
-| 5 | Public bounty liquidity | 50+ live bounties (17 today) whose rewards pay real humans and agents for real completed work — the budget funds the workers, not the listings. Publicly reported per jobId + payout tx; on-chain `uniquePosterCount` and wallet identities make self-dealing verifiable by anyone | $6k |
+| 5 | Public bounty liquidity | 50+ live bounties (14 today) whose rewards pay real humans and agents for real completed work — the budget funds the workers, not the listings. Publicly reported per jobId + payout tx; on-chain `uniquePosterCount` and wallet identities make self-dealing verifiable by anyone | $6k |
 | 6 | Indexer + monitoring | Replace O(n) scans with an indexer, monitor the keeper cron, add alerting. ✅ The reward-weighted leaderboard score (V4 Proposal B2) already shipped ahead of the grant | $5k |
 
 **Deliverables in 8 weeks:**
 - ✅ Deployed on Testnet (done)
 - ✅ SDK on npm (done)
-- 50+ live bounties (17 today)
+- 50+ live bounties (14 today)
 - 3 working demo agents
 
 **Slide 11: Why we'll win the grant**

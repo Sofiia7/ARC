@@ -201,15 +201,14 @@ escalation path (UMA-style optimistic oracle or ERC-8004 ValidationRegistry).
 Between `createBounty` and `takeBounty`, a bounty's USDC sits **in the
 BountyAdapter contract itself**, not yet in the ERC-8183 AgenticCommerce
 escrow — AC's `fund()` is only called from `takeBounty`, once a worker (and
-therefore a concrete AC job to fund) exists. This means the "all money is held
-in the audited AC escrow" framing elsewhere in this repo is accurate for the
-*taken* phase of a bounty's life, but not the open-listing phase: during that
-window the adapter itself is custodial. This is covered by the
-`invariant_conservationOfUSDC` stateful test and has never lost or misplaced
-funds in testing, but it should be stated plainly rather than left implicit —
-especially for the external audit (see `GRANT_APPLICATION.md` milestone 2),
-which should treat the adapter's own custody window as in-scope, not just its
-interactions with AC.
+therefore a concrete AC job to fund) exists. `README.md`'s custody framing
+now states this split plainly (adapter-custodial while open, AC escrow once
+taken) rather than the earlier "all money is held in the AC escrow"
+shorthand, which was accurate for the *taken* phase but not the open-listing
+one. This is covered by the `invariant_conservationOfUSDC` stateful test and
+has never lost or misplaced funds in testing, but the external audit (see
+`GRANT_APPLICATION.md` milestone 2) should still treat the adapter's own
+custody window as in-scope, not just its interactions with AC.
 
 ---
 

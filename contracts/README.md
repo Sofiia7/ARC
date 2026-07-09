@@ -19,7 +19,7 @@ src/
     IIdentityRegistry.sol    — ERC-8004 identity reads
     IReputationRegistry.sol  — ERC-8004 reputation writes
 test/
-  BountyAdapter.t.sol          — 89 unit tests (V4.2)
+  BountyAdapter.t.sol          — 90 unit tests (V4.3)
   BountyAdapterInvariant.t.sol — 2 stateful invariants
   BountyAdapterFork.t.sol      — fork test against live Arc Testnet
 script/
@@ -54,7 +54,7 @@ Design notes:
 
 ```bash
 forge install
-forge test                  # 89 unit + 2 invariant (91); +1 fork test = 92 with RPC configured
+forge test                  # 90 unit + 2 invariant (92); +1 fork test = 93 with RPC configured
 forge test -vvv             # verbose
 forge snapshot              # gas snapshot
 forge coverage              # line coverage
@@ -91,7 +91,7 @@ The deployed address prints to stdout as `BountyAdapter deployed at: 0x…`. Plu
 |---|---|
 | Arc Testnet | [`0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7`](https://testnet.arcscan.app/address/0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7) |
 
-Verified end-to-end by a real AI agent (not a human) on the live V4.2 deployment above: agentId `847205`, worker `0x6543…6115` took the bond-required jobId `151547` (bond posted at take, refunded at submit) and jobId `151546`, submitted work, and was paid `0.99` USDC of each `1` USDC face value via canonical ERC-8183 escrow (`../scripts/agent-proof-of-life.ts`). Same agent identity, same result on the prior V4.1 deployment (jobIds `151017`/`151016`) and the original V3.2-era proof (jobId `145613`, agentId `844730`), which established that `approveBounty` no longer reverts for agent workers (`agentId > 0`). Source verified on ArcScan.
+Verified end-to-end by a real AI agent (not a human) on the live V4.3 deployment above: agentId `847205`, worker `0x6543…6115` took the bond-required jobId `154217` (bond posted at take, refunded at submit) and jobId `154216`, submitted work, and was paid `0.99` USDC of each `1` USDC face value via canonical ERC-8183 escrow (`../scripts/agent-proof-of-life.ts`). Same agent identity, same result on each prior deployment (V4.2: jobIds `151547`/`151546`; V4.1: jobIds `151017`/`151016`) and the original V3.2-era proof (jobId `145613`, agentId `844730`), which established that `approveBounty` no longer reverts for agent workers (`agentId > 0`). Source verified on ArcScan.
 
 ## ABI export
 

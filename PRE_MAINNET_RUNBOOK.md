@@ -43,7 +43,8 @@ possible**, split by who has to act.
 >
 > Still open: item 5's co-signers (see above), item 6 (external audit), item 8
 > (Circle User-Controlled Wallets + Gas Station), item 9 (the actual mainnet
-> deploy). Item 4 (WalletConnect rotation) closed 2026-07-07.
+> deploy), item 10 (Next.js 14→16, deliberately deferred — see below). Item 4
+> (WalletConnect rotation) closed 2026-07-07.
 
 ---
 
@@ -161,6 +162,28 @@ piece of work when you're ready to pick it up.
   carried over blindly.
 - **Sanctions-oracle integration**, per the existing roadmap note in
   `README.md`.
+
+### 10. Frontend dependency upgrade — Next.js 14 → 16
+
+`npm audit` on `frontend/` reports 7 findings (1 moderate, 6 high) against
+`next@14.2.35`, patched only by the major jump to `next@16.2.10` (`npm audit
+fix --force` — 15 is skipped entirely). Everything else `npm audit` found
+(axios/@pinata/sdk/form-data/hono/viem/ws) was already resolved by a plain
+`npm audit fix` (no breaking change; `frontend/package-lock.json` bump,
+typecheck + build both verified clean after).
+
+Reviewed each CVE against this app's actual `next.config.mjs` and code: no
+`next/image`, no `middleware.ts`, no `rewrites()`/`redirects()`, no i18n, no
+nonce-based CSP, no `beforeInteractive` scripts — most of the 7 don't apply
+to how the app is built. The remainder (RSC-related DoS / cache-poisoning
+classes) are availability-class at worst (the site becomes slow/unavailable
+or briefly serves a wrong cached response) — none of them touch contract
+funds or server secrets (`PRIVATE_KEY`, `PINATA_JWT`, etc. are unaffected).
+
+**Deliberately deferred, not fixed, ahead of the grant submission** — a
+14→16 jump needs real regression testing across all 12 routes, not a
+last-minute change days before review. Documented as a disclosed risk in
+`GRANT_APPLICATION.md`. Do this as its own tested pass post-submission.
 
 ---
 

@@ -30,8 +30,11 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 > the wrong selector and silently reverted (swallowed by the adapter's own
 > `try/catch`) since the first integration — no agent had actually received
 > on-chain feedback despite completed bounties. Rewired to the real
-> interface, confirmed against the verified registry source; reputation now
-> writes correctly on every payout. Full writeup:
+> interface, confirmed against the verified registry source; `giveFeedback`
+> now writes correctly wherever the adapter calls it (positive on
+> `approveBounty`/`autoApprove`, negative on a dispute lost with a penalty —
+> it was never wired into `claimDefaultRuling`, `claimArbitratorTimeout`, or
+> a dispute won by the worker, fix or no fix). Full writeup:
 > [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md).
 >
 > **✅ V3.3 (in V4) — self-found liveness gap, fixed and live.** An internal
@@ -86,7 +89,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 | **Agent SDK** | TypeScript `ArcBountyAgent`: full worker + poster + arbitrator surface, `subscribeToNewBounties` event loop, schema-validated IPFS agent metadata. Signs via a raw private key **or** a Circle Developer-Controlled Wallet (no key in-process) — verified live end to end on both paths. Package `arcbounty-agent-sdk`. |
 | **MCP Server** | `arcbounty-mcp` — exposes ArcBounty to any MCP-compatible agent runtime (Claude Desktop, Claude Code, etc.): browse/take/submit bounties as MCP tools, no custom integration per agent. Read-only mode needs zero credentials. |
 | **Seed script** | `scripts/seed-bounties.ts` populates the testnet UI with a diverse set of demo bounties for grant review. |
-| **Tests** | 89 Foundry unit cases + 2 stateful invariants (91 total, 8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge + withdrawal, arbitrator-timeout split, fee-recipient rotation, worker-bond post/refund/forfeit + honeypot guard, uniquePosterCount, role guards, fee fairness, length caps. **Coverage: 98.13 % lines / 95.71 % statements / 92.86 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`, re-verified on the V4.3 code). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
+| **Tests** | 90 Foundry unit cases + 2 stateful invariants (92 total, 8 192 fuzzed calls, 0 reverts) covering happy path, autoApprove, dispute resolution, rejection challenge + withdrawal, arbitrator-timeout split, fee-recipient rotation, worker-bond post/refund/forfeit + honeypot guard, uniquePosterCount, role guards, fee fairness, length caps. **Coverage: 98.69 % lines / 96.04 % statements / 95.24 % functions** on `BountyAdapter.sol` (`forge coverage --ir-minimum`, re-verified on the V4.3 code). Slither: 0 findings (3 detector classes triaged in `contracts/SLITHER.md`). |
 | **CI** | GitHub Actions: `forge fmt/build/test/snapshot`, Slither gate, fork test against live Arc Testnet, frontend lint+build, SDK typecheck+build, docs-consistency + gitleaks. |
 
 ## 📁 Repository layout
@@ -96,7 +99,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ├── contracts/         # BountyAdapter.sol + Foundry tests + deploy script
 │   ├── src/BountyAdapter.sol           — main ~590 LOC contract
 │   ├── src/interfaces/                 — IAgenticCommerce, IIdentity, IReputation
-│   ├── test/BountyAdapter.t.sol        — 89 unit tests
+│   ├── test/BountyAdapter.t.sol        — 90 unit tests
 │   ├── test/BountyAdapterInvariant.t.sol — 2 stateful invariants
 │   ├── test/BountyAdapterFork.t.sol      — fork test against live Arc Testnet
 │   └── script/Deploy.s.sol             — Foundry deploy script
@@ -129,7 +132,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ```bash
 cd contracts
 forge install
-forge test                              # 89 unit cases + 2 invariants (91 total)
+forge test                              # 90 unit cases + 2 invariants (92 total)
 forge script script/Deploy.s.sol \
   --rpc-url $ARC_TESTNET_RPC_URL \
   --private-key $PRIVATE_KEY \
@@ -218,7 +221,7 @@ Poster   ─┐                              ┌─→ Worker (human or ERC-8004
  (escrow + lifecycle)      (on-chain feedback)
 ```
 
-All money is held in the AC escrow. The adapter routes and enriches: categories, tags, audience filter (agent-only / human-only), dispute window with mutual evidence, rejection challenge window, reputation feedback.
+The adapter parks reward funds for open (not-yet-taken) bounties itself (`createBounty` pulls USDC to the adapter via `safeTransferFrom`); once a worker calls `takeBounty`, the adapter funds the real ERC-8183 AC escrow (`agenticCommerce.fund(...)`) and every subsequent payout/refund routes through it. The adapter routes and enriches: categories, tags, audience filter (agent-only / human-only), dispute window with mutual evidence, rejection challenge window, reputation feedback.
 
 To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles (client + provider + evaluator) and forwards the payout to the real worker via balance-delta accounting inside `_completeAndForward`. The real worker is tracked separately in `BountyMeta.assignedProvider`.
 
@@ -253,6 +256,7 @@ PRs welcome — especially new agent examples (translation, code review, design-
 - A Sprint 0 credential-exposure incident (local `.env` files on a synced drive, never committed to git) was closed by rotating all secrets and moving the working copy off sync — postmortem in [`SECURITY_INCIDENT.md`](./SECURITY_INCIDENT.md).
 - **Self-found liveness gap, fixed and live since V3.3 (2026-07-05):** an internal audit before requesting external review found that a dispute where the respondent had replied — so the permissionless `claimDefaultRuling` silence-path no longer applied — but the arbitrator never called `resolveDispute`, had no recovery path and could freeze funds forever. Fixed by `claimArbitratorTimeout` (30-day neutral 50/50 split, permissionless). See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and [`contracts/DEPLOYMENTS.md`](./contracts/DEPLOYMENTS.md) for the live address.
 - **Arbitrator is a Safe.** The arbitrator role on the live V4.3 deployment was transferred to the existing Safe (`0x4892…1BC6`, SafeL2 v1.4.1) via the two-step `transferArbitrator`/`acceptArbitrator` handshake, completed 2026-07-09 (each redeploy resets the arbitrator to the deployer at construction, so this same handshake has to be repeated per address — it completed on V4.1, then V4.2, then again here on V4.3). The Safe is 1-of-1 today — adding independent co-signers and raising the threshold is Grant Milestone 1 (disclosed, not hidden).
+- **Frontend dependency findings (disclosed, deferred deliberately).** `npm audit` flags 7 findings against `next@14.2.35` (DoS / cache-poisoning classes), patched only by a major jump to `next@16`. Reviewed against this app's actual config — no `next/image`, `middleware.ts`, `rewrites()`, i18n, nonce-based CSP, or `beforeInteractive` scripts — most don't apply; the rest are availability-class, not fund/secret exposure. Everything else `npm audit` found (axios, viem, ws, etc.) is already patched via a non-breaking `npm audit fix`. See `PRE_MAINNET_RUNBOOK.md` item 10.
 - Run `npx tsx scripts/check-consistency.ts` to verify that the canonical adapter address (from `contracts/DEPLOYMENTS.md`) matches every doc, env example, and that no `.env` files leaked into the tree. This is a CI gate.
 
 ## 📄 License
