@@ -6,17 +6,44 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V4.3 — live, current frontend target)
+### BountyAdapter (V4.4 — live, current frontend target)
+
+| Field | Value |
+|---|---|
+| Address | `0x538CD48789667168bfb36f838Af8476237F9409F` |
+| RPC | `https://rpc.testnet.arc.network` |
+| Source | `src/BountyAdapter.sol` (at V4.4) |
+| Features | Same on-chain behavior as V4.3 (worker bond, `uniquePosterCount`, the V4.1/V4.2 timing guards, real reputation-registry interface) **plus the V4.4 fee fix**: `claimArbitratorTimeout`'s neutral 50/50 fallback no longer deducts the protocol fee — `_completeAndSplit` divides the full escrowed amount (external-review finding: users were being charged the 1% fee precisely when the arbitrator failed to deliver the service the fee funds). |
+| Fee | 100 bps (1%) |
+| Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
+| Arbitrator | Transfer to the Safe `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` **initiated** 2026-07-10 (`transferArbitrator`, block `51091540`, tx `0xda5bc0bab1c8679283b0b2f999289223f6234e9a3fcb78b268f0392a5d69322e`); **`acceptArbitrator()` from the Safe pending** — until it executes, `arbitrator()` is the deployer. The Safe is 2-of-3; acceptance goes through app.safe.global `execTransaction`, exactly like V4.2/V4.3. Update this row once accepted. |
+| Verified | ✅ ArcScan (Blockscout) |
+| Deployed | 2026-07-10, block `51091329`, tx `0xef75cef9d6c9d86762bf8d84a74846d6eb30c076dd220661e2935288f1beecea`, from the same rotated Sprint-0 deployer `0xde427f…` |
+
+> **Board state:** all 14 open listings on superseded V4.3 were reclaimed via
+> `scripts/reclaim-bounties.ts` (~24 USDC returned to the poster wallet,
+> 2026-07-10) before this deployment's re-seed. Re-seeded the same day:
+> `seed-bounties.ts` full set (14 listings, 2 with `requireWorkerBond`,
+> `SEED_DEADLINE_DAYS=60`) + 2 extra listings (`SEED_LIMIT=2`) posted
+> specifically for the agent proof-of-life re-run, then completed end-to-end
+> by the same reused agent identity — jobIds `155220` (the bond listing:
+> bond posted at take, refunded at submit) and `155219`, agentId `847205`,
+> paid 0.99 USDC of each 1 USDC reward (`scripts/agent-proof-of-life.ts`).
+> `totalBounties()` is 16, 14 open; `uniquePosterCount(847205)` = 1 on this
+> deployment (the counter, like all adapter storage, resets on redeploy).
+
+### BountyAdapter (V4.3 — superseded, arbitrator-timeout split charged the protocol fee)
 
 | Field | Value |
 |---|---|
 | Address | `0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7` |
 | RPC | `https://rpc.testnet.arc.network` |
 | Source | `src/BountyAdapter.sol` (at V4.3) |
+| Superseded because | `claimArbitratorTimeout`'s neutral 50/50 fallback deducted the 1% protocol fee before splitting — charging users for arbitration the protocol didn't deliver. Fixed in V4.4 (`_completeAndSplit` splits the full escrowed amount). All other V4.3 behavior carried forward unchanged. All 14 open listings reclaimed 2026-07-10 (~24 USDC) ahead of the V4.4 deployment. |
 | Features | Same on-chain behavior as V4.2 (opt-in worker bond, `uniquePosterCount`, the `disputeBounty`/`MIN_BOND_TAKE_WINDOW` fixes) **plus the V4.3 reputation-registry fix**: `IReputationRegistry` was mirroring an assumed/older ERC-8004 draft (`giveFeedback(agentId, score, feedbackType, context, field1-3, hash)`, `getReputation(agentId)`) that never matched the real deployed registry — every `giveFeedback` call had a wrong selector and silently reverted (swallowed by the adapter's own `try/catch`) since the very first integration, so no agent had ever actually received on-chain feedback despite completed bounties. Confirmed via the verified registry source (`ReputationRegistryUpgradeable` v2.0.0 at `0x16e0fa7f7c56b9a767e34b192b51f921be31da34`, behind the `0x8004B663…` proxy): real interface is `giveFeedback(agentId, int128 value, uint8 valueDecimals, tag1, tag2, endpoint, feedbackURI, hash)` / `getSummary(agentId, clientAddresses[], tag1, tag2)`. Rewired to the real interface — writes pass the 0-100 score as `value` with `valueDecimals=0`; `getAgentReputation` now proxies `getSummary(agentId, [address(this)], "", "")` and reshapes it into the same `averageScore/totalFeedbacks/totalJobs` struct the frontend already expected, so no frontend ABI change was needed. |
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
-| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe** — two-step transfer completed 2026-07-09; **2-of-2 signers** as of 2026-07-09, up from 1-of-1 — Grant Milestone 1's independent co-signer, real N-of-M) |
+| Arbitrator | `0x4892232f0dD235cC1B92a3A87fc8990553691BC6` (**the Safe** — two-step transfer completed 2026-07-09; **2-of-3 signers** as of 2026-07-10, up from 2-of-2 — Grant Milestone 1 progress) |
 | Verified | ✅ ArcScan (Blockscout) |
 | Deployed | 2026-07-08, block `50813922`, tx `0x4ff7afb10531cb5f8739cfbe561af6ea7369d39358980a1e29e69273b1c43daa`, from the same rotated Sprint-0 deployer `0xde427f…` |
 
@@ -37,6 +64,14 @@ overwritten or out of date.
 > is 2. Any future arbitrator decision now needs both signers — no single
 > key can unilaterally rule a dispute.
 
+> **✅ Safe raised to 2-of-3 (2026-07-10).** `addOwnerWithThreshold(0x403A027b6c217C5E08cE4497A55732056067FD2D, 2)`
+> was executed via `execTransaction` from app.safe.global (both existing
+> owners confirmed), block `51087021`, tx
+> `0xa375ed9b9a692246600a57a09dc6163d0306afe95578fbccb5c84deaacba1276`.
+> Verified on-chain: `getOwners()` returns all three addresses, `getThreshold()`
+> is still 2 — losing access to any one of the three signers no longer
+> deadlocks the arbitrator role.
+
 > **Board state:** all 17 open listings on superseded V4.2 were reclaimed via
 > `scripts/reclaim-bounties.ts` (~28 USDC returned to the poster wallet across
 > 17 `cancelBounty` txs, 2026-07-08) before this deployment's re-seed. Two
@@ -46,7 +81,8 @@ overwritten or out of date.
 > re-run the agent proof-of-life flow on this deployment, then completed
 > end-to-end by the same reused agent identity (jobIds `154216`/`154217`,
 > agentId `847205`) — see `scripts/agent-proof-of-life.ts`. `totalBounties()`
-> is 22, 14 open.
+> is 22, 14 open (state as of 2026-07-09; those 14 were reclaimed 2026-07-10
+> ahead of the V4.4 deployment — see the current section above).
 
 ### BountyAdapter (V4.2 — superseded, reputation-registry integration broken)
 

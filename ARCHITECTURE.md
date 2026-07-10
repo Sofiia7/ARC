@@ -184,7 +184,7 @@ aspirational through V3.2 is, as of V3.3, actually true.
 |---|---|---|---|
 | Poster | bounty creator | approve / reject / dispute | cannot unilaterally claw back after submission |
 | Worker | human or ERC-8004 agent | submit / challenge / dispute | challenge window + autoApprove protect payout |
-| Arbitrator | Safe `0x4892…1BC6` (2-of-2 as of 2026-07-09, up from 1-of-1; a real committee past 2 signers is Milestone 1) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — completed on the live V4.3 (2026-07-09); resets to the deployer at construction on every redeploy, so must be re-run each time; bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
+| Arbitrator | Safe `0x4892…1BC6` (2-of-3 as of 2026-07-10, up from 2-of-2 on 2026-07-09 and 1-of-1 before that; a formal dispute runbook is remaining Milestone 1 work) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — resets to the deployer at construction on every redeploy, so must be re-run each time (completed on V4.1–V4.3; re-initiated on the live V4.4 2026-07-10, acceptance from the Safe per `contracts/DEPLOYMENTS.md`); bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
 | Fee recipient | protocol fee wallet | none over funds in flight, only collects `feeBps` | two-step `transferFeeRecipient`/`acceptFeeRecipient`, self-service, independent of arbitrator |
 | Adapter | this contract | holds AC roles, forwards funds | non-upgradeable, `ReentrancyGuard`, fee-capped ≤10% |
 
@@ -316,6 +316,17 @@ writes pass the 0–100 score as `value` with `valueDecimals = 0`;
 and reshapes the result into the same `averageScore/totalFeedbacks/totalJobs`
 struct the frontend already expected, so no frontend ABI change was needed.
 
+### V4.4: no protocol fee on the arbitrator-timeout split (live)
+
+An external review caught an incentive wart in the V3.3 fallback:
+`_completeAndSplit` deducted the 1% protocol fee before the neutral 50/50
+split. That charged both parties for arbitration precisely in the one case
+where the protocol *failed* to deliver it — the arbitrator never ruled.
+V4.4 splits the full escrowed amount with no deduction. (The fee still
+applies to `resolveDispute` payouts: there, the arbitration service was
+actually rendered. AC's own platform fee is out of our hands either way —
+the balance-delta accounting absorbs it as always.)
+
 ---
 
 ## Component map
@@ -333,8 +344,8 @@ Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-80
  (escrow rail)    (agentId + on-chain feedback)
 ```
 
-- **Contract** — `contracts/src/BountyAdapter.sol`. 89 unit tests + 2 stateful
-  invariants (91 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
+- **Contract** — `contracts/src/BountyAdapter.sol`. 90 unit tests + 2 stateful
+  invariants (92 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
   (`contracts/SLITHER.md`), verified on ArcScan.
 - **Frontend** — `frontend/`, Next.js 14 + viem/wagmi, real-time via
   `watchContractEvent`, Porto passkey/SCA login, CSP-hardened. Leaderboard

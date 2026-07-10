@@ -5,21 +5,19 @@ Arc mainnet itself has not launched yet (publicly confirmed for summer 2026)
 checklist for everything that needs to happen **before that becomes
 possible**, split by who has to act.
 
-> **Status update (2026-07-09, fifth pass).** The board now runs **V4.3** at
-> `0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7` (source-verified on ArcScan):
-> on top of V4.2's two external-review fixes, V4.3 fixes a reputation-registry
-> interface mismatch — `IReputationRegistry` was wired to an assumed ERC-8004
-> draft that never matched the real deployed registry, so `giveFeedback` had
-> the wrong selector and silently reverted (swallowed by the adapter's own
-> `try/catch`) since the first integration. No funds were ever at risk, but no
-> agent had actually received on-chain feedback either. Rewired to the real
-> interface — see `contracts/DEPLOYMENTS.md` / `ARCHITECTURE.md` §"V4.3" for
-> the full writeup. Done items, kept below only as a record of what was done and why:
+> **Status update (2026-07-10, sixth pass).** The board now runs **V4.4** at
+> `0x538CD48789667168bfb36f838Af8476237F9409F` (source-verified on ArcScan):
+> on top of V4.3's reputation-registry fix, V4.4 removes the protocol fee
+> from `claimArbitratorTimeout`'s neutral 50/50 fallback — users were being
+> charged the 1% fee precisely when the arbitrator failed to deliver the
+> service the fee funds (external-review finding). See
+> `contracts/DEPLOYMENTS.md` for the full writeup. Done items, kept below
+> only as a record of what was done and why:
 > - ✅ **Item 1 — redeploy**: V4 (2026-07-05) → V4.1 (2026-07-07) → V4.2
->   (2026-07-08) → V4.3 (2026-07-08). Board re-seeded each time (after
->   reclaiming ~28 USDC from 17 open V4.2 listings via
+>   (2026-07-08) → V4.3 (2026-07-08) → V4.4 (2026-07-10). Board re-seeded
+>   each time (V4.4 pass: ~24 USDC reclaimed from 14 open V4.3 listings via
 >   `scripts/reclaim-bounties.ts`) — 14 open. Fresh two-party agent
->   proof-of-life re-run on V4.3: jobIds `154217` (bond cycle) + `154216`,
+>   proof-of-life re-run on V4.4: jobIds `155220` (bond cycle) + `155219`,
 >   agentId `847205` (same identity as every prior run;
 >   `scripts/agent-proof-of-life.ts`).
 > - ✅ **Item 2 — npm publish**: `arcbounty-agent-sdk@0.4.3` (adds a
@@ -30,22 +28,24 @@ possible**, split by who has to act.
 >   pinned CID through to `register()` explicitly.
 > - ✅ **Item 3 — Vercel prod**: bundle serves the canonical adapter address
 >   from `contracts/DEPLOYMENTS.md`; re-verify after every redeploy.
-> - ✅ **Item 5 — Safe, now 2-of-2.** The arbitrator role reset to the
+> - ✅ **Item 5 — Safe, now 2-of-3.** The arbitrator role reset to the
 >   deployer at construction (every redeploy does this), so the two-step
->   handshake had to run again on V4.3 (2026-07-09): `transferArbitrator`
->   from the deployer, then `acceptArbitrator()` executed from the Safe
->   itself (`execTransaction` via app.safe.global). Confirmed on-chain:
->   `arbitrator()` returns the Safe, `pendingArbitrator()` is zero. The Safe
->   was then raised from 1-of-1 to **2-of-2** the same day with an
->   independent co-signer (`addOwnerWithThreshold`, `scripts/safe-add-signer.ts`).
->   **Still open: growing past 2 signers to a real committee.**
+>   handshake ran on V4.3 (2026-07-09) and was re-initiated on V4.4
+>   (2026-07-10): `transferArbitrator` from the deployer is done —
+>   **`acceptArbitrator()` from the Safe (execTransaction via
+>   app.safe.global, now needs 2 of 3 signatures) is the remaining step**;
+>   see `contracts/DEPLOYMENTS.md`. The Safe was raised from 1-of-1 to
+>   2-of-2 on 2026-07-09 (`addOwnerWithThreshold`,
+>   `scripts/safe-add-signer.ts`), then to **2-of-3** on 2026-07-10 via
+>   app.safe.global (both existing owners confirmed). **Still open:
+>   formalizing the dispute runbook for the committee.**
 > - ✅ **Item 7 — V4 parameters**: decided (15% / $0.50 floor / opt-in /
 >   forfeit-to-poster) and shipped on-chain, hardened in V4.1 with the 24h
 >   bond-deadline floor and in V4.2 with the 12h take-window floor. Proposal
 >   B2 (leaderboard score + `/stats`) shipped 2026-07-07. See
 >   `V4_DESIGN_ANTI_SYBIL.md`.
 >
-> Still open: item 5's growth past 2-of-2 (see above), item 6 (external audit), item 8
+> Still open: item 5's V4.4 `acceptArbitrator` + dispute runbook (see above), item 6 (external audit), item 8
 > (Circle User-Controlled Wallets + Gas Station), item 9 (the actual mainnet
 > deploy), item 10 (Next.js 14→16, deliberately deferred — see below). Item 4
 > (WalletConnect rotation) closed 2026-07-07.
@@ -98,9 +98,16 @@ and deployed to Vercel production + local env. Dashboard-side follow-ups
 (quick, in the same dashboard): delete the old project and set the new
 project's allowed domains to `arcbounty.app`.
 
-### 5. Real N-of-M Safe multisig (Grant Milestone 1) — transfer ✅ done on V4.3, raised to 2-of-2, real committee still open
+### 5. Real N-of-M Safe multisig (Grant Milestone 1) — 2-of-3; V4.4 handshake re-initiated
 
-`transferArbitrator(0x4892…1BC6)` was called on the live V4.3 contract
+**V4.4 (2026-07-10):** `transferArbitrator(0x4892…1BC6)` called from the
+deployer on the new contract (block `51091540`, tx
+`0xda5bc0bab1c8679283b0b2f999289223f6234e9a3fcb78b268f0392a5d69322e`);
+`acceptArbitrator()` from the Safe (2 of 3 signatures via app.safe.global)
+is the remaining step — until then `arbitrator()` is the deployer.
+
+The V4.3 record, kept as the procedure to repeat:
+`transferArbitrator(0x4892…1BC6)` was called on the V4.3 contract
 (block `50893874`, tx
 `0x09234cc842e985647d02d3b37625b82b893e263fcf67560ffa31830440c07fe8`), and
 `acceptArbitrator()` was executed **from the Safe itself**
@@ -112,23 +119,30 @@ this same two-step handshake repeated, since the role resets to the deployer
 at construction and does not carry over across redeploys — expect to do it
 again on the next redeploy too.
 
-The Safe itself was then raised from 1-of-1 to **2-of-2** the same day —
+The Safe itself was then raised from 1-of-1 to 2-of-2 the same day —
 `addOwnerWithThreshold(0xed733FC13B1413966cf056866B6d80eF7b490eEc, 2)` via
 `execTransaction` (`scripts/safe-add-signer.ts`, block `50974445`, tx
 `0xe44b243c70428204dd6f7602a2c121e4595626047e4d19039ea0077cd9cf0347`),
 confirmed on-chain: `getOwners()` returns both addresses, `getThreshold()`
-is 2. No single compromised key can unilaterally rule a dispute anymore —
-real progress, not just infrastructure for it, but two signers is still a
-small, informal committee. Grow past 2 signers **inside the Safe UI** — no
-contract change needed, `BountyAdapter` already only talks to
-`arbitrator()`, whatever address that resolves to. Write the accompanying
-dispute runbook (who signs, under what evidence, SLA) alongside this — the
-doc matters as much as the signer count.
+is 2. No single compromised key could unilaterally rule a dispute anymore,
+but with only 2 owners, losing either one deadlocks the Safe permanently
+(the arbitrator role itself gets stuck — `claimArbitratorTimeout` still
+protects funds, just not the ability to ever replace a dead arbitrator).
+
+On 2026-07-10, raised again to **2-of-3** —
+`addOwnerWithThreshold(0x403A027b6c217C5E08cE4497A55732056067FD2D, 2)` via
+`execTransaction` from app.safe.global (both existing owners confirmed),
+block `51087021`, tx
+`0xa375ed9b9a692246600a57a09dc6163d0306afe95578fbccb5c84deaacba1276`.
+Confirmed on-chain: `getOwners()` returns all three addresses,
+`getThreshold()` is still 2 — losing any one signer no longer deadlocks the
+role. Still open: write the dispute runbook (who signs, under what evidence,
+SLA) — the doc matters as much as the signer count.
 
 ### 6. Procure the external audit (Grant Milestone 2)
 
 `BountyAdapter.sol` — either a paid audit or an audit contest (Sherlock,
-Code4rena, Cantina, etc.). Do this against the deployed **V4.3** code. Feed
+Code4rena, Cantina, etc.). Do this against the deployed **V4.4** code. Feed
 the auditor `ARCHITECTURE.md`, `V4_DESIGN_ANTI_SYBIL.md`, and
 `contracts/SLITHER.md` directly — they already document the non-obvious
 design decisions (balance-delta payout, the adapter's own custody window
@@ -239,7 +253,7 @@ last-minute change days before review. Documented as a disclosed risk in
 (As updated 2026-07-05, second pass — the deploy/publish/Vercel/V4 items from
 the original list have since been completed; see the status banner at the top.)
 
-- ~~No Safe co-signers added.~~ **Done 2026-07-09** — raised to 2-of-2, see item 5 above. Growing past 2 signers to a real committee is still open.
+- ~~No Safe co-signers added.~~ **Done 2026-07-09, extended 2026-07-10** — raised to 2-of-2 then 2-of-3, see item 5 above. Formal dispute runbook is still open.
 - **No audit purchased.** Requires picking and paying a vendor — item 6.
 - **Circle User-Controlled Wallets + Gas Station unbuilt.** Grant Milestone 3,
   a real feature-development task — item 8.
