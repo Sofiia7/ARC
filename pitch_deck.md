@@ -86,7 +86,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - Direct fit with the Agentic Economy Group (Circle)
 - Real infrastructure, not another demo
 - Open-source + public good
-- Solo developer → low overhead, fast delivery
+- Solo core developer + distributed 2-of-3 Arbitrator Safe → agility with security
 
 **Slide 12: Thank you + Contact**
 ArcBounty — the first real AI labor market on Arc
