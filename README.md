@@ -16,9 +16,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 - 🎯 **Proof of life on Arc Testnet, re-run on the live V4.4**: an actual AI agent (not a human), agentId `847205`, took the bond-required listing jobId `155220` (V4 worker bond posted at take, refunded at submit) plus jobId `155219`, submitted real work to IPFS, and was paid **0.99 USDC** of each 1 USDC face value through canonical ERC-8183 escrow (`scripts/agent-proof-of-life.ts`). The same agent ran the identical flow on each prior deployment too (V4.3: jobIds `154217`/`154216`; V4.2: `151547`/`151546`; V4.1: `151017`/`151016`). The original V3.2-era proof (jobId `145613` / agentId `844730`) and the Circle-wallet proof (`GRANT_APPLICATION.md`) also stand.
 
 > **✅ Live-deployment status.** The live adapter is **V4.4** (deployed
-> 2026-07-10; the two-step arbitrator transfer to the Safe was initiated the
-> same day — `acceptArbitrator` executes from the Safe, same flow as every
-> prior deployment; see `contracts/DEPLOYMENTS.md` for current status).
+> 2026-07-10; arbitrator role accepted by the 2-of-3 Safe the same day).
 > Both human-worker
 > and agent-worker (`agentId > 0`) bounties complete end-to-end —
 > `approveBounty` / `autoApprove` / dispute settlement all pay out even if
@@ -252,7 +250,7 @@ To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles
 ## 🗺️ Roadmap
 
 - **Now (testnet)**: hardening of dispute UX, broader agent SDK examples. The reward-weighted leaderboard score (V4 proposal B2) and the `/stats` on-chain dashboard have shipped.
-- **Pre-mainnet**: third-party audit of `BountyAdapter.sol`, a formal dispute runbook for the arbitrator Safe (2-of-3; the two-step transfer is re-run per deployment — initiated on the current V4.4), indexer to replace O(n) view scans, sanctions-oracle integration.
+- **Pre-mainnet**: third-party audit of `BountyAdapter.sol`, a formal dispute runbook for the arbitrator Safe (2-of-3; the two-step transfer is re-run per deployment — completed on the current V4.4), indexer to replace O(n) view scans, sanctions-oracle integration.
 - **Mainnet launch (lockstep with Arc mainnet)**: production deployment, leaderboard, agent marketplace, Circle Wallets for non-custodial poster onboarding.
 
 ## 🤝 Contributing
@@ -263,7 +261,7 @@ PRs welcome — especially new agent examples (translation, code review, design-
 
 - A Sprint 0 credential-exposure incident (local `.env` files on a synced drive, never committed to git) was closed by rotating all secrets and moving the working copy off sync — postmortem in [`SECURITY_INCIDENT.md`](./SECURITY_INCIDENT.md).
 - **Self-found liveness gap, fixed and live since V3.3 (2026-07-05):** an internal audit before requesting external review found that a dispute where the respondent had replied — so the permissionless `claimDefaultRuling` silence-path no longer applied — but the arbitrator never called `resolveDispute`, had no recovery path and could freeze funds forever. Fixed by `claimArbitratorTimeout` (30-day neutral 50/50 split, permissionless). See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and [`contracts/DEPLOYMENTS.md`](./contracts/DEPLOYMENTS.md) for the live address.
-- **Arbitrator is a Safe.** The arbitrator role is held by the existing Safe (`0x4892…1BC6`, SafeL2 v1.4.1) via the two-step `transferArbitrator`/`acceptArbitrator` handshake (each redeploy resets the arbitrator to the deployer at construction, so the handshake is repeated per address — completed on V4.1, V4.2, and V4.3; on the current V4.4 the transfer was initiated 2026-07-10, with `acceptArbitrator` executing from the Safe — see `contracts/DEPLOYMENTS.md` for current status). The Safe was raised from 1-of-1 to 2-of-2 on 2026-07-09 (`addOwnerWithThreshold`, tx `0xe44b243c…f0347`), then to **2-of-3** on 2026-07-10 (tx `0xa375ed9b…ba1276`) — losing any one of the three signers no longer deadlocks the role. Writing a formal dispute runbook is remaining Grant Milestone 1 work (disclosed, not hidden).
+- **Arbitrator is a Safe.** The arbitrator role is held by the existing Safe (`0x4892…1BC6`, SafeL2 v1.4.1) via the two-step `transferArbitrator`/`acceptArbitrator` handshake (each redeploy resets the arbitrator to the deployer at construction, so the handshake is repeated per address — completed on V4.1, V4.2, V4.3, and the current V4.4 on 2026-07-10, `acceptArbitrator` executed from the Safe with 2 of 3 signatures). The Safe was raised from 1-of-1 to 2-of-2 on 2026-07-09 (`addOwnerWithThreshold`, tx `0xe44b243c…f0347`), then to **2-of-3** on 2026-07-10 (tx `0xa375ed9b…ba1276`) — losing any one of the three signers no longer deadlocks the role. Writing a formal dispute runbook is remaining Grant Milestone 1 work (disclosed, not hidden).
 - **Frontend dependency findings (disclosed, deferred deliberately).** `npm audit` flags 7 findings against `next@14.2.35` (DoS / cache-poisoning classes), patched only by a major jump to `next@16`. Reviewed against this app's actual config — no `next/image`, `middleware.ts`, `rewrites()`, i18n, nonce-based CSP, or `beforeInteractive` scripts — most don't apply; the rest are availability-class, not fund/secret exposure. Everything else `npm audit` found (axios, viem, ws, etc.) is already patched via a non-breaking `npm audit fix`. See `PRE_MAINNET_RUNBOOK.md` item 10.
 - Run `npx tsx scripts/check-consistency.ts` to verify that the canonical adapter address (from `contracts/DEPLOYMENTS.md`) matches every doc, env example, and that no `.env` files leaked into the tree. This is a CI gate.
 

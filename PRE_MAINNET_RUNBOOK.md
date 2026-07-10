@@ -30,22 +30,23 @@ possible**, split by who has to act.
 >   from `contracts/DEPLOYMENTS.md`; re-verify after every redeploy.
 > - ✅ **Item 5 — Safe, now 2-of-3.** The arbitrator role reset to the
 >   deployer at construction (every redeploy does this), so the two-step
->   handshake ran on V4.3 (2026-07-09) and was re-initiated on V4.4
->   (2026-07-10): `transferArbitrator` from the deployer is done —
->   **`acceptArbitrator()` from the Safe (execTransaction via
->   app.safe.global, now needs 2 of 3 signatures) is the remaining step**;
->   see `contracts/DEPLOYMENTS.md`. The Safe was raised from 1-of-1 to
->   2-of-2 on 2026-07-09 (`addOwnerWithThreshold`,
->   `scripts/safe-add-signer.ts`), then to **2-of-3** on 2026-07-10 via
->   app.safe.global (both existing owners confirmed). **Still open:
->   formalizing the dispute runbook for the committee.**
+>   handshake ran again on V4.4 (2026-07-10): `transferArbitrator` from
+>   the deployer, then `acceptArbitrator()` executed **from the Safe**
+>   (`execTransaction` via app.safe.global, 2 of 3 signatures — the first
+>   handshake completed at the 2-of-3 threshold). Confirmed on-chain:
+>   `arbitrator()` returns the Safe, `pendingArbitrator()` is zero. The
+>   Safe was raised from 1-of-1 to 2-of-2 on 2026-07-09
+>   (`addOwnerWithThreshold`, `scripts/safe-add-signer.ts`), then to
+>   **2-of-3** on 2026-07-10 via app.safe.global (both existing owners
+>   confirmed). **Still open: formalizing the dispute runbook for the
+>   committee.**
 > - ✅ **Item 7 — V4 parameters**: decided (15% / $0.50 floor / opt-in /
 >   forfeit-to-poster) and shipped on-chain, hardened in V4.1 with the 24h
 >   bond-deadline floor and in V4.2 with the 12h take-window floor. Proposal
 >   B2 (leaderboard score + `/stats`) shipped 2026-07-07. See
 >   `V4_DESIGN_ANTI_SYBIL.md`.
 >
-> Still open: item 5's V4.4 `acceptArbitrator` + dispute runbook (see above), item 6 (external audit), item 8
+> Still open: item 5's dispute runbook (see above), item 6 (external audit), item 8
 > (Circle User-Controlled Wallets + Gas Station), item 9 (the actual mainnet
 > deploy), item 10 (Next.js 14→16, deliberately deferred — see below). Item 4
 > (WalletConnect rotation) closed 2026-07-07.
@@ -98,13 +99,16 @@ and deployed to Vercel production + local env. Dashboard-side follow-ups
 (quick, in the same dashboard): delete the old project and set the new
 project's allowed domains to `arcbounty.app`.
 
-### 5. Real N-of-M Safe multisig (Grant Milestone 1) — 2-of-3; V4.4 handshake re-initiated
+### 5. Real N-of-M Safe multisig (Grant Milestone 1) — 2-of-3; V4.4 handshake ✅ complete
 
 **V4.4 (2026-07-10):** `transferArbitrator(0x4892…1BC6)` called from the
 deployer on the new contract (block `51091540`, tx
 `0xda5bc0bab1c8679283b0b2f999289223f6234e9a3fcb78b268f0392a5d69322e`);
-`acceptArbitrator()` from the Safe (2 of 3 signatures via app.safe.global)
-is the remaining step — until then `arbitrator()` is the deployer.
+`acceptArbitrator()` executed **from the Safe** (2 of 3 signatures via
+app.safe.global, block `51095596`, tx
+`0x640542ffe338b7ce8dfe5edf4a0ff3c518fcf56a06465d705f108845537eb086`).
+Confirmed on-chain: `arbitrator()` returns the Safe, `pendingArbitrator()`
+is zero.
 
 The V4.3 record, kept as the procedure to repeat:
 `transferArbitrator(0x4892…1BC6)` was called on the V4.3 contract

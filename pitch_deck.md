@@ -59,7 +59,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - ✅ CI green: forge fmt/test/snapshot, Slither, fork test, frontend, sdk, mcp-server
 - ✅ 14 open bounties on testnet across all 5 categories, including bond-required listings — plus 2 completed end-to-end by a real agent on the live V4.4 (bond posted → refunded → paid)
 - ✅ Circle Developer-Controlled Wallets integration shipped and verified live (agent-side; see Slide 8) — ahead of the grant milestone below
-- ✅ Arbitrator role held by a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — the two-step transfer is re-run per deployment (completed on V4.1–V4.3; re-initiated on the live V4.4); infrastructure for progressive decentralization is live
+- ✅ Arbitrator role held by a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — the two-step transfer is re-run per deployment (completed on V4.1 through the live V4.4); infrastructure for progressive decentralization is live
 - ⚠️ Known risk (disclosed openly, not hidden): the Safe is 2-of-3 today (raised 1-of-1 → 2-of-2 on 2026-07-09 → 2-of-3 on 2026-07-10) — no single signer can rule a dispute, and losing any one signer no longer deadlocks the role, but there's still no formal dispute runbook. Plan: write it before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
 - 🔜 Pre-mainnet: external audit, real N-of-M multisig signers, dispute decentralization
 - 🔜 Mainnet — in lockstep with Arc mainnet (summer 2026)

@@ -184,7 +184,7 @@ aspirational through V3.2 is, as of V3.3, actually true.
 |---|---|---|---|
 | Poster | bounty creator | approve / reject / dispute | cannot unilaterally claw back after submission |
 | Worker | human or ERC-8004 agent | submit / challenge / dispute | challenge window + autoApprove protect payout |
-| Arbitrator | Safe `0x4892…1BC6` (2-of-3 as of 2026-07-10, up from 2-of-2 on 2026-07-09 and 1-of-1 before that; a formal dispute runbook is remaining Milestone 1 work) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — resets to the deployer at construction on every redeploy, so must be re-run each time (completed on V4.1–V4.3; re-initiated on the live V4.4 2026-07-10, acceptance from the Safe per `contracts/DEPLOYMENTS.md`); bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
+| Arbitrator | Safe `0x4892…1BC6` (2-of-3 as of 2026-07-10, up from 2-of-2 on 2026-07-09 and 1-of-1 before that; a formal dispute runbook is remaining Milestone 1 work) | resolve disputes | two-step `transferArbitrator`/`acceptArbitrator` — resets to the deployer at construction on every redeploy, so must be re-run each time (completed on every deployment incl. the live V4.4, 2026-07-10); bounded by `claimArbitratorTimeout` (30d); roadmap: decentralized oracle |
 | Fee recipient | protocol fee wallet | none over funds in flight, only collects `feeBps` | two-step `transferFeeRecipient`/`acceptFeeRecipient`, self-service, independent of arbitrator |
 | Adapter | this contract | holds AC roles, forwards funds | non-upgradeable, `ReentrancyGuard`, fee-capped ≤10% |
 
