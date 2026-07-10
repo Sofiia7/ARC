@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 /// @notice Interface for Arc's deployed ERC-8004 ReputationRegistry
 ///         (erc8004.reputation.registry.2 — verified source: ReputationRegistryUpgradeable

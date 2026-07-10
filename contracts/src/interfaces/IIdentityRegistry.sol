@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 /// @notice Minimal interface for Arc ERC-8004 IdentityRegistry contract
 interface IIdentityRegistry {
