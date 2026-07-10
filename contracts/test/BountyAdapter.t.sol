@@ -1211,13 +1211,14 @@ contract BountyAdapterTest is Test {
         vm.prank(stranger);
         adapter.claimArbitratorTimeout(jobId);
 
-        uint256 fee = reward / 100; // 1%
-        uint256 net = reward - fee;
-        uint256 half = net / 2;
+        // V4.4: no protocol fee on the arbitrator-timeout fallback — the
+        // arbitrator failed to deliver the service the fee funds, so the
+        // full escrowed reward splits 50/50 with no deduction.
+        uint256 half = reward / 2;
 
-        assertEq(usdc.balanceOf(feeAddr), feeBefore + fee);
+        assertEq(usdc.balanceOf(feeAddr), feeBefore, "no fee should be charged on arbitrator timeout");
         assertEq(usdc.balanceOf(poster), posterBefore + half);
-        assertEq(usdc.balanceOf(worker), workerBefore + (net - half));
+        assertEq(usdc.balanceOf(worker), workerBefore + (reward - half));
 
         BountyAdapter.BountyMeta memory m = adapter.getBountyMeta(jobId);
         assertTrue(m.resolved);

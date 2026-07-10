@@ -7,7 +7,7 @@ import "./interfaces/IAgenticCommerce.sol";
 import "./interfaces/IIdentityRegistry.sol";
 import "./interfaces/IReputationRegistry.sol";
 
-/// @title BountyAdapter (V4 — opt-in worker bond + unique-poster reputation signal)
+/// @title BountyAdapter (V4.4 — opt-in worker bond + unique-poster reputation signal; fee-free arbitrator-timeout split)
 /// @dev V3.1 fixes two live-registry incompatibilities found by an on-chain
 ///      agent run: (1) takeBounty no longer calls the reverting isRegistered();
 ///      ownerOf alone gates agents. (2) every reputationRegistry.giveFeedback
@@ -49,7 +49,7 @@ import "./interfaces/IReputationRegistry.sol";
 ///    self-dealing with one alt account — faking N unique posters now costs
 ///    N real funded wallets, not one.
 ///
-/// V4.1 changes vs V4 (internal audit findings, not yet deployed):
+/// V4.1 changes vs V4 (internal audit findings; live since 2026-07-07):
 ///  - rejectBounty now reverts once APPROVAL_TIMEOUT has elapsed since
 ///    submission. Previously a poster sitting on a correct submission could
 ///    reject right before autoApprove would otherwise fire, buying another
@@ -66,7 +66,7 @@ import "./interfaces/IReputationRegistry.sol";
 ///    take genuinely completable, so forfeiture again means "worker vanished",
 ///    not "worker was trapped". Bond-free bounties keep any deadline.
 ///
-/// V4.2 changes vs V4.1 (external review findings, not yet deployed):
+/// V4.2 changes vs V4.1 (external review findings; live since 2026-07-08):
 ///  - disputeBounty is now bounded by APPROVAL_TIMEOUT, exactly like
 ///    rejectBounty since V4.1. Without this, the V4.1 fix was only half a
 ///    fix: a poster blocked from rejecting right before autoApprove could
@@ -82,6 +82,22 @@ import "./interfaces/IReputationRegistry.sol";
 ///    before its deadline, and an auto-taking agent doing so forfeits its
 ///    bond with no plausible chance to deliver. Bond-free bounties keep
 ///    takeable-until-deadline semantics.
+///
+/// V4.3 changes vs V4.2 (live since 2026-07-08):
+///  - IReputationRegistry rewired to the interface of the actually deployed
+///    ERC-8004 registry (ReputationRegistryUpgradeable v2.0.0). The previous
+///    interface mirrored an assumed draft, so every giveFeedback call carried
+///    a wrong selector and silently reverted (swallowed by the adapter's own
+///    try/catch — payouts were never at risk) since the first integration.
+///    Writes pass the 0-100 score as int128 value with valueDecimals=0;
+///    getAgentReputation proxies getSummary(agentId, [address(this)], "", "").
+///
+/// V4.4 changes vs V4.3 (external review finding; live since 2026-07-10):
+///  - claimArbitratorTimeout no longer charges the protocol fee.
+///    _completeAndSplit previously deducted feeBps before the neutral 50/50
+///    split, meaning users paid the protocol fee even when the arbitrator
+///    failed to deliver the service that fee funds. The 50/50 split now
+///    divides the full escrowed amount with no deduction.
 contract BountyAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -709,10 +725,12 @@ contract BountyAdapter is ReentrancyGuard {
         }
     }
 
-    /// @dev Pulls received USDC from AC via complete() and splits the net
+    /// @dev Pulls received USDC from AC via complete() and splits the full
     ///      proceeds 50/50 between the two payees. Used only by
-    ///      claimArbitratorTimeout — the protocol fee still applies (work was
-    ///      genuinely delivered and disputed, not refunded outright).
+    ///      claimArbitratorTimeout — NO protocol fee here (V4.4): this path
+    ///      only fires when the arbitrator failed to provide the service the
+    ///      fee is charged for, so charging it on a neutral fault-neither-side
+    ///      fallback would tax users for the protocol's own liveness failure.
     function _completeAndSplit(uint256 jobId, address payeeA, address payeeB)
         internal
         returns (uint256 amountA, uint256 amountB)
@@ -722,14 +740,8 @@ contract BountyAdapter is ReentrancyGuard {
         uint256 received = usdc.balanceOf(address(this)) - before;
         if (received == 0) return (0, 0);
 
-        uint256 fee = (received * feeBps) / BPS_DENOMINATOR;
-        if (fee > 0) {
-            usdc.safeTransfer(feeRecipient, fee);
-            emit ProtocolFeePaid(jobId, feeRecipient, fee);
-        }
-        uint256 net = received - fee;
-        amountA = net / 2;
-        amountB = net - amountA; // remainder (if net is odd) goes to payeeB
+        amountA = received / 2;
+        amountB = received - amountA; // remainder (if received is odd) goes to payeeB
         if (amountA > 0) usdc.safeTransfer(payeeA, amountA);
         if (amountB > 0) usdc.safeTransfer(payeeB, amountB);
     }
