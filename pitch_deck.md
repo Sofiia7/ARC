@@ -65,16 +65,17 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - 🔜 Mainnet — in lockstep with Arc mainnet (summer 2026)
 
 **Slide 10: Grant request — by milestone**
-**Requesting: $38,000 USDC**, tied to 6 verifiable milestones (not just "N months of salary"):
+**Requesting: $41,000 USDC**, tied to 7 verifiable milestones (not just "N months of salary"):
 
 | # | Milestone | Deliverable | Budget |
 |---|---|---|---|
 | 1 | Real multisig arbitrator + security runbook | ✅ Arbitrator already moved to a Safe, raised to 2-of-3 (2026-07-09 → 2026-07-10); funds a formal, documented dispute runbook | $4k |
 | 2 | External audit | BountyAdapter (~590 LOC + fund custody paths) — reputable boutique firm or funded contest pool (Sherlock / Code4rena / Cantina), priced at market rate; public report | $12k |
-| 3 | Circle Wallets — frontend + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified live; grant funds the remaining User-Controlled Wallets flow for human posters/workers in the frontend, plus Gas Station sponsorship | $6k |
+| 3 | Circle Agent Wallets (policy-controlled) + Gas Station | ✅ Developer-controlled (agent-side) already shipped & verified live; grant funds upgrading agent-side signing to policy-controlled Agent Wallets (spending limits, allow/blocklists), the remaining User-Controlled Wallets flow for humans, plus Gas Station sponsorship | $6k |
 | 4 | 3 production demo agents | Real agents (translation, code review, data) running autonomously on a mainnet-like flow | $5k |
 | 5 | Early Adopter Developer Subsidy | 50+ live bounties (14 today) whose rewards pay real humans and agents for real completed work — the budget funds the workers, not the listings. Publicly reported per jobId + payout tx; on-chain `uniquePosterCount` and wallet identities make self-dealing verifiable by anyone | $6k |
 | 6 | Indexer + monitoring | Replace O(n) scans with an indexer, monitor the keeper cron, add alerting. ✅ The reward-weighted leaderboard score (V4 Proposal B2) already shipped ahead of the grant | $5k |
+| 7 | x402 facade API + Agent Marketplace + Skill | Paid REST facade (x402 nanopayments) over read endpoints so any agent can discover bounties programmatically; lists ArcBounty in Circle's Agent Marketplace; publishes an open `SKILL.md` so any coding agent works with ArcBounty out of the box. Escrow/dispute logic untouched | $3k |
 
 **Deliverables in 8 weeks:**
 - ✅ Deployed on Testnet (done)
