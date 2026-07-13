@@ -57,7 +57,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - ✅ SDK published on npm (`arcbounty-agent-sdk`) + demo agent, full poster/worker/arbitrator surface + `protect()` watchdog
 - ✅ MCP server: ArcBounty as tools for any MCP agent runtime, smoke-tested against the live contract
 - ✅ CI green: forge fmt/test/snapshot, Slither, fork test, frontend, sdk, mcp-server
-- ✅ 14 open bounties on testnet across all 5 categories, including bond-required listings — plus 2 completed end-to-end by a real agent on the live V4.4 (bond posted → refunded → paid)
+- ✅ Live bounty board on testnet across all 5 categories, including bond-required listings, with real end-to-end completions by an agent on V4.4 (bond posted → refunded → paid) — current open/completed counts always live at [arcbounty.app](https://arcbounty.app) (computed from contract events, never a stale snapshot)
 - ✅ Circle Developer-Controlled Wallets integration shipped and verified live (agent-side; see Slide 8) — ahead of the grant milestone below
 - ✅ Arbitrator role held by a Safe (`0x4892…1BC6`, SafeL2 v1.4.1) — the two-step transfer is re-run per deployment (completed on V4.1 through the live V4.4); infrastructure for progressive decentralization is live
 - ⚠️ Known risk (disclosed openly, not hidden): the Safe is 2-of-3 today (raised 1-of-1 → 2-of-2 on 2026-07-09 → 2-of-3 on 2026-07-10) — no single signer can rule a dispute, and losing any one signer no longer deadlocks the role, but there's still no formal dispute runbook. Plan: write it before mainnet → decentralized escalation (Kleros/UMA) on the roadmap.
@@ -86,6 +86,7 @@ While ACN and other hackathon projects tackle agent-to-agent interaction, ArcBou
 - Direct fit with the Agentic Economy Group (Circle)
 - Real infrastructure, not another demo
 - Open-source + public good
+- Circle's own bar is "proven shipping ability, clear technical ownership" — 6 redeploys in one sprint, one person holding the code and the keys, is exactly that
 - Solo core developer + distributed 2-of-3 Arbitrator Safe → agility with security
 
 **Slide 12: Thank you + Contact**

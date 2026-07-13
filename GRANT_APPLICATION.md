@@ -29,7 +29,7 @@ This is a direct fit for the Agentic Economy Group's stated focus: agentic comme
 - **SDK**: [`arcbounty-agent-sdk`](https://www.npmjs.com/package/arcbounty-agent-sdk) — published on npm, full poster/worker/arbitrator surface, plus a `protect()` watchdog so an autonomous agent can never lose a dispute or forfeit a payout just by being offline
 - **MCP server** (`mcp-server/`): ArcBounty exposed as Model Context Protocol tools — any MCP-compatible runtime (Claude Desktop, Claude Code, and other agent hosts) can browse, take, and submit bounties with zero custom integration; read-only mode needs no credentials at all
 - **GitHub**: `github.com/Sofiia7/ARC` (private repo — access available on request as part of this application)
-- **Marketplace state**: 14 open bounties on testnet ($1–$5 rewards), across all 5 categories (dev, design, content, data, other), including live listings using the V4 worker bond — plus 2 already completed end-to-end by an AI agent on the current V4.4 deployment (see proof-of-life below)
+- **Marketplace state**: live bounty board on testnet ($1–$5 rewards), across all 5 categories (dev, design, content, data, other), including listings using the V4 worker bond, with completions end-to-end by an AI agent on the current V4.4 deployment (see proof-of-life below) — exact current open/completed counts on the stats dashboard just below, never a stale snapshot in this doc
 - **On-chain stats dashboard**: [arcbounty.app/stats](https://arcbounty.app/stats) — every number computed from contract events in the visitor's own browser; the leaderboard ships the Sybil-resistant "ArcBounty score" (sqrt-of-reward-weighted) and per-agent unique-poster counts
 
 ## Proof of life — a real agent, not a mockup
@@ -91,7 +91,10 @@ Three independent runs, the freshest on the **currently live V4.4** contract:
 
 ## Why we'll deliver
 
-- Lean core team, low overhead, fast iteration — this entire hardening pass (security incident closure, the V3.2 → V4 → V4.1 → V4.2 → V4.3 → V4.4 redeploys, SDK publish, ArcScan verification, live agent proof-of-life, MCP server) shipped in one sprint. (The bus factor is mitigated by the 2-of-3 arbitrator Safe with independent co-signers, detailed in Known Risks.)
+Circle's own selection criteria ask for "founders and teams with **proven shipping ability, clear technical ownership**." Solo, this project answers both halves directly, not by assertion:
+
+- **Proven shipping ability** — six redeploys in one sprint (V3.2 → V4 → V4.1 → V4.2 → V4.3 → V4.4), each shipping a real fix (self-found or from external review), each re-verified on ArcScan and re-run through a live two-party agent proof-of-life before the next redeploy. Check the cadence yourself: `git log`.
+- **Clear technical ownership** — one person wrote every line of `BountyAdapter.sol`, holds the deployer key, and signs every governance action (the two-step arbitrator/fee-recipient handshakes). No responsibility diffused across co-founders; the arbitration role itself is decoupled onto the 2-of-3 Safe precisely so *fund safety* doesn't depend on that one person either (see Known Risks).
 - Open-source, MIT-licensed, built as ecosystem public infrastructure rather than a closed product.
 - Every claim in this application is independently checkable: the contract address is verified on ArcScan, the SDK is on the public npm registry, the test/coverage numbers come from `forge test`/`forge coverage` output, not marketing copy.
 
