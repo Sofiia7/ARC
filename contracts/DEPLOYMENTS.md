@@ -4,39 +4,6 @@ Canonical source of truth for deployed contracts. Always trust this file
 over `broadcast/` artifacts — those are forge's working area and may be
 overwritten or out of date.
 
-## Base Sepolia (chain id `84532`) — rehearsal, V4.5
-
-Rehearsal deploy ahead of Base mainnet (per `Part2_Base/TZ_arcbounty_circle_stack_base.md`
-Block 4). Deployed via `contracts/script/DeployBaseSepolia.s.sol`. Does **not**
-touch Arc — Arc's live V4.4 deployment is untouched and remains the one cited
-in the submitted grant application.
-
-| Field | Value |
-|---|---|
-| BountyAdapter | `0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9` |
-| AgenticCommerce (proxy) | `0x37BB41D12adC01cBFb9Ca69098F9E09E0938a673` |
-| AgenticCommerce (impl) | `0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83` |
-| RPC | `https://sepolia.base.org` |
-| USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` (official 8004-team testnet registry — not self-deployed) |
-| ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` (official 8004-team testnet registry — not self-deployed) |
-| Fee | 100 bps (1%), matches Arc |
-| Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` (same wallet as Arc) |
-| maxBountyAmount (V4.5) | `500000000` (500 USDC, atomic) |
-| Owner (maxBountyAmount admin) | deployer `0xde427f3967cc7a0BF7A9F891195760cCffC82edA` — no Base Safe yet; create one before mainnet |
-| Arbitrator | deployer (unset — no Base Safe yet; must run the two-step handshake before mainnet, exactly as Arc did) |
-| AgenticCommerce admin (upgrade key) | deployer — **we hold this key on Base**, unlike Arc where it's an Arc-team address (see `docs/INTEGRATION_NOTES.md`) |
-| Deployed | 2026-07-20, gas: 7,159,306 total across 3 txs (impl + proxy + adapter) ≈ 0.000043 ETH at the block's gas price — at typical Base mainnet gas prices this is expected to land in cents, not dollars |
-| Escrow source | `src/base/AgenticCommerce.sol` — byte-for-byte match of Arc's own deployed variant (not the current, role-restricted ERC-8183 reference); see `docs/INTEGRATION_NOTES.md` for why |
-
-**E2E proof-of-life (2026-07-20):** jobId `1`, same wallet as both poster and
-worker (allowed — `takeBounty` has no poster≠worker restriction). Full cycle:
-`approve` → `createBounty` (1 USDC reward) → `takeBounty` → `submitWork` →
-`approveBounty(95)`. Final `getBountyMeta(1)` confirms `resolved = true`.
-Payout matched Arc's exact split: 0.99 USDC to the worker, 0.01 USDC (1% fee)
-to the fee recipient. Tx hashes: create `0x2fd14154…8873`, take
-`0xad38d732…905b`, submit `0x41e491d5…8df4`, approve `0xa4987bb4…bdb0`.
-
 ## Arc Testnet (chain id `5042002`)
 
 ### BountyAdapter (V4.4 — live, current frontend target)
@@ -214,6 +181,44 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 - `0x1effdfbdc977b5dc3a1ee0e9d8d951e0a2b30b55` — older variant, no
   dispute response/ruling fields.
 - `0x2f5171317be1c912153c4760af03d6ee77d52894` — empty, abandoned.
+
+## Base Sepolia (chain id `84532`) — rehearsal, V4.5, NOT the frontend target
+
+> Arc Testnet above remains the live, canonical deployment (the address the
+> frontend/SDK/MCP server all target). This section is a rehearsal ahead of
+> Base mainnet — it does not change what "canonical" means anywhere else in
+> this repo.
+
+Rehearsal deploy ahead of Base mainnet (per `Part2_Base/TZ_arcbounty_circle_stack_base.md`
+Block 4). Deployed via `contracts/script/DeployBaseSepolia.s.sol`. Does **not**
+touch Arc — Arc's live V4.4 deployment is untouched and remains the one cited
+in the submitted grant application.
+
+| Field | Value |
+|---|---|
+| BountyAdapter | `0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9` |
+| AgenticCommerce (proxy) | `0x37BB41D12adC01cBFb9Ca69098F9E09E0938a673` |
+| AgenticCommerce (impl) | `0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83` |
+| RPC | `https://sepolia.base.org` |
+| USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` (official 8004-team testnet registry — not self-deployed) |
+| ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` (official 8004-team testnet registry — not self-deployed) |
+| Fee | 100 bps (1%), matches Arc |
+| Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` (same wallet as Arc) |
+| maxBountyAmount (V4.5) | `500000000` (500 USDC, atomic) |
+| Owner (maxBountyAmount admin) | deployer `0xde427f3967cc7a0BF7A9F891195760cCffC82edA` — no Base Safe yet; create one before mainnet |
+| Arbitrator | deployer (unset — no Base Safe yet; must run the two-step handshake before mainnet, exactly as Arc did) |
+| AgenticCommerce admin (upgrade key) | deployer — **we hold this key on Base**, unlike Arc where it's an Arc-team address (see `docs/INTEGRATION_NOTES.md`) |
+| Deployed | 2026-07-20, gas: 7,159,306 total across 3 txs (impl + proxy + adapter) ≈ 0.000043 ETH at the block's gas price — at typical Base mainnet gas prices this is expected to land in cents, not dollars |
+| Escrow source | `src/base/AgenticCommerce.sol` — byte-for-byte match of Arc's own deployed variant (not the current, role-restricted ERC-8183 reference); see `docs/INTEGRATION_NOTES.md` for why |
+
+**E2E proof-of-life (2026-07-20):** jobId `1`, same wallet as both poster and
+worker (allowed — `takeBounty` has no poster≠worker restriction). Full cycle:
+`approve` → `createBounty` (1 USDC reward) → `takeBounty` → `submitWork` →
+`approveBounty(95)`. Final `getBountyMeta(1)` confirms `resolved = true`.
+Payout matched Arc's exact split: 0.99 USDC to the worker, 0.01 USDC (1% fee)
+to the fee recipient. Tx hashes: create `0x2fd14154…8873`, take
+`0xad38d732…905b`, submit `0x41e491d5…8df4`, approve `0xa4987bb4…bdb0`.
 
 ## Updating this file after a redeploy
 
