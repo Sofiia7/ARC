@@ -7,6 +7,20 @@
     "arcbounty-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    ".env.example"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sofiia7/ARC.git",
+    "directory": "mcp-server"
+  },
+  "homepage": "https://arcbounty.app",
+  "bugs": {
+    "url": "https://github.com/Sofiia7/ARC/issues"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "dev": "tsx src/index.ts",

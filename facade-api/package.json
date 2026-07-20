@@ -1,0 +1,33 @@
+{
+  "name": "arcbounty-facade-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Paid x402 REST facade over ArcBounty — the discovery/access layer agents pay for in USDC (Circle Agent Marketplace listing). Escrow/dispute logic is untouched: this service is non-custodial and never relays transactions.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --clean",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.18.2"
+  },
+  "dependencies": {
+    "@circle-fin/x402-batching": "3.2.0",
+    "@x402/core": "^2.19.0",
+    "@x402/evm": "^2.19.0",
+    "arcbounty-agent-sdk": "^0.4.3",
+    "express": "^4.21.2",
+    "viem": "^2.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^25.6.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
