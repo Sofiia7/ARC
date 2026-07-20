@@ -26,7 +26,7 @@ contract BountyAdapterForkTest is Test {
 
     function setUp() public {
         if (block.chainid != ARC_TESTNET) return;
-        adapter = new BountyAdapter(AGENTIC_COMMERCE, IDENTITY_REGISTRY, REPUTATION_REGISTRY, USDC, feeAddr, 100);
+        adapter = new BountyAdapter(AGENTIC_COMMERCE, IDENTITY_REGISTRY, REPUTATION_REGISTRY, USDC, feeAddr, 100, 0);
     }
 
     /// @dev External so the test can `try` it — `deal` reverts hard on tokens

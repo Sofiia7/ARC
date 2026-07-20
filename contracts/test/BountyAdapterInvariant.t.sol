@@ -21,7 +21,7 @@ contract BountyAdapterInvariantTest is Test {
         identity = new MockIdentityRegistry();
         reputation = new MockReputationRegistry();
         adapter = new BountyAdapter(
-            address(commerce), address(identity), address(reputation), address(usdc), address(0xFEE), 100
+            address(commerce), address(identity), address(reputation), address(usdc), address(0xFEE), 100, 0
         );
         // arbitrator() defaults to msg.sender of the constructor call, i.e.
         // this test contract — pass it through so the Handler can act as

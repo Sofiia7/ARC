@@ -98,6 +98,18 @@ import "./interfaces/IReputationRegistry.sol";
 ///    split, meaning users paid the protocol fee even when the arbitrator
 ///    failed to deliver the service that fee funds. The 50/50 split now
 ///    divides the full escrowed amount with no deduction.
+///
+/// V4.5 changes vs V4.4 (Base deployment prerequisite — never deployed to Arc,
+/// where V4.4 remains the live, audited-scope contract):
+///  - maxBountyAmount: an owner-settable cap on createBounty's reward, 0 means
+///    uncapped. A mainnet deployment without an external audit (Base) ships
+///    with this set to bound worst-case loss; Arc's own deployment stays on
+///    V4.4 and is never redeployed to pick this up.
+///  - owner: a new role, separate from arbitrator on purpose (the arbitrator
+///    is intentionally decoupled from the dev team via the 2-of-3 Safe; this
+///    cap is a team-controlled safety knob, not a dispute-resolution power).
+///    Two-step transfer, mirroring the existing arbitrator/feeRecipient
+///    pattern.
 contract BountyAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -113,6 +125,13 @@ contract BountyAdapter is ReentrancyGuard {
     uint256 public immutable feeBps;
     uint256 public constant BPS_DENOMINATOR = 10_000;
     uint256 public constant MIN_REWARD = 1e6;
+
+    /// @notice V4.5: owner-settable createBounty cap, 0 = uncapped. See the
+    ///         V4.5 changelog note above for why this is a separate role from
+    ///         `arbitrator`.
+    address public owner;
+    address public pendingOwner;
+    uint256 public maxBountyAmount;
 
     uint256 public constant DISPUTE_RESPONSE_WINDOW = 48 hours;
     uint256 public constant REJECTION_CHALLENGE_WINDOW = 48 hours;
@@ -245,6 +264,9 @@ contract BountyAdapter is ReentrancyGuard {
     event ArbitratorTransferred(address indexed previous, address indexed next);
     event FeeRecipientTransferStarted(address indexed previous, address indexed pending);
     event FeeRecipientTransferred(address indexed previous, address indexed next);
+    event OwnerTransferStarted(address indexed previous, address indexed pending);
+    event OwnerTransferred(address indexed previous, address indexed next);
+    event MaxBountyAmountUpdated(uint256 previous, uint256 next);
     event ArbitratorTimeoutClaimed(uint256 indexed jobId, uint256 posterAmount, uint256 providerAmount);
     event WorkerBondPosted(uint256 indexed jobId, address indexed worker, uint256 amount);
     event WorkerBondRefunded(uint256 indexed jobId, address indexed worker, uint256 amount);
@@ -256,7 +278,8 @@ contract BountyAdapter is ReentrancyGuard {
         address _reputationRegistry,
         address _usdc,
         address _feeRecipient,
-        uint256 _feeBps
+        uint256 _feeBps,
+        uint256 _maxBountyAmount
     ) {
         require(_agenticCommerce != address(0), "ac=0");
         require(_identityRegistry != address(0), "id=0");
@@ -271,13 +294,16 @@ contract BountyAdapter is ReentrancyGuard {
         usdc = IERC20(_usdc);
         feeRecipient = _feeRecipient;
         arbitrator = msg.sender;
+        owner = msg.sender;
         feeBps = _feeBps;
+        maxBountyAmount = _maxBountyAmount;
     }
 
     // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
     function createBounty(CreateParams calldata p) external nonReentrant returns (uint256 jobId) {
         require(p.reward >= MIN_REWARD, "reward too low");
+        require(maxBountyAmount == 0 || p.reward <= maxBountyAmount, "reward exceeds maxBountyAmount");
         require(p.deadline > block.timestamp, "deadline in past");
         if (p.requireWorkerBond) {
             // Bond honeypot guard — see MIN_BOND_BOUNTY_DURATION natspec.
@@ -794,6 +820,33 @@ contract BountyAdapter is ReentrancyGuard {
         feeRecipient = pendingFeeRecipient;
         pendingFeeRecipient = address(0);
         emit FeeRecipientTransferred(prev, feeRecipient);
+    }
+
+    // ─── Owner transfer (2-step) + safety cap ───────────────────────────────────
+
+    /// @notice V4.5. Kept independent of the arbitrator role by design — see
+    ///         the V4.5 changelog note at the top of this contract.
+    function transferOwner(address next) external {
+        require(msg.sender == owner, "only owner");
+        require(next != address(0), "next=0");
+        pendingOwner = next;
+        emit OwnerTransferStarted(owner, next);
+    }
+
+    function acceptOwner() external {
+        require(msg.sender == pendingOwner, "not pending");
+        address prev = owner;
+        owner = pendingOwner;
+        pendingOwner = address(0);
+        emit OwnerTransferred(prev, owner);
+    }
+
+    /// @notice V4.5. 0 = uncapped. Existing bounties above a newly-lowered cap
+    ///         are unaffected — this only gates future createBounty calls.
+    function setMaxBountyAmount(uint256 next) external {
+        require(msg.sender == owner, "only owner");
+        emit MaxBountyAmountUpdated(maxBountyAmount, next);
+        maxBountyAmount = next;
     }
 
     // ─── Views ─────────────────────────────────────────────────────────────────

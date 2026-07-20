@@ -240,8 +240,9 @@ contract BountyAdapterTest is Test {
         identity = new MockIdentityRegistry();
         reputation = new MockReputationRegistry();
 
-        adapter =
-            new BountyAdapter(address(commerce), address(identity), address(reputation), address(usdc), feeAddr, 100);
+        adapter = new BountyAdapter(
+            address(commerce), address(identity), address(reputation), address(usdc), feeAddr, 100, 0
+        );
 
         identity.setOwner(agentId, agent);
         usdc.mint(poster, 1000e6);
@@ -1327,6 +1328,70 @@ contract BountyAdapterTest is Test {
         vm.prank(stranger);
         vm.expectRevert("not pending");
         adapter.acceptFeeRecipient();
+    }
+
+    // ─── V4.5: owner two-step transfer + maxBountyAmount cap ───────────────────
+
+    function testOwnerTransfer_twoStep() public {
+        address next = address(0xB055);
+        adapter.transferOwner(next); // owner defaults to the test contract (constructor msg.sender)
+        assertEq(adapter.owner(), address(this));
+        vm.prank(next);
+        adapter.acceptOwner();
+        assertEq(adapter.owner(), next);
+    }
+
+    function testOwnerTransfer_revertNotOwner() public {
+        vm.prank(stranger);
+        vm.expectRevert("only owner");
+        adapter.transferOwner(address(0xB055));
+    }
+
+    function testOwnerTransfer_revertNotPending() public {
+        adapter.transferOwner(address(0xB055));
+        vm.prank(stranger);
+        vm.expectRevert("not pending");
+        adapter.acceptOwner();
+    }
+
+    function testMaxBountyAmount_defaultUncapped() public {
+        assertEq(adapter.maxBountyAmount(), 0);
+        uint256 jobId = _create(); // reward = 10e6, must not revert
+        assertEq(adapter.getBountyMeta(jobId).reward, reward);
+    }
+
+    function testMaxBountyAmount_blocksOverCapReward() public {
+        adapter.setMaxBountyAmount(5e6); // owner = test contract
+        vm.prank(poster);
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.reward = 10e6; // above the new 5 USDC cap
+        vm.expectRevert("reward exceeds maxBountyAmount");
+        adapter.createBounty(p);
+    }
+
+    function testMaxBountyAmount_allowsAtOrUnderCap() public {
+        adapter.setMaxBountyAmount(10e6);
+        uint256 jobId = _create(); // reward = 10e6, exactly at the cap
+        assertEq(adapter.getBountyMeta(jobId).reward, reward);
+    }
+
+    function testMaxBountyAmount_revertNotOwner() public {
+        vm.prank(stranger);
+        vm.expectRevert("only owner");
+        adapter.setMaxBountyAmount(5e6);
+    }
+
+    function testMaxBountyAmount_raisingCapUnblocksFutureCreates() public {
+        adapter.setMaxBountyAmount(5e6);
+        vm.prank(poster);
+        BountyAdapter.CreateParams memory p = _params(false, false, address(0), CAT);
+        p.reward = 10e6;
+        vm.expectRevert("reward exceeds maxBountyAmount");
+        adapter.createBounty(p);
+
+        adapter.setMaxBountyAmount(20e6); // raise it
+        vm.prank(poster);
+        adapter.createBounty(p); // now succeeds
     }
 
     // ─── V4: worker bond ───────────────────────────────────────────────────────
