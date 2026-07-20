@@ -1,0 +1,10 @@
+title = "ArcBounty gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendored third-party dependencies (forge-std, OpenZeppelin) are not ours to scan for secrets — same rationale as contracts/slither.config.json's lib/ exclusion for security findings. False positives here are public library source: ERC-7201 namespaced-storage constants and similar high-entropy hex literals, not secrets."
+paths = [
+  '''contracts/lib/.*''',
+]

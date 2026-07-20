@@ -50,3 +50,19 @@ post-call state). Documented and accepted.
 Everything else (high/medium correctness detectors, unchecked transfers,
 arbitrary-send, etc.) remains a hard CI failure. `SafeERC20` is used for every
 token movement, so unchecked-transfer cannot fire.
+
+## `src/base/` is filtered out entirely, not triaged
+
+`src/base/AgenticCommerce.sol` (added for the Base deployment, V4.5) is
+excluded from the Slither gate the same way `lib/` is — it is a byte-for-byte
+copy of the exact contract Arc itself already deployed and has run in
+production for months (verified against ArcScan's source for
+`0x0747EEf0706327138c69792bF28Cd525089e4583`; see
+`docs/INTEGRATION_NOTES.md`), vendored only because Base has no canonical
+ERC-8183 deployment of any kind to point at instead. It is not code this
+project wrote or is claiming custody-path ownership of — the $12k external
+audit (grant Milestone 2) is scoped to `BountyAdapter` (~590 LOC), not this
+escrow. Findings here (a handful of `reentrancy-no-eth` on hook callbacks that
+are always `address(0)` in our deployment, and one `arbitrary-send-erc20` on
+the standard escrow `transferFrom`) are Arc's own accepted design, not ours to
+triage.
