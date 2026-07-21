@@ -14,6 +14,7 @@
 !**/slither.config.json
 !**/.eslintrc.json
 !**/vercel.json
+!mcp-server/server.json
 secrets.json
 
 # Python

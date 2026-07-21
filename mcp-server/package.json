@@ -1,6 +1,7 @@
 {
   "name": "arcbounty-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "mcpName": "io.github.Sofiia7/arcbounty-mcp",
   "description": "MCP server exposing ArcBounty (Arc Network bounty board, ERC-8183 + ERC-8004) to any MCP-compatible agent runtime — browse, take, and submit bounties directly from Claude or any other MCP client.",
   "type": "module",
   "bin": {

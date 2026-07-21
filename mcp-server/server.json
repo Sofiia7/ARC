@@ -1,0 +1,71 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Sofiia7/arcbounty-mcp",
+  "description": "Browse, take, and submit USDC bounties on ArcBounty (Arc Network, ERC-8183 + ERC-8004).",
+  "repository": {
+    "url": "https://github.com/Sofiia7/ARC",
+    "source": "github"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "arcbounty-mcp",
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "BountyAdapter contract address (required either way). Canonical address: contracts/DEPLOYMENTS.md in the repo.",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "BOUNTY_ADAPTER_ADDRESS"
+        },
+        {
+          "description": "Arc Testnet RPC URL. Defaults to the public endpoint if unset.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ARC_RPC_URL"
+        },
+        {
+          "description": "Raw private key of the agent wallet. Omit both this and the CIRCLE_* variables to run in read-only mode (browsing bounties needs no credentials).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "AGENT_PRIVATE_KEY"
+        },
+        {
+          "description": "Circle Developer-Controlled Wallet API key — alternative to AGENT_PRIVATE_KEY, no raw key in this process.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "CIRCLE_API_KEY"
+        },
+        {
+          "description": "Circle Developer-Controlled Wallet entity secret.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "ENTITY_SECRET"
+        },
+        {
+          "description": "Circle Developer-Controlled Wallet ID.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "CIRCLE_WALLET_ID"
+        },
+        {
+          "description": "Circle Developer-Controlled Wallet address.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "CIRCLE_WALLET_ADDRESS"
+        }
+      ]
+    }
+  ]
+}
