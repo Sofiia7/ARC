@@ -30,25 +30,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "IPFS not configured: PINATA_JWT missing" }, { status: 503 });
   }
 
+  const ip = clientKey(req);
+
+  // IP check FIRST, before signature verification: verifyWalletAuth() falls
+  // back to an on-chain eth_call for ERC-1271 smart-account addresses (e.g.
+  // Porto passkey wallets) even when the signature is garbage — so an
+  // unthrottled flood of bogus-signature requests could still burn RPC quota
+  // if this ran after auth. This bucket alone isn't the abuse bound (see
+  // WALLET_RATE below, checked post-auth) — it's just cheap enough to gate
+  // the expensive path first.
+  const ipRl = await consumeAsync(`pin:ip:${ip}`, IP_RATE);
+  if (!ipRl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(ipRl.retryAfterSec) } },
+    );
+  }
+
   const auth = await verifyWalletAuth(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const wallet = auth.address.toLowerCase();
-  const ip = clientKey(req);
 
-  // Both dimensions must pass — a fresh wallet doesn't bypass the IP cap, and
-  // rotating IPs (VPN) doesn't bypass the wallet cap.
-  const [walletRl, ipRl] = await Promise.all([
-    consumeAsync(`pin:wallet:${wallet}`, WALLET_RATE),
-    consumeAsync(`pin:ip:${ip}`, IP_RATE),
-  ]);
-  const rl = !walletRl.ok ? walletRl : ipRl;
-  if (!walletRl.ok || !ipRl.ok) {
+  // Wallet-scoped, checked after auth succeeds — see WALLET_RATE above for
+  // why this alone isn't sufficient (wallet creation is free).
+  const walletRl = await consumeAsync(`pin:wallet:${wallet}`, WALLET_RATE);
+  if (!walletRl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      { status: 429, headers: { "Retry-After": String(walletRl.retryAfterSec) } },
     );
   }
 

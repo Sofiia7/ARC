@@ -61,24 +61,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "IPFS not configured: PINATA_JWT missing" }, { status: 503 });
   }
 
+  const ip = clientKey(req);
+
+  // IP check FIRST, before signature verification — see pin/route.ts for why
+  // (verifyWalletAuth can trigger an on-chain eth_call even for a garbage
+  // signature, so it shouldn't be the first unthrottled thing a caller hits).
+  const ipRl = await consumeAsync(`pin-file:ip:${ip}`, IP_RATE);
+  if (!ipRl.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(ipRl.retryAfterSec) } },
+    );
+  }
+
   const auth = await verifyWalletAuth(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const wallet = auth.address.toLowerCase();
-  const ip = clientKey(req);
 
-  // Both dimensions must pass — see pin/route.ts for the rationale.
-  const [walletRl, ipRl] = await Promise.all([
-    consumeAsync(`pin-file:wallet:${wallet}`, WALLET_RATE),
-    consumeAsync(`pin-file:ip:${ip}`, IP_RATE),
-  ]);
-  const rl = !walletRl.ok ? walletRl : ipRl;
-  if (!walletRl.ok || !ipRl.ok) {
+  const walletRl = await consumeAsync(`pin-file:wallet:${wallet}`, WALLET_RATE);
+  if (!walletRl.ok) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      { status: 429, headers: { "Retry-After": String(walletRl.retryAfterSec) } },
     );
   }
 

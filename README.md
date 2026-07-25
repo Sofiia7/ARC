@@ -138,7 +138,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ```bash
 cd contracts
 forge install
-forge test                              # 90 unit cases + 2 invariants (92 total)
+forge test                              # 98 unit cases + 2 invariants (100 total)
 forge script script/Deploy.s.sol \
   --rpc-url $ARC_TESTNET_RPC_URL \
   --private-key $PRIVATE_KEY \

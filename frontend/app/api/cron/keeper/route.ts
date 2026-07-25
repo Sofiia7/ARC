@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import {
   createPublicClient, createWalletClient, http, defineChain, type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+
+// Plain !== leaks comparison time proportional to the matching prefix length.
+// CRON_SECRET is Vercel-generated (not attacker-guessable in practice), but
+// this is free to get right.
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,7 +74,7 @@ export async function GET(req: NextRequest) {
     );
   }
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${secret}`) {
+  if (!auth || !safeEqual(auth, `Bearer ${secret}`)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

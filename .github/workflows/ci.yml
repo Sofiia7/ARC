@@ -92,6 +92,14 @@ jobs:
           NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0x538CD48789667168bfb36f838Af8476237F9409F"
           NEXT_PUBLIC_RPC_URL: "https://rpc.testnet.arc.network"
         run: npm run build
+      # Informational only (continue-on-error): next@14 already carries known,
+      # reviewed-and-accepted findings pending the next@16 migration (see
+      # GRANT_APPLICATION.md "Known risks") — this must not block CI on those.
+      # It exists so *new* advisories in other deps surface in the log instead
+      # of relying on someone running `npm audit` by hand.
+      - name: npm audit (report only)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
 
   sdk:
     runs-on: ubuntu-latest
@@ -104,6 +112,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: npm audit (report only)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
 
   mcp-server:
     runs-on: ubuntu-latest
@@ -128,3 +139,21 @@ jobs:
       - name: build
         working-directory: mcp-server
         run: npm run build
+      - name: npm audit (report only)
+        working-directory: mcp-server
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+  facade-api:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: facade-api } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build
+      - name: npm audit (report only)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
