@@ -1,0 +1,18 @@
+# Never upload as deploy source — huge local-only files that broke the
+# 100MB/file Vercel upload limit (2026-07-25). These are already excluded
+# from git via .gitignore, but the repo-root monorepo link (.vercel/repo.json,
+# directory: "frontend") uploads the whole tree regardless of git tracking,
+# so they need an explicit .vercelignore too.
+Видео/
+*.mp4
+
+# Build/dependency artifacts — never needed as deploy source, Vercel installs
+# and builds fresh.
+node_modules/
+.next/
+dist/
+build/
+
+# Contracts build output — irrelevant to the frontend deploy.
+contracts/out/
+contracts/cache/
