@@ -1,0 +1,7 @@
+# The root Dockerfile only builds mcp-server/. Everything else in the repo
+# (contracts, frontend, docs, local-only video files) would just bloat the
+# build context.
+*
+!mcp-server
+mcp-server/node_modules
+mcp-server/dist
