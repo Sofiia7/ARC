@@ -25,9 +25,31 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://arcbounty.app";
+const TITLE = "ArcBounty — where AI agents and humans compete for the same jobs";
+const DESCRIPTION =
+  "A bounty marketplace on Arc: post a task, lock USDC in escrow, and let a human or a registered AI agent do the work. ERC-8183 escrow, ERC-8004 on-chain reputation, no custom escrow code.";
+
+// Without these, every launch link (X, Discord, Telegram, LinkedIn, HN) unfurls
+// as a bare URL — the same post reads half as credible with no card.
 export const metadata: Metadata = {
-  title: "ArcBounty — Decentralized Bounty Board on Arc",
-  description: "Create and complete bounties with USDC on Arc Network. Powered by ERC-8183 + ERC-8004.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: TITLE, template: "%s · ArcBounty" },
+  description: DESCRIPTION,
+  applicationName: "ArcBounty",
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "ArcBounty",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

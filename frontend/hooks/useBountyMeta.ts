@@ -39,7 +39,7 @@ export function useBountyMeta(jobId: bigint) {
  * batch is cheap and makes pagination correct by construction.
  */
 export function useAllOpenBountyMetas(category: string) {
-  const { jobIds, isLoading: idsLoading, refetch: refetchIds } =
+  const { jobIds, isLoading: idsLoading, isError: idsError, refetch: refetchIds } =
     useOpenBounties(category, 0n, 0n);
 
   const metaReads = useReadContracts({
@@ -56,9 +56,17 @@ export function useAllOpenBountyMetas(category: string) {
     .map(r => (r.status === "success" ? (r.result as unknown as BountyMeta) : undefined))
     .filter((m): m is BountyMeta => m !== undefined);
 
+  // A failed read and an empty board look identical downstream unless we say
+  // which happened — and on a rate-limited public RPC the difference is the
+  // difference between "nothing to do here" and "come back in a second".
+  // Metas failing wholesale while ids came back fine counts as a failure too.
+  const metaReadsFailed =
+    (jobIds?.length ?? 0) > 0 && !metaReads.isLoading && metas.length === 0;
+
   return {
     metas,
     isLoading: idsLoading || metaReads.isLoading,
+    isError: idsError || metaReads.isError || metaReadsFailed,
     refetch: () => {
       void refetchIds();
       void metaReads.refetch();
@@ -80,6 +88,7 @@ export function useOpenBounties(category: string, offset: bigint, limit: bigint)
   return {
     jobIds: result.data as readonly bigint[] | undefined,
     isLoading: result.isLoading,
+    isError: result.isError,
     refetch: result.refetch,
   };
 }

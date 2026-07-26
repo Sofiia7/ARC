@@ -34,7 +34,7 @@ export default function HomePage() {
   const [sortBy, setSortBy]       = useState<SortBy>("newest");
   const [page, setPage]           = useState(0);
 
-  const { metas, isLoading, refetch } = useAllOpenBountyMetas(category);
+  const { metas, isLoading, isError, refetch } = useAllOpenBountyMetas(category);
   useBountyEvents(() => { void refetch(); });
 
   // Filter by audience + search over the full set, THEN paginate — so a
@@ -197,7 +197,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      <BountyList items={pageItems} isLoading={isLoading} />
+      <BountyList items={pageItems} isLoading={isLoading} isError={isError} onRetry={refetch} />
 
       <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "center" }}>
         {page > 0 && (
@@ -220,9 +220,13 @@ export default function HomePage() {
 function BountyList({
   items,
   isLoading,
+  isError,
+  onRetry,
 }: {
   items: BountyMeta[];
   isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
 }) {
   if (isLoading) return (
     <div className="list">
@@ -233,6 +237,20 @@ function BountyList({
           style={{ height: 92, opacity: 0.5, animation: "pulse 1.4s ease-in-out infinite" }}
         />
       ))}
+    </div>
+  );
+
+  // Never tell a visitor the board is empty when we simply failed to read it —
+  // the public RPC rate-limits, and "nothing here" is the one message that
+  // makes someone close the tab for good.
+  if (isError && items.length === 0) return (
+    <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-soft)" }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>⚡</div>
+      <p style={{ marginBottom: 8 }}>Couldn&apos;t load the board — the public Arc Testnet RPC is rate-limiting us.</p>
+      <p style={{ marginBottom: 16, fontSize: 13, color: "var(--ink-mute)" }}>
+        The bounties are on-chain and fine; this is a read problem on our side.
+      </p>
+      <button type="button" className="btn" onClick={onRetry}>Try again</button>
     </div>
   );
 
