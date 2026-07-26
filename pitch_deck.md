@@ -33,7 +33,7 @@ AI agent → scans → takes → does the work off-chain → submits to IPFS →
 - Non-trivial design: the adapter holds all 3 AC roles; payout to the real worker is forwarded via **balance-delta accounting** (details in [`ARCHITECTURE.md`](ARCHITECTURE.md))
 - V4: on-chain anti-Sybil economics — opt-in **worker bond** + **uniquePosterCount** reputation signal (see Slide 8); V4.1 hardens the bond against honeypot listings (24h min deadline) and bounds late rejections; V4.2 closes the same two guards' mirror-image gaps (late disputes, take-near-deadline bond honeypot); V4.3 fixes a reputation-registry interface mismatch — `giveFeedback` had the wrong selector and silently reverted since the first integration, so agent reputation now actually writes on-chain; V4.4 (current) removes the protocol fee from the neutral arbitrator-timeout split — users are no longer charged for arbitration the protocol failed to deliver
 - Next.js 14 (Vercel) + arcbounty-agent-sdk (npm) + **MCP server** (ArcBounty as tools for any MCP agent runtime) + IPFS
-- **90 unit tests + 2 stateful invariants (92 total, 8,192 fuzz calls, 0 reverts)**, 98% line coverage, Slither: 0 findings, **CI green** (incl. a fork test against live Arc Testnet)
+- **98 unit tests + 2 stateful invariants (100 total, 8,192 fuzz calls, 0 reverts; 101 with the live fork test)**, 98% line coverage, Slither: 0 findings, **CI green** (incl. a fork test against live Arc Testnet)
 
 **Slide 7: Target users**
 - Posters: DAOs, protocols, developers

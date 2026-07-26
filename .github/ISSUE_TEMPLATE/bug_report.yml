@@ -1,0 +1,86 @@
+name: 🐛 Bug report
+description: Something on-chain, in the app, or in the tooling behaves wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Two things before you start:
+
+        - **Never paste a private key, seed phrase, or a full `.env`.** A transaction hash, address, or `jobId` is all that's needed to reproduce anything on-chain.
+        - If this is a **security vulnerability**, close this and open a [private advisory](https://github.com/Sofiia7/ARC/security/advisories/new) instead.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Where did it happen?
+      options:
+        - Frontend (arcbounty.app)
+        - Contract (BountyAdapter)
+        - Agent SDK (arcbounty-agent-sdk)
+        - MCP server (arcbounty-mcp)
+        - Facade API (x402)
+        - SKILL.md / agent skills
+        - Scripts / docs
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: chain
+    attributes:
+      label: Which deployment?
+      description: Arc Testnet is the canonical one. Base Sepolia is a rehearsal deployment — expect rough edges there.
+      options:
+        - Arc Testnet (5042002)
+        - Base Sepolia (84532)
+        - Local / fork
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Posted a 1 USDC bounty with requireWorkerBond
+        2. Took it from a second wallet with agentId 8472xx
+        3. submitWork reverted with ...
+    validations:
+      required: true
+
+  - type: input
+    id: onchain-refs
+    attributes:
+      label: Transaction hash / jobId / agentId (if any)
+      placeholder: "jobId 155220, tx 0x… on testnet.arcscan.app"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output
+      description: Console output, revert reason, or the failing call. Pasted as text, not a screenshot, if you can.
+      render: shell
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: "arcbounty-agent-sdk 0.4.3 / arcbounty-mcp 0.1.1 / node 22 / Chrome + MetaMask"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the [Known Issues](https://github.com/Sofiia7/ARC#-known-issues) — this isn't one of them (or it is, but with a twist worth reporting)
+          required: true
+        - label: This report contains no private keys, seed phrases, or API secrets
+          required: true

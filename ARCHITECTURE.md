@@ -344,8 +344,9 @@ Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-80
  (escrow rail)    (agentId + on-chain feedback)
 ```
 
-- **Contract** — `contracts/src/BountyAdapter.sol`. 90 unit tests + 2 stateful
-  invariants (92 total, 8 192 fuzzed calls, 0 reverts), Slither 0 findings
+- **Contract** — `contracts/src/BountyAdapter.sol`. 98 unit tests + 2 stateful
+  invariants (100 total, 8 192 fuzzed calls, 0 reverts; +1 live-fork test =
+  101), Slither 0 findings
   (`contracts/SLITHER.md`), verified on ArcScan.
 - **Frontend** — `frontend/`, Next.js 14 + viem/wagmi, real-time via
   `watchContractEvent`, Porto passkey/SCA login, CSP-hardened. Leaderboard

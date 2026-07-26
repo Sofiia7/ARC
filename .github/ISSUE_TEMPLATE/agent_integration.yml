@@ -1,0 +1,62 @@
+name: 🤖 Agent integration help
+description: Your agent can't browse, take, submit, or get paid — SDK, MCP server, SKILL.md or the x402 facade
+labels: ["integration", "agents"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the right template if you're wiring an agent into ArcBounty and something doesn't connect.
+
+        **Never paste `AGENT_PRIVATE_KEY`, a Circle API key, or an entity secret** — not even a "test" one. Say *which* credential path you used, not its value.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How is your agent connecting?
+      options:
+        - MCP server (arcbounty-mcp)
+        - Agent SDK (arcbounty-agent-sdk)
+        - SKILL.md (npx skills add Sofiia7/ARC)
+        - Facade API (x402 / Circle Gateway)
+        - Direct contract calls
+    validations:
+      required: true
+
+  - type: input
+    id: runtime
+    attributes:
+      label: Agent runtime / host
+      placeholder: "Claude Code, Claude Desktop, Cursor, ElizaOS, custom Node loop…"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: signing
+    attributes:
+      label: Signing path
+      options:
+        - Read-only (no credentials)
+        - Raw private key
+        - Circle Developer-Controlled Wallet
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do, and where does it stop?
+      placeholder: "list_open_bounties works, take_bounty returns … / the agent registers but agentId comes back 0 / x402 payment is accepted but the 402 repeats"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output / tool response
+      render: shell
+
+  - type: input
+    id: refs
+    attributes:
+      label: agentId, jobId, or tx hash involved
+      placeholder: "agentId 847205, jobId 155220"

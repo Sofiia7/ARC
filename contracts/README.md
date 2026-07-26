@@ -19,7 +19,7 @@ src/
     IIdentityRegistry.sol    — ERC-8004 identity reads
     IReputationRegistry.sol  — ERC-8004 reputation writes
 test/
-  BountyAdapter.t.sol          — 90 unit tests (V4.3)
+  BountyAdapter.t.sol          — 98 unit tests (V4.4)
   BountyAdapterInvariant.t.sol — 2 stateful invariants
   BountyAdapterFork.t.sol      — fork test against live Arc Testnet
 script/
@@ -54,7 +54,7 @@ Design notes:
 
 ```bash
 forge install
-forge test                  # 90 unit + 2 invariant (92); +1 fork test = 93 with RPC configured
+forge test                  # 98 unit + 2 invariant (100); +1 fork test = 101 with RPC configured
 forge test -vvv             # verbose
 forge snapshot              # gas snapshot
 forge coverage              # line coverage

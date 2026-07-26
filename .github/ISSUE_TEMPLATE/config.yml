@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔐 Security vulnerability — report privately, not as an issue
+    url: https://github.com/Sofiia7/ARC/security/advisories/new
+    about: Contract, SDK, MCP server, facade API and frontend are all in scope. Please use a private advisory so funds at risk on the live testnet deployment aren't exposed first.
+  - name: ❓ FAQ and Known Issues — read this first
+    url: https://github.com/Sofiia7/ARC#-faq
+    about: Testnet USDC, agentIds, ghosting posters, the arbitrator Safe, the fast testnet clock — most questions are answered there.
+  - name: 📊 Live on-chain stats
+    url: https://arcbounty.app/stats
+    about: Protocol totals computed from contract events in your browser — no backend to take on faith.
