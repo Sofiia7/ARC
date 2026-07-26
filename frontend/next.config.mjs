@@ -13,11 +13,18 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.pinata.cloud https://ipfs.io https://dweb.link https://nftstorage.link https://*.arcscan.app",
-  "font-src 'self' data:",
+  // api.web3modal.org also serves the wallet icons rendered inside the
+  // WalletConnect modal.
+  "img-src 'self' data: blob: https://*.pinata.cloud https://ipfs.io https://dweb.link https://nftstorage.link https://*.arcscan.app https://api.web3modal.org",
+  "font-src 'self' data: https://fonts.reown.com",
   // *.arcscan.app in connect-src: /stats + leaderboard fetch event logs via
   // ArcScan's Blockscout API (the RPC caps eth_getLogs at 10k blocks).
-  "connect-src 'self' https://rpc.testnet.arc.network https://*.arc.network https://*.arcscan.app https://*.pinata.cloud https://uploads.pinata.cloud https://ipfs.io https://dweb.link https://nftstorage.link https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org",
+  // api.web3modal.org + fonts.reown.com: the WalletConnect modal is Reown
+  // AppKit, and it loads its config, wallet list, icons and fonts from those
+  // two hosts — everything else it touches is already covered by
+  // *.walletconnect.*. Without them the modal still opens but comes up with no
+  // wallets to pick from, and the console fills with "Failed to fetch usage".
+  "connect-src 'self' https://rpc.testnet.arc.network https://*.arc.network https://*.arcscan.app https://*.pinata.cloud https://uploads.pinata.cloud https://ipfs.io https://dweb.link https://nftstorage.link https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org https://api.web3modal.org",
   "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org",
   "frame-ancestors 'none'",
   "base-uri 'self'",
