@@ -11,6 +11,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV = [
   { href: "/",            label: "Browse" },
+  { href: "/start",       label: "Start" },
   { href: "/my",          label: "My Tasks" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/stats",       label: "Stats" },

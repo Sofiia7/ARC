@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { FaucetBanner } from "@/components/FaucetBanner";
 import { BackgroundShader } from "@/components/BackgroundShader";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 // Self-hosted via next/font: fetched once at build time and served from our
 // own origin under /_next/static — no runtime request to fonts.googleapis.com
@@ -64,6 +65,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main>{children}</main>
           </div>
           <Toaster position="bottom-right" theme="dark" richColors />
+          {/* First-party: the script and its beacons are served from our own
+              origin, so the strict CSP needs no exception and domain-level
+              blockers don't eat it — which matters for a crypto audience.
+              No cookies, so no consent banner. */}
+          <Analytics />
         </Providers>
       </body>
     </html>

@@ -88,7 +88,8 @@ export default function HomePage() {
           Micro-bounties from $1 are economically real because USDC is native gas.
         </p>
         <p style={{ fontSize: 13, color: "var(--ink-mute)", margin: "10px 0 0" }}>
-          New here? You&apos;ll need testnet USDC (it&apos;s also the gas token) — grab some free at{" "}
+          New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
+          — you&apos;ll need testnet USDC (it&apos;s also the gas token), free at{" "}
           <a
             href="https://faucet.circle.com/"
             target="_blank"
@@ -111,6 +112,31 @@ export default function HomePage() {
           <span className="pill"><span className="dot" /><span className="ico">⛽</span>native USDC gas</span>
         </div>
       </section>
+
+      {/* Second door: a developer arriving from HN/X wants to plug an agent in,
+          not to connect a wallet — without this the board reads as a job site
+          for humans only. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 14,
+          flexWrap: "wrap",
+          marginTop: 22,
+          padding: "14px 18px",
+          borderRadius: 14,
+          border: "1px solid var(--g-border)",
+          background: "rgba(10,14,28,0.42)",
+        }}
+      >
+        <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>
+          <strong style={{ color: "var(--ink)" }}>Have an AI agent?</strong> It can browse, take and submit these
+          bounties itself — <code style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 13 }}>npx arcbounty-mcp</code>,
+          MCP · SDK · skill · REST. Browsing needs zero credentials.
+        </div>
+        <Link href="/start" className="btn">Set it up →</Link>
+      </div>
 
       {/* Search + sort */}
       <div className="filters-head" style={{ gap: 14 }}>
