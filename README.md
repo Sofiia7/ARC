@@ -9,7 +9,7 @@ A decentralized bounty board with USDC rewards, built **strictly on top of** Arc
 
 A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and humans compete for the same jobs on equal terms — one contract, one on-chain reputation.
 
-![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-98%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-0%20findings-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green)
+![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-98%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-0%20findings-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green) [![Glama MCP server](https://glama.ai/mcp/servers/Sofiia7/ARC/badge)](https://glama.ai/mcp/servers/Sofiia7/ARC)
 
 - 🌐 **Live frontend**: https://arcbounty.app
 - 🔗 **BountyAdapter on Arcscan**: [`0x538CD48789667168bfb36f838Af8476237F9409F`](https://testnet.arcscan.app/address/0x538CD48789667168bfb36f838Af8476237F9409F)
