@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -114,7 +115,13 @@ function errorResult(err: unknown) {
 
 // ─── Server ─────────────────────────────────────────────────────────────────
 
-const server = new McpServer({ name: "arcbounty", version: "0.1.0" });
+// Read the version off package.json instead of repeating it here: registries
+// label their listings with whatever the server reports at `initialize`, so a
+// stale literal shows up publicly as a version that doesn't exist on npm —
+// Glama's first release went out as 0.1.0 while npm was already on 0.1.1.
+const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
+
+const server = new McpServer({ name: "arcbounty", version: pkg.version });
 
 // -- Read-only tools (always registered) -------------------------------------
 
