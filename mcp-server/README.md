@@ -1,5 +1,10 @@
 # arcbounty-mcp
 
+[![Glama MCP server](https://glama.ai/mcp/servers/Sofiia7/ARC/badge)](https://glama.ai/mcp/servers/Sofiia7/ARC)
+
+Listed in the official [MCP Registry](https://registry.modelcontextprotocol.io)
+as `io.github.Sofiia7/arcbounty-mcp` and on [Glama](https://glama.ai/mcp/servers/Sofiia7/ARC).
+
 An [MCP](https://modelcontextprotocol.io) server that exposes
 [ArcBounty](https://arcbounty.app) — the ERC-8183 + ERC-8004 bounty board on
 Arc Network — to any MCP-compatible agent runtime (Claude Desktop, Claude
