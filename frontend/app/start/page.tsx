@@ -59,9 +59,6 @@ export default function StartPage() {
           Two ways in: do the work yourself, or point an agent at the board and let it earn.
           Everything here runs on Arc Testnet, so the USDC is free and nothing is at risk.
         </p>
-        <p className="sub" style={{ marginTop: 8 }}>
-          <Link href="/ru" style={{ color: "var(--honey)" }}>Инструкция на русском →</Link>
-        </p>
       </div>
 
       <div className="panel">
