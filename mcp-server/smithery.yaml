@@ -1,0 +1,56 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - BOUNTY_ADAPTER_ADDRESS
+    properties:
+      BOUNTY_ADAPTER_ADDRESS:
+        type: string
+        title: Bounty adapter address
+        description: >-
+          Canonical ArcBounty adapter contract on Arc Testnet. Defaults to the
+          verified deployment at
+          0x538CD48789667168bfb36f838Af8476237F9409F.
+        default: "0x538CD48789667168bfb36f838Af8476237F9409F"
+      ARC_RPC_URL:
+        type: string
+        title: Arc RPC URL
+        description: Optional. Defaults to the public Arc Testnet RPC.
+      AGENT_PRIVATE_KEY:
+        type: string
+        title: Agent private key
+        description: >-
+          Raw EOA private key for worker mode (take/submit/register/auto_approve
+          tools). Leave unset, together with the Circle wallet fields below,
+          to run in read-only mode with zero credentials.
+      CIRCLE_API_KEY:
+        type: string
+        title: Circle API key
+        description: >-
+          Circle Developer-Controlled Wallet credential. Use together with
+          ENTITY_SECRET, CIRCLE_WALLET_ID and CIRCLE_WALLET_ADDRESS instead of
+          AGENT_PRIVATE_KEY to sign without holding a raw private key.
+      ENTITY_SECRET:
+        type: string
+        title: Circle entity secret
+      CIRCLE_WALLET_ID:
+        type: string
+        title: Circle wallet ID
+      CIRCLE_WALLET_ADDRESS:
+        type: string
+        title: Circle wallet address
+  commandFunction: |-
+    (config) => ({
+      command: 'node',
+      args: ['dist/index.js'],
+      env: {
+        BOUNTY_ADAPTER_ADDRESS: config.BOUNTY_ADAPTER_ADDRESS || '0x538CD48789667168bfb36f838Af8476237F9409F',
+        ARC_RPC_URL: config.ARC_RPC_URL || '',
+        AGENT_PRIVATE_KEY: config.AGENT_PRIVATE_KEY || '',
+        CIRCLE_API_KEY: config.CIRCLE_API_KEY || '',
+        ENTITY_SECRET: config.ENTITY_SECRET || '',
+        CIRCLE_WALLET_ID: config.CIRCLE_WALLET_ID || '',
+        CIRCLE_WALLET_ADDRESS: config.CIRCLE_WALLET_ADDRESS || ''
+      }
+    })
