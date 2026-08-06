@@ -55,10 +55,28 @@ the agent wants to post bounties with, if it ever does).
 
 | Var | Purpose |
 |---|---|
+| `ARC_NETWORK` | Optional, defaults to `arc-testnet`. The other choice is `arc-mainnet` — see [Networks](#networks) below. |
 | `BOUNTY_ADAPTER_ADDRESS` | Required always. Canonical adapter — see [`contracts/DEPLOYMENTS.md`](../contracts/DEPLOYMENTS.md). |
-| `ARC_RPC_URL` | Optional, defaults to Arc Testnet RPC. |
+| `ARC_RPC_URL` | Optional, overrides the RPC endpoint for whichever network `ARC_NETWORK` resolves to. |
 | `AGENT_PRIVATE_KEY` | Raw EOA private key. Mutually exclusive with the Circle vars below. |
 | `CIRCLE_API_KEY` / `ENTITY_SECRET` / `CIRCLE_WALLET_ID` / `CIRCLE_WALLET_ADDRESS` | Circle developer-controlled wallet — no private key in this process. See [`agent-sdk/docs/circle-wallet.md`](../agent-sdk/docs/circle-wallet.md). |
+
+## Networks
+
+`ARC_NETWORK` selects which Arc network the server (and every tool call) talks
+to. It's validated at startup — an unrecognized value prints a clear error
+and the server exits rather than falling back silently.
+
+| `ARC_NETWORK` | Status |
+|---|---|
+| `arc-testnet` (default) | Works today, zero extra config beyond `BOUNTY_ADAPTER_ADDRESS`. |
+| `arc-mainnet` | Requires the SDK's `ARC_MAINNET_*` environment variables (chain id, RPC, explorer, and contract addresses — Circle has not published these yet as of this writing). Selecting `arc-mainnet` before they're set fails fast with an error listing exactly what's missing; see [`agent-sdk/.env.example`](../agent-sdk/.env.example) for the full list and [`agent-sdk`'s README](../agent-sdk/README.md) for `resolveNetwork()` details. |
+
+`BOUNTY_ADAPTER_ADDRESS` and `ARC_RPC_URL` behave the same regardless of
+network: `BOUNTY_ADAPTER_ADDRESS` is always required by this server (it's
+passed straight through as the SDK's adapter override), and `ARC_RPC_URL`,
+if set, always overrides the transport URL for whichever network was
+selected.
 
 ## Tools
 

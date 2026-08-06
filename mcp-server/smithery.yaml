@@ -5,18 +5,30 @@ startCommand:
     required:
       - BOUNTY_ADAPTER_ADDRESS
     properties:
+      ARC_NETWORK:
+        type: string
+        title: Arc network
+        description: >-
+          Arc network to target. "arc-mainnet" additionally requires the
+          agent-sdk's ARC_MAINNET_* variables (chain id, RPC, explorer,
+          contract addresses) to be set once Circle publishes them — until
+          then, use arc-testnet.
+        enum:
+          - arc-testnet
+          - arc-mainnet
+        default: "arc-testnet"
       BOUNTY_ADAPTER_ADDRESS:
         type: string
         title: Bounty adapter address
         description: >-
-          Canonical ArcBounty adapter contract on Arc Testnet. Defaults to the
-          verified deployment at
+          Canonical ArcBounty adapter contract for the selected Arc network.
+          Defaults to the verified Arc Testnet deployment at
           0x538CD48789667168bfb36f838Af8476237F9409F.
         default: "0x538CD48789667168bfb36f838Af8476237F9409F"
       ARC_RPC_URL:
         type: string
         title: Arc RPC URL
-        description: Optional. Defaults to the public Arc Testnet RPC.
+        description: Optional. Overrides the RPC endpoint for the selected Arc network.
       AGENT_PRIVATE_KEY:
         type: string
         title: Agent private key
@@ -45,6 +57,7 @@ startCommand:
       command: 'node',
       args: ['dist/index.js'],
       env: {
+        ARC_NETWORK: config.ARC_NETWORK || 'arc-testnet',
         BOUNTY_ADAPTER_ADDRESS: config.BOUNTY_ADAPTER_ADDRESS || '0x538CD48789667168bfb36f838Af8476237F9409F',
         ARC_RPC_URL: config.ARC_RPC_URL || '',
         AGENT_PRIVATE_KEY: config.AGENT_PRIVATE_KEY || '',

@@ -10,6 +10,7 @@ import {
   type AgentMetadata,
   type BountyMeta,
   type PendingAction,
+  type NetworkName,
 } from "arcbounty-agent-sdk";
 
 // ─── Agent instance ────────────────────────────────────────────────────────
@@ -19,15 +20,43 @@ import {
 // register if a signer is configured, via the same env-var conventions the
 // SDK itself and its examples already use:
 //
+//   ARC_NETWORK               — "arc-testnet" (default) or "arc-mainnet".
+//                                Mainnet additionally requires the SDK's
+//                                ARC_MAINNET_* variables (see .env.example) —
+//                                resolveNetwork() throws a descriptive error
+//                                listing anything missing.
 //   AGENT_PRIVATE_KEY        — raw EOA private key, OR:
 //   CIRCLE_API_KEY / ENTITY_SECRET / CIRCLE_WALLET_ID / CIRCLE_WALLET_ADDRESS
 //                             — Circle developer-controlled wallet (no key
 //                               in this process at all — see
 //                               agent-sdk/docs/circle-wallet.md)
 //   BOUNTY_ADAPTER_ADDRESS    — required either way; see contracts/DEPLOYMENTS.md
-//   ARC_RPC_URL (optional)    — defaults to Arc Testnet RPC
+//   ARC_RPC_URL (optional)    — overrides the RPC endpoint for whichever
+//                               network ARC_NETWORK resolves to (unchanged
+//                               from pre-network-selection behavior — this is
+//                               a transport-only override, so on arc-mainnet
+//                               it still talks to the mainnet chain id, just
+//                               through this URL instead of ARC_MAINNET_RPC_URL).
+
+const KNOWN_NETWORKS: readonly NetworkName[] = ["arc-testnet", "arc-mainnet"];
+
+/** Returns `null` (after logging) on an unrecognized ARC_NETWORK value, mirroring
+ * the other startup-validation failures in this function. */
+function readNetwork(): NetworkName | null {
+  const raw = process.env["ARC_NETWORK"];
+  if (!raw) return "arc-testnet";
+  if ((KNOWN_NETWORKS as readonly string[]).includes(raw)) return raw as NetworkName;
+  console.error(
+    `[arcbounty-mcp] Invalid ARC_NETWORK="${raw}" — expected one of: ${KNOWN_NETWORKS.join(", ")}. ` +
+    "Server will not start.",
+  );
+  return null;
+}
 
 function buildAgent(): ArcBountyAgent | null {
+  const network = readNetwork();
+  if (!network) return null;
+
   const bountyAdapterAddress = process.env["BOUNTY_ADAPTER_ADDRESS"] as `0x${string}` | undefined;
   if (!bountyAdapterAddress) {
     console.error(
@@ -46,13 +75,14 @@ function buildAgent(): ArcBountyAgent | null {
 
   if (circleApiKey && entitySecret && circleWalletId && circleWalletAddress) {
     return new ArcBountyAgent({
+      network,
       circleWallet: { apiKey: circleApiKey, entitySecret, walletId: circleWalletId, address: circleWalletAddress },
       bountyAdapterAddress,
       rpcUrl,
     });
   }
   if (privateKey) {
-    return new ArcBountyAgent({ privateKey, bountyAdapterAddress, rpcUrl });
+    return new ArcBountyAgent({ network, privateKey, bountyAdapterAddress, rpcUrl });
   }
 
   // No signer configured — read-only mode. Still useful: browsing bounties
@@ -67,10 +97,20 @@ function buildAgent(): ArcBountyAgent | null {
   // burner key purely to satisfy the constructor — it is never used to sign
   // anything because no write tools are registered in this mode.
   const burner = "0x0000000000000000000000000000000000000000000000000000000000000001" as `0x${string}`;
-  return new ArcBountyAgent({ privateKey: burner, bountyAdapterAddress, rpcUrl });
+  return new ArcBountyAgent({ network, privateKey: burner, bountyAdapterAddress, rpcUrl });
 }
 
-const agent = buildAgent();
+let agent: ArcBountyAgent | null;
+try {
+  agent = buildAgent();
+} catch (err) {
+  // Thrown by the SDK constructor itself — most commonly resolveNetwork()
+  // rejecting ARC_NETWORK=arc-mainnet because the ARC_MAINNET_* variables
+  // aren't set yet (Circle hasn't published mainnet parameters). The SDK's
+  // error message already lists exactly what's missing.
+  console.error(`[arcbounty-mcp] ${err instanceof Error ? err.message : String(err)}`);
+  agent = null;
+}
 if (!agent) process.exit(1);
 
 const hasSigner = Boolean(

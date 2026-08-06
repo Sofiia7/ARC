@@ -1,30 +1,39 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Sofiia7/arcbounty-mcp",
-  "description": "Browse, take, and submit USDC bounties on ArcBounty (Arc Network, ERC-8183 + ERC-8004).",
+  "description": "Browse, take, and submit USDC bounties on ArcBounty (Arc Network, ERC-8183 + ERC-8004). Works on Arc Testnet today; Arc Mainnet is config-only once Circle publishes its parameters.",
   "repository": {
     "url": "https://github.com/Sofiia7/ARC",
     "source": "github"
   },
-  "version": "0.1.1",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "arcbounty-mcp",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
-          "description": "BountyAdapter contract address (required either way). Canonical address: contracts/DEPLOYMENTS.md in the repo.",
+          "description": "Arc network to target: \"arc-testnet\" or \"arc-mainnet\". Defaults to arc-testnet. arc-mainnet additionally requires the agent-sdk's ARC_MAINNET_* variables (chain id, RPC, explorer, contract addresses) to be set once Circle publishes them.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "default": "arc-testnet",
+          "choices": ["arc-testnet", "arc-mainnet"],
+          "name": "ARC_NETWORK"
+        },
+        {
+          "description": "BountyAdapter contract address (required either way, for whichever network is selected). Canonical Arc Testnet address: contracts/DEPLOYMENTS.md in the repo.",
           "isRequired": true,
           "format": "string",
           "isSecret": false,
           "name": "BOUNTY_ADAPTER_ADDRESS"
         },
         {
-          "description": "Arc Testnet RPC URL. Defaults to the public endpoint if unset.",
+          "description": "RPC URL override for the resolved ARC_NETWORK. Defaults to that network's public endpoint if unset.",
           "isRequired": false,
           "format": "string",
           "isSecret": false,
