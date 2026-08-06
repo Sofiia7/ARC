@@ -15,9 +15,16 @@ const sdk = require("arcbounty-agent-sdk") as typeof import("arcbounty-agent-sdk
 export const {
   BOUNTY_ADAPTER_ABI,
   ERC20_ABI,
+  // Deprecated 0.4.x aliases (still wired to NETWORKS["arc-testnet"] in the
+  // SDK) — kept here for anything that still wants a testnet-only constant.
+  // New network-selectable code should go through NETWORKS / resolveNetwork.
   CONTRACTS,
   ARC_TESTNET_CHAIN_ID,
   ARC_TESTNET_RPC,
+  NETWORKS,
+  resolveNetwork,
   parseUsdc,
   bondCreateDeadlineOk,
 } = sdk;
+
+export type { NetworkName, NetworkConfig } from "arcbounty-agent-sdk";

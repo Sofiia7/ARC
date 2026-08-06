@@ -1,4 +1,4 @@
-import { PRICES, VERSION, ARC_TESTNET_CAIP2 } from "./config.js";
+import { PRICES, VERSION, type FacadeConfig } from "./config.js";
 
 /**
  * OpenAPI 3.1 document, served free at /openapi.json — an agent must be able
@@ -52,14 +52,14 @@ const paymentRequired = {
     "Payment required (x402 v2). Payment instructions are in the base64-encoded PAYMENT-REQUIRED response header; pay via any x402 client (e.g. `circle services pay`).",
 } as const;
 
-export function buildOpenApi(baseUrl: string) {
+export function buildOpenApi(baseUrl: string, config: FacadeConfig) {
   return {
     openapi: "3.1.0",
     info: {
       title: "ArcBounty Facade API",
       version: VERSION,
       description:
-        "Paid (x402) read/prepare facade over the ArcBounty on-chain bounty marketplace on Arc Testnet. " +
+        `Paid (x402) read/prepare facade over the ArcBounty on-chain bounty marketplace on ${config.networkName}. ` +
         "Non-custodial: never holds keys, never relays transactions — escrow lives in the BountyAdapter contract. " +
         "Discovery endpoints (/health, /openapi.json, /.well-known/x402.json, /llms.txt) are free.",
     },
@@ -86,7 +86,7 @@ export function buildOpenApi(baseUrl: string) {
             { name: "maxReward", in: "query", schema: { type: "number" }, description: "USDC dollars" },
             { name: "agentOnly", in: "query", schema: { type: "boolean" } },
             { name: "humanOnly", in: "query", schema: { type: "boolean" } },
-            { name: "chain", in: "query", schema: { type: "string", enum: ["arc-testnet"] } },
+            { name: "chain", in: "query", schema: { type: "string", enum: [config.network] } },
             { name: "offset", in: "query", schema: { type: "integer", minimum: 0, default: 0 } },
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
           ],
@@ -159,7 +159,11 @@ export function buildOpenApi(baseUrl: string) {
                     agentOnly: { type: "boolean" },
                     humanOnly: { type: "boolean" },
                     requireWorkerBond: { type: "boolean" },
-                    chain: { type: "string", enum: ["arc-testnet"] },
+                    chain: {
+                      type: "string",
+                      enum: ["arc-testnet", "arc-mainnet"],
+                      description: `Optional. If set, must equal "${config.network}" — this facade instance serves that network only.`,
+                    },
                   },
                 },
               },
@@ -177,7 +181,7 @@ export function buildOpenApi(baseUrl: string) {
       },
     },
     "x-x402": {
-      network: ARC_TESTNET_CAIP2,
+      network: config.caip2,
       note: "Payment settles in USDC via Circle Gateway (x402 spec v2).",
     },
   };

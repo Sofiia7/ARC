@@ -1,8 +1,6 @@
 import {
   BOUNTY_ADAPTER_ABI,
-  CONTRACTS,
   ERC20_ABI,
-  ARC_TESTNET_CHAIN_ID,
   parseUsdc,
   bondCreateDeadlineOk,
 } from "./sdk.js";
@@ -32,13 +30,21 @@ export const prepareBountySchema = z.object({
   agentOnly: z.boolean().default(false),
   humanOnly: z.boolean().default(false),
   requireWorkerBond: z.boolean().default(false),
-  /** Only "arc-testnet" today; the field exists so the API shape survives multichain. */
-  chain: z.literal("arc-testnet").default("arc-testnet"),
+  /**
+   * Optional network hint. A given facade instance serves exactly one
+   * network (config.network) — if the caller passes this, it must match, or
+   * the request is rejected (400) rather than silently prepared for the
+   * wrong chain. Omit it to just use whatever network this instance serves.
+   */
+  chain: z.enum(["arc-testnet", "arc-mainnet"]).optional(),
 });
 
 export type PrepareBountyRequest = z.infer<typeof prepareBountySchema>;
 
-export function validatePrepare(req: PrepareBountyRequest): string | null {
+export function validatePrepare(req: PrepareBountyRequest, config: FacadeConfig): string | null {
+  if (req.chain !== undefined && req.chain !== config.network) {
+    return `this facade instance serves chain=${config.network} only (requested "${req.chain}")`;
+  }
   if (req.agentOnly && req.humanOnly) return "agentOnly and humanOnly are mutually exclusive";
   const nowSec = Math.floor(Date.now() / 1000);
   if (req.deadline <= nowSec + 600) return "deadline must be at least 10 minutes in the future (unix seconds)";
@@ -76,14 +82,14 @@ export function buildPrepareResponse(req: PrepareBountyRequest, config: FacadeCo
   });
 
   return {
-    chainId: ARC_TESTNET_CHAIN_ID,
-    chain: req.chain,
+    chainId: config.chainId,
+    chain: config.network,
     // Sign and send in order. Tx 1 may be skipped if the poster's USDC
     // allowance to the adapter already covers the reward.
     transactions: [
       {
         purpose: "approve-usdc",
-        to: CONTRACTS.USDC,
+        to: config.usdcAddress,
         data: approveData,
         value: "0",
         description: `Approve ${formatUsdc(reward)} USDC to the BountyAdapter (${config.bountyAdapterAddress}) so it can escrow the reward. Skippable if your allowance already covers it.`,
@@ -98,7 +104,7 @@ export function buildPrepareResponse(req: PrepareBountyRequest, config: FacadeCo
     ],
     notes: [
       "The facade never sees your keys and never relays — sign and broadcast these yourself.",
-      "On Arc Testnet gas is paid in USDC (the native token).",
+      `On ${config.networkName} gas is paid in USDC (the native token).`,
       "The contract enforces its own minimum reward and deadline rules on-chain; passing validation here does not guarantee acceptance if chain state changed.",
     ],
   };

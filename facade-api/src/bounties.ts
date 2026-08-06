@@ -1,4 +1,4 @@
-import { BOUNTY_ADAPTER_ABI, ARC_TESTNET_CHAIN_ID } from "./sdk.js";
+import { BOUNTY_ADAPTER_ABI } from "./sdk.js";
 import type { BountyMeta, OpenBountiesFilter } from "arcbounty-agent-sdk";
 import { createPublicClient, defineChain, http, type PublicClient } from "viem";
 import { TtlCache } from "./cache.js";
@@ -16,13 +16,6 @@ import type { FacadeConfig } from "./config.js";
  * ARC_RPC_URL removes the constraint entirely (see .env.example).
  */
 
-const arcTestnet = defineChain({
-  id: ARC_TESTNET_CHAIN_ID,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
-  rpcUrls: { default: { http: [] } },
-});
-
 /** Minimum spacing between RPC sends, shared across all endpoints. 300ms keeps
  * us at ~3 req/s — under the measured ~4/s public-RPC budget with headroom for
  * the keeper/frontend occasionally sharing the IP. */
@@ -36,8 +29,16 @@ export class BountyReader {
   private gate: Promise<void> = Promise.resolve();
 
   constructor(private readonly config: FacadeConfig) {
+    // Chain id/name follow config.network — this used to be hardcoded to Arc
+    // Testnet, which would silently mislabel/mis-id an arc-mainnet instance.
+    const chain = defineChain({
+      id: config.chainId,
+      name: config.networkName,
+      nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
+      rpcUrls: { default: { http: [config.rpcUrl] } },
+    });
     this.client = createPublicClient({
-      chain: { ...arcTestnet, rpcUrls: { default: { http: [config.rpcUrl] } } },
+      chain,
       transport: http(config.rpcUrl),
     }) as PublicClient;
     this.listCache = new TtlCache<bigint[]>(config.cacheTtlMs);

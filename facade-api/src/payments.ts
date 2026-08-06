@@ -1,7 +1,6 @@
 import type { RequestHandler } from "express";
 import { createGatewayMiddleware } from "@circle-fin/x402-batching/server";
 import type { FacadeConfig } from "./config.js";
-import { ARC_TESTNET_CAIP2 } from "./config.js";
 
 /**
  * x402 wiring, isolated in one file on purpose: the Circle stack is young
@@ -11,7 +10,7 @@ import { ARC_TESTNET_CAIP2 } from "./config.js";
  * Two modes:
  *  - SELLER_ADDRESS set → real x402: unpaid requests get HTTP 402 with v2
  *    payment instructions (base64 `PAYMENT-REQUIRED` header), settled via
- *    Circle Gateway on Arc Testnet (eip155:5042002).
+ *    Circle Gateway on this instance's configured network (config.caip2).
  *  - unset → free mode for local dev/CI: every paid route passes through,
  *    marked with `X-Payment-Mode: free` so nobody mistakes it for prod.
  */
@@ -36,7 +35,7 @@ export function createPaymentGate(config: FacadeConfig): PaymentGate {
 
   const gateway = createGatewayMiddleware({
     sellerAddress: config.sellerAddress,
-    networks: [ARC_TESTNET_CAIP2],
+    networks: [config.caip2],
     facilitatorUrl: config.facilitatorUrl,
     description: "ArcBounty facade API — on-chain bounty discovery for agents",
   });

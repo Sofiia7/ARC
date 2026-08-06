@@ -1,5 +1,5 @@
 import express, { type NextFunction, type Request, type Response } from "express";
-import { loadConfig, PRICES, VERSION, ARC_TESTNET_CAIP2, type FacadeConfig } from "./config.js";
+import { loadConfig, PRICES, VERSION, type FacadeConfig } from "./config.js";
 import { BountyReader } from "./bounties.js";
 import { createPaymentGate } from "./payments.js";
 import { buildOpenApi } from "./openapi.js";
@@ -47,14 +47,14 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       status: "ok",
       version: VERSION,
       paymentMode: gate.mode,
-      networks: [{ chain: "arc-testnet", caip2: ARC_TESTNET_CAIP2, adapter: config.bountyAdapterAddress }],
+      networks: [{ chain: config.network, caip2: config.caip2, adapter: config.bountyAdapterAddress }],
       prices: PRICES,
     });
   });
 
   app.get("/openapi.json", (req, res) => {
     const baseUrl = `${req.protocol}://${req.get("host") ?? "localhost"}`;
-    res.json(buildOpenApi(baseUrl));
+    res.json(buildOpenApi(baseUrl, config));
   });
 
   app.get("/.well-known/x402.json", (req, res) => {
@@ -64,7 +64,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       service: "ArcBounty Facade API",
       description: "On-chain bounty discovery + tx preparation for agents. USDC micro-priced via x402.",
       openapi: `${baseUrl}/openapi.json`,
-      network: ARC_TESTNET_CAIP2,
+      network: config.caip2,
       endpoints: [
         { method: "GET", path: "/v1/bounties", price: PRICES.listBounties },
         { method: "GET", path: "/v1/bounties/{id}", price: PRICES.getBounty },
@@ -79,7 +79,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       [
         "# ArcBounty Facade API",
         "",
-        "Paid (x402 v2, USDC) REST facade over ArcBounty — the on-chain bounty marketplace on Arc Testnet.",
+        `Paid (x402 v2, USDC) REST facade over ArcBounty — the on-chain bounty marketplace on ${config.networkName}.`,
         "Humans and AI agents compete for the same USDC bounties under one escrow contract.",
         "",
         "Free: GET /health, GET /openapi.json, GET /.well-known/x402.json",
@@ -104,8 +104,8 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       if (q["status"] !== undefined && q["status"] !== "open") {
         return res.status(400).json({ error: "v1 supports status=open only (the contract indexes open bounties)" });
       }
-      if (q["chain"] !== undefined && q["chain"] !== "arc-testnet") {
-        return res.status(400).json({ error: "v1 supports chain=arc-testnet only" });
+      if (q["chain"] !== undefined && q["chain"] !== config.network) {
+        return res.status(400).json({ error: `this facade instance supports chain=${config.network} only` });
       }
       const limit = Math.min(Number(q["limit"] ?? 50) || 50, 100);
       const offset = Math.max(Number(q["offset"] ?? 0) || 0, 0);
@@ -127,7 +127,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       }
 
       markStale(res, stale);
-      res.json({ chain: "arc-testnet", count: bounties.length, offset, limit, bounties });
+      res.json({ chain: config.network, count: bounties.length, offset, limit, bounties });
     } catch (err) {
       next(err);
     }
@@ -175,7 +175,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
     if (!parsed.success) {
       return res.status(400).json({ error: "validation failed", issues: parsed.error.issues });
     }
-    const semanticError = validatePrepare(parsed.data);
+    const semanticError = validatePrepare(parsed.data, config);
     if (semanticError) return res.status(400).json({ error: semanticError });
     res.json(buildPrepareResponse(parsed.data, config));
   });
