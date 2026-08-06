@@ -2,32 +2,29 @@
  * One-off: post 2 plain (non-bond) demo bounties to restore open-listing
  * inventory on the board, in the style of scripts/seed-extra.ts.
  *
- * Reads the same env as seed-extra.ts: ARC_TESTNET_RPC_URL, PRIVATE_KEY,
- * BOUNTY_ADAPTER_ADDRESS, USDC_ADDRESS (optional), PINATA_JWT.
+ * Reads the same env as seed-extra.ts: PRIVATE_KEY, BOUNTY_ADAPTER_ADDRESS,
+ * USDC_ADDRESS (optional), PINATA_JWT, plus ARC_NETWORK / ALLOW_MAINNET (see
+ * scripts/lib/network.ts).
  */
 
 import {
   createWalletClient, createPublicClient, http, parseUnits, type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { requireNetworkForMoneyMove, buildChain } from "./lib/network.js";
 
-const RPC     = process.env.ARC_TESTNET_RPC_URL!;
+const network = requireNetworkForMoneyMove();
+const arc     = buildChain(network);
+const RPC     = network.rpcUrl;
 const PK      = process.env.PRIVATE_KEY as `0x${string}`;
 const ADAPTER = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
-const USDC    = (process.env.USDC_ADDRESS ?? "0x3600000000000000000000000000000000000000") as Address;
+const USDC    = (process.env.USDC_ADDRESS ?? network.contracts.USDC) as Address;
 const PINATA  = process.env.PINATA_JWT!;
 
-if (!RPC || !PK || !ADAPTER || !PINATA) {
-  console.error("Missing env: ARC_TESTNET_RPC_URL / PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS / PINATA_JWT");
+if (!PK || !ADAPTER || !PINATA) {
+  console.error("Missing env: PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS / PINATA_JWT");
   process.exit(1);
 }
-
-const arc = {
-  id: 5042002,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "Arc", symbol: "ARC", decimals: 18 },
-  rpcUrls: { default: { http: [RPC] }, public: { http: [RPC] } },
-} as const;
 
 const account = privateKeyToAccount(PK);
 const wallet  = createWalletClient({ account, chain: arc, transport: http(RPC) });

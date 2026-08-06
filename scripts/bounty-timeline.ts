@@ -2,12 +2,16 @@
  * viem script: fetch a bounty's on-chain lifecycle timeline.
  *
  * MIT License. Run: npx tsx bounty-timeline.ts
- * Env: ARC_RPC_URL (optional), BOUNTY_ADAPTER_ADDRESS (required), JOB_ID (required)
+ * Env: ARC_NETWORK (optional, default arc-testnet), ARC_RPC_URL (optional
+ * override — see scripts/lib/network.ts), BOUNTY_ADAPTER_ADDRESS (required),
+ * JOB_ID (required)
  */
 
 import { createPublicClient, http, formatUnits, parseAbiItem, type Address, type AbiEvent, type Log } from "viem";
+import { requireNetwork } from "./lib/network.js";
 
-const RPC = process.env.ARC_RPC_URL ?? "https://rpc.testnet.arc.network";
+const network = requireNetwork();
+const RPC = network.rpcUrl;
 const ADAPTER = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
 const JOB_ID = process.env.JOB_ID;
 

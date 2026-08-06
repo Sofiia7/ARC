@@ -1,15 +1,28 @@
 /**
  * check-consistency.ts
  *
- * Sprint 0 guard rail: catches the three recurring footguns that bit us before.
- *   1. The canonical BountyAdapter address must match across docs, env examples, and code.
- *   2. README must not advertise contract functions that do not exist in BountyAdapter.sol.
- *   3. `.env*` files (real ones, not `.example`) must not exist in the working tree.
+ * Sprint 0 guard rail: catches the recurring footguns that bit us before.
+ *   1. Per network documented in contracts/DEPLOYMENTS.md, the canonical
+ *      (current, non-superseded) BountyAdapter address must match across
+ *      docs, env examples, and code — and any address that ISN'T a
+ *      documented network's canonical adapter or a documented protocol/infra
+ *      address (registries, fee recipient, arbitrator, ...) is flagged as
+ *      stray (catches stale/superseded adapter references).
+ *   2. README must not advertise contract functions that do not exist in
+ *      BountyAdapter.sol.
+ *   3. `.env*` files (real ones, not `.example`) must not exist in the
+ *      working tree.
+ *   4. frontend/lib/networks.ts's arc-testnet entry must exactly match
+ *      agent-sdk/src/constants.ts's NETWORKS["arc-testnet"] entry, field by
+ *      field — the two are deliberately separate files (frontend can't
+ *      depend on the unpublished SDK) and have no other guard against
+ *      silently drifting apart.
  *
  * Run from repo root:
  *   npx tsx scripts/check-consistency.ts
  *
- * Exit code: 0 = clean, 1 = inconsistency (use as CI gate).
+ * Exit code: 0 = clean, 1 = inconsistency (use as CI gate), 2 = the checker
+ * itself couldn't parse something it expected to (fix the checker/data).
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
@@ -20,10 +33,160 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 const ROOT       = resolve(__dirname, "..");
 
-// ─── 1. Canonical address ───────────────────────────────────────────────────────
+const errors: string[] = [];
+
+function fail(msg: string): never {
+  console.error(msg);
+  process.exit(2);
+}
+
+const ADDR_TOKEN_RE = /0x[a-fA-F0-9]{40}/;
+const ZERO_ADDRESS = "0x" + "0".repeat(40);
+
+// ─── 1a. Parse contracts/DEPLOYMENTS.md into per-network sections ─────────────
+//
+// A "network section" is any `## <Name> (chain id `<digits>`)` H2 heading —
+// this is deliberately generic so a future `## Arc Mainnet (chain id ...)`
+// section is picked up automatically; H2 headings that don't match this
+// shape (e.g. "## Updating this file after a redeploy") are skipped. Each
+// section's canonical adapter is either:
+//   (a) the single non-"superseded" `### BountyAdapter (...)` subsection's
+//       `| Address | \`0x...\` |` row (Arc Testnet's style), or
+//   (b) a flat `| BountyAdapter | \`0x...\` |` row directly in the section
+//       (Base Sepolia's rehearsal-table style), whichever the section uses.
+
+type NetworkSection = {
+  name: string;
+  slug: string;
+  canonicalAdapter: string | null;
+  canonicalError: string | null;
+  /** Protocol/infra addresses (registries, fee recipient, arbitrator, ...)
+   *  legitimately referenced for this network — everything in the section's
+   *  table rows EXCEPT the per-version `| Address | ... |` rows (those are
+   *  adapter addresses, handled via canonicalAdapter so superseded ones stay
+   *  correctly un-allowlisted). Lowercased. */
+  knownAddresses: Set<string>;
+};
+
+function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function extractCanonicalAdapter(body: string): { address: string | null; error: string | null } {
+  const subHeaderRe = /^###[ \t]+BountyAdapter[ \t]*\(([^)]*)\)/gm;
+  const subMatches = [...body.matchAll(subHeaderRe)];
+
+  if (subMatches.length > 0) {
+    const subs = subMatches.map((m, i) => ({
+      label: m[1]!.trim(),
+      start: m.index! + m[0].length,
+      end: i + 1 < subMatches.length ? subMatches[i + 1]!.index! : body.length,
+    }));
+    const live = subs.filter(s => !/superseded/i.test(s.label));
+    if (live.length !== 1) {
+      return {
+        address: null,
+        error: `expected exactly 1 non-superseded "### BountyAdapter (...)" subsection, found ${live.length}`,
+      };
+    }
+    const addrMatch = body.slice(live[0]!.start, live[0]!.end).match(/\|\s*Address\s*\|\s*`(0x[a-fA-F0-9]{40})`/);
+    if (!addrMatch) {
+      return { address: null, error: `no "| Address | \`0x...\` |" row found in its live "### BountyAdapter" subsection` };
+    }
+    return { address: addrMatch[1]!, error: null };
+  }
+
+  const flatMatch = body.match(/\|\s*BountyAdapter\s*\|\s*`(0x[a-fA-F0-9]{40})`/);
+  if (flatMatch) return { address: flatMatch[1]!, error: null };
+
+  return { address: null, error: null };
+}
+
+function extractKnownAddresses(body: string): Set<string> {
+  const out = new Set<string>();
+  // 2-column markdown table rows only: `| Field | ...value with maybe \`0x..\`... |`
+  const rowRe = /^\|([^|\n]+)\|(.*)\|[ \t]*$/gm;
+  for (const m of body.matchAll(rowRe)) {
+    const field = m[1]!.trim();
+    if (field === "Address") continue; // per-version adapter address row — not a generic "known" address
+    const rest = m[2]!;
+    for (const addrMatch of rest.matchAll(/`(0x[a-fA-F0-9]{40})`/g)) {
+      out.add(addrMatch[1]!.toLowerCase());
+    }
+  }
+  return out;
+}
+
+function parseNetworkSections(md: string): NetworkSection[] {
+  const headerRe = /^##[ \t]+(.+)$/gm;
+  const headers = [...md.matchAll(headerRe)].map(m => ({
+    start: m.index!,
+    end: m.index! + m[0].length,
+    text: m[1]!.trim(),
+  }));
+
+  const sections: NetworkSection[] = [];
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i]!;
+    const netMatch = h.text.match(/^(.+?)\s*\(chain id\s*`(\d+)`\)/);
+    if (!netMatch) continue; // not a network section
+    const name = netMatch[1]!.trim();
+    const bodyStart = h.end;
+    const bodyEnd = i + 1 < headers.length ? headers[i + 1]!.start : md.length;
+    const body = md.slice(bodyStart, bodyEnd);
+    const { address, error } = extractCanonicalAdapter(body);
+    sections.push({
+      name,
+      slug: slugify(name),
+      canonicalAdapter: address,
+      canonicalError: error,
+      knownAddresses: extractKnownAddresses(body),
+    });
+  }
+  return sections;
+}
+
 const DEPLOYMENTS = readFileSync(join(ROOT, "contracts/DEPLOYMENTS.md"), "utf8");
-const CANONICAL = DEPLOYMENTS.match(/`(0x[a-fA-F0-9]{40})`/)?.[1];
-if (!CANONICAL) fail("Could not extract canonical address from contracts/DEPLOYMENTS.md");
+const sections = parseNetworkSections(DEPLOYMENTS);
+if (sections.length === 0) {
+  fail("Could not find any `## <Name> (chain id `<digits>`)` network section in contracts/DEPLOYMENTS.md");
+}
+
+// The two networks this repo actually targets (agent-sdk's NetworkName) MUST
+// have a resolvable canonical adapter once documented; other sections (e.g.
+// Base Sepolia — an explicit rehearsal, "NOT the frontend target") are
+// best-effort and don't hard-fail the gate if they lack one.
+const REQUIRED_CANONICAL_NETWORKS = new Set(["arc-testnet", "arc-mainnet"]);
+
+// Addresses that are legitimately reusable across docs but aren't sourced
+// from a DEPLOYMENTS.md network section (protocol-level / roadmap concepts
+// mentioned elsewhere, e.g. ARCHITECTURE.md's ERC-8004 ValidationRegistry
+// note) — kept tiny and explicit on purpose; prefer documenting a new
+// address in DEPLOYMENTS.md over growing this list.
+const SUPPLEMENTARY_KNOWN_ADDRESSES = new Set([
+  "0x8004cb1bf31daf7788923b405b754f57aceb4272", // ValidationRegistry (ARCHITECTURE.md roadmap mention; not yet a live integration)
+]);
+
+const canonicalByNetwork = new Map<string, string>(); // slug -> lowercased address
+const allKnownAddresses = new Set<string>(SUPPLEMENTARY_KNOWN_ADDRESSES);
+
+for (const s of sections) {
+  if (s.canonicalError) {
+    errors.push(`[deployments] "${s.name}" section: ${s.canonicalError}`);
+  } else if (s.canonicalAdapter) {
+    canonicalByNetwork.set(s.slug, s.canonicalAdapter.toLowerCase());
+  } else if (REQUIRED_CANONICAL_NETWORKS.has(s.slug)) {
+    errors.push(`[deployments] "${s.name}" section: could not find a canonical (non-superseded) BountyAdapter address`);
+  }
+  for (const a of s.knownAddresses) allKnownAddresses.add(a);
+}
+
+const TESTNET_CANONICAL = canonicalByNetwork.get("arc-testnet");
+if (!TESTNET_CANONICAL) {
+  fail("Could not extract the canonical Arc Testnet BountyAdapter address from contracts/DEPLOYMENTS.md");
+}
+
+// ─── 1b. Every address in docs/env examples must be recognized ────────────────
 
 const ADDR_FILES = [
   "README.md",
@@ -38,32 +201,18 @@ const ADDR_FILES = [
   ".env.example",
 ];
 
-const errors: string[] = [];
-
-const ADDR_RE = /0x[a-fA-F0-9]{40}/g;
-const KNOWN_NON_ADAPTER = new Set([
-  "0x0747EEf0706327138c69792bF28Cd525089e4583", // AgenticCommerce
-  "0x8004A818BFB912233c491871b3d84c89A494BD9e", // IdentityRegistry
-  "0x8004B663056A597Dffe9eCcC1965A193B7388713", // ReputationRegistry
-  "0x8004Cb1BF31DAf7788923b405b754f57acEB4272", // ValidationRegistry
-  "0x3600000000000000000000000000000000000000", // USDC
-  "0x0000000000000000000000000000000000000000", // zero
-  "0xADac7534d3fE868E28c77df5CD930f2635bcb63A", // feeRecipient (DEPLOYMENTS.md)
-  "0x4892232f0dD235cC1B92a3A87fc8990553691BC6", // arbitrator Safe (DEPLOYMENTS.md)
-  "0xde427f3967cc7a0BF7A9F891195760cCffC82edA", // deployer (DEPLOYMENTS.md)
-]);
-
 for (const rel of ADDR_FILES) {
   const p = join(ROOT, rel);
   if (!existsSync(p)) continue;
   const text = readFileSync(p, "utf8");
-  for (const match of text.matchAll(ADDR_RE)) {
+  for (const match of text.matchAll(new RegExp(ADDR_TOKEN_RE, "g"))) {
     const a = match[0];
-    if (KNOWN_NON_ADAPTER.has(a)) continue;
-    if (a.toLowerCase() === "0x" + "0".repeat(40)) continue;
-    if (a.toLowerCase() !== CANONICAL!.toLowerCase()) {
-      errors.push(`[addr] ${rel}: stray adapter address ${a} (expected ${CANONICAL})`);
-    }
+    const lower = a.toLowerCase();
+    if (lower === ZERO_ADDRESS) continue;
+    if (allKnownAddresses.has(lower)) continue;
+    if ([...canonicalByNetwork.values()].includes(lower)) continue;
+    const expected = [...canonicalByNetwork.entries()].map(([slug, addr]) => `${slug}=${addr}`).join(", ");
+    errors.push(`[addr] ${rel}: unrecognized address ${a} (expected a documented canonical adapter [${expected}] or a known protocol address from contracts/DEPLOYMENTS.md)`);
   }
 }
 
@@ -117,16 +266,81 @@ if (envFiles.length) {
   }
 }
 
+// ─── 4. frontend/lib/networks.ts <-> agent-sdk/src/constants.ts drift guard ───
+//
+// The frontend deliberately keeps its OWN copy of the network map (it can't
+// depend on the unpublished arcbounty-agent-sdk package — see that file's
+// own header comment) — nothing else stops the two from silently drifting
+// apart. Regex-based, not AST-based: both files are hand-written, small,
+// and each field name used below appears in each file exactly once with an
+// immediately-adjacent literal (verified by hand) — an AST parser would be
+// more robust to unrelated file reshuffling but is unavailable here (no
+// TypeScript compiler API / ts-morph dependency in this workspace) and would
+// be overkill for two ~200-line hand-authored config files. If a field's
+// regex ever stops matching, this fails loudly (exit 2) rather than
+// silently skipping the comparison — a broken regex must never look like a
+// clean pass.
+
+type CrossCheckField = {
+  label: string;
+  re: RegExp;
+  normalize?: (raw: string) => string;
+};
+
+const toDecimal = (raw: string) => String(Number(raw.replace(/_/g, "")));
+const toLower = (raw: string) => raw.toLowerCase();
+
+const CROSS_CHECK_FIELDS: CrossCheckField[] = [
+  { label: "chainId", re: /chainId:\s*([\d_]+)/, normalize: toDecimal },
+  { label: "rpcUrl (default)", re: /rpcUrl:.*?"([^"]+)"/ },
+  { label: "explorerUrl", re: /explorerUrl:\s*"([^"]+)"/ },
+  { label: "explorerApiUrl", re: /explorerApiUrl:\s*"([^"]+)"/ },
+  { label: "contracts.AGENTIC_COMMERCE", re: /AGENTIC_COMMERCE:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
+  { label: "contracts.IDENTITY_REGISTRY", re: /IDENTITY_REGISTRY:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
+  { label: "contracts.REPUTATION_REGISTRY", re: /REPUTATION_REGISTRY:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
+  { label: "contracts.USDC", re: /USDC:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
+  // Deliberately NOT comparing the canonical/default adapter address here —
+  // frontend/lib/networks.ts documents that divergence as intentional
+  // (arc-testnet has never had a baked-in default there).
+  { label: "adapterDeployBlock", re: /adapterDeployBlock:\s*([\d_]+)n?/, normalize: toDecimal },
+];
+
+function extractCrossCheckField(text: string, field: CrossCheckField, fileLabel: string): string {
+  const m = text.match(field.re);
+  if (!m) {
+    fail(`[cross-check] Could not find "${field.label}" in ${fileLabel} — the drift-check regex ` +
+      `(scripts/check-consistency.ts) needs updating to match the file's current shape.`);
+  }
+  const raw = m[1]!;
+  return field.normalize ? field.normalize(raw) : raw;
+}
+
+const SDK_CONSTANTS_PATH = join(ROOT, "agent-sdk/src/constants.ts");
+const FRONTEND_NETWORKS_PATH = join(ROOT, "frontend/lib/networks.ts");
+
+if (!existsSync(SDK_CONSTANTS_PATH) || !existsSync(FRONTEND_NETWORKS_PATH)) {
+  errors.push(`[cross-check] could not find agent-sdk/src/constants.ts and/or frontend/lib/networks.ts`);
+} else {
+  const sdkText = readFileSync(SDK_CONSTANTS_PATH, "utf8");
+  const feText = readFileSync(FRONTEND_NETWORKS_PATH, "utf8");
+  for (const field of CROSS_CHECK_FIELDS) {
+    const sdkVal = extractCrossCheckField(sdkText, field, "agent-sdk/src/constants.ts");
+    const feVal = extractCrossCheckField(feText, field, "frontend/lib/networks.ts");
+    if (sdkVal !== feVal) {
+      errors.push(
+        `[cross-check] arc-testnet "${field.label}" drifted between the two network maps: ` +
+        `agent-sdk/src/constants.ts="${sdkVal}" vs frontend/lib/networks.ts="${feVal}"`,
+      );
+    }
+  }
+}
+
 // ─── Report ───────────────────────────────────────────────────────────────────
 if (errors.length === 0) {
-  console.log(`OK — canonical adapter = ${CANONICAL}`);
+  const summary = [...canonicalByNetwork.entries()].map(([slug, addr]) => `${slug}=${addr}`).join(", ");
+  console.log(`OK — canonical adapters: ${summary}`);
   process.exit(0);
 }
 console.error(`check-consistency: ${errors.length} issue(s)`);
 for (const e of errors) console.error("  " + e);
 process.exit(1);
-
-function fail(msg: string): never {
-  console.error(msg);
-  process.exit(2);
-}

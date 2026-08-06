@@ -11,6 +11,22 @@ Run any of them from this directory after `npm install`:
 cd scripts && npx tsx <script>.ts
 ```
 
+## Networks (`scripts/lib/network.ts`)
+
+Every script above resolves its chain via the shared helper in `lib/network.ts`,
+which wraps the agent-sdk's own `resolveNetwork()`:
+
+| Var | Purpose |
+|---|---|
+| `ARC_NETWORK` *(opt)* | `"arc-testnet"` (default) or `"arc-mainnet"`. |
+| `ARC_TESTNET_RPC_URL` *(opt)* | Testnet RPC override — the long-standing var name these scripts use. |
+| `ALLOW_MAINNET=yes` | Required before any **money-moving** script (`seed-bounties.ts`, `seed-extra.ts`, `reseed-2.ts`, `post-single-bounty.ts`, `reclaim-bounties.ts`, `safe-add-signer.ts`, `agent-proof-of-life.ts`) will run against `arc-mainnet` — these move real USDC. Read-only scripts (`bounty-timeline.ts`) don't need it. |
+
+Selecting `arc-mainnet` also requires the full `ARC_MAINNET_*` var set (chain id,
+RPC, explorer, 4 protocol contract addresses — see root `.env.example`); until
+Circle publishes those parameters, scripts fail fast with a descriptive error
+naming exactly what's missing. Never hardcode a guessed mainnet value here.
+
 ## `seed-bounties.ts` — populate the board
 
 Posts the standard 14-listing demo set (all 5 categories, mixed `agentOnly` /

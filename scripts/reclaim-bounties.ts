@@ -9,8 +9,10 @@
  *   - taken, no submission → expireBounty (full refund, only after deadline)
  * Anything submitted / disputed / resolved is left alone and reported.
  *
- * Env (same as seed-bounties.ts): PRIVATE_KEY, ARC_TESTNET_RPC_URL.
- * Old adapter list: see contracts/DEPLOYMENTS.md "Historical / abandoned".
+ * Env (same as seed-bounties.ts): PRIVATE_KEY, plus ARC_NETWORK /
+ * ALLOW_MAINNET / ARC_TESTNET_RPC_URL (see scripts/lib/network.ts).
+ * Old adapter list: see contracts/DEPLOYMENTS.md "Historical / abandoned"
+ * (Arc Testnet only — there is no mainnet history yet).
  *
  * Usage (from repo root):
  *   cd scripts && npx tsx reclaim-bounties.ts            # dry run (default)
@@ -19,8 +21,11 @@
 
 import { createWalletClient, createPublicClient, http, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { requireNetworkForMoneyMove, buildChain } from "./lib/network.js";
 
-const RPC = process.env.ARC_TESTNET_RPC_URL ?? "https://rpc.testnet.arc.network";
+const network = requireNetworkForMoneyMove();
+const arc     = buildChain(network);
+const RPC     = network.rpcUrl;
 const PK = process.env.PRIVATE_KEY as `0x${string}`;
 const DO_SEND = process.env.RECLAIM === "1";
 
@@ -90,13 +95,6 @@ const ABI = [
     inputs: [{ name: "jobId", type: "uint256" }], outputs: [],
   },
 ] as const;
-
-const arc = {
-  id: 5042002,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
-  rpcUrls: { default: { http: [RPC] }, public: { http: [RPC] } },
-} as const;
 
 const account = privateKeyToAccount(PK);
 const wallet = createWalletClient({ account, chain: arc, transport: http(RPC) });

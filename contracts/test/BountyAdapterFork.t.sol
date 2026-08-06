@@ -11,13 +11,21 @@ import "../src/BountyAdapter.sol";
 ///      Self-skips on local runs (no RPC) by checking chain id, and self-skips
 ///      if the real USDC's storage layout can't be `deal`-ed (Arc's USDC is a
 ///      non-standard token whose balance slot stdStorage can't locate).
+///
+///      The accepted chain id defaults to Arc Testnet (5042002) and is
+///      overridable via the FORK_CHAIN_ID env var — e.g. to run the same test
+///      against Arc mainnet once it exists:
+///        FORK_CHAIN_ID=<mainnet id> forge test --fork-url $ARC_MAINNET_RPC_URL \
+///                   --match-contract BountyAdapterForkTest -vvv
 contract BountyAdapterForkTest is Test {
     address constant AGENTIC_COMMERCE = 0x0747EEf0706327138c69792bF28Cd525089e4583;
     address constant IDENTITY_REGISTRY = 0x8004A818BFB912233c491871b3d84c89A494BD9e;
     address constant REPUTATION_REGISTRY = 0x8004B663056A597Dffe9eCcC1965A193B7388713;
     address constant USDC = 0x3600000000000000000000000000000000000000;
 
-    uint256 constant ARC_TESTNET = 5042002;
+    /// @dev Default: Arc Testnet. Override via FORK_CHAIN_ID (see contract doc above).
+    uint256 constant DEFAULT_FORK_CHAIN_ID = 5042002;
+    uint256 internal acceptedChainId;
 
     BountyAdapter adapter;
     address poster = address(0xA11CE);
@@ -25,7 +33,8 @@ contract BountyAdapterForkTest is Test {
     address feeAddr = address(0xFEE);
 
     function setUp() public {
-        if (block.chainid != ARC_TESTNET) return;
+        acceptedChainId = vm.envOr("FORK_CHAIN_ID", DEFAULT_FORK_CHAIN_ID);
+        if (block.chainid != acceptedChainId) return;
         adapter = new BountyAdapter(AGENTIC_COMMERCE, IDENTITY_REGISTRY, REPUTATION_REGISTRY, USDC, feeAddr, 100, 0);
     }
 
@@ -43,8 +52,8 @@ contract BountyAdapterForkTest is Test {
     ///         createJob / setBudget / fund / submit / complete against real AC
     ///         and that USDC flows through to the worker.
     function testFork_happyPath() public {
-        if (block.chainid != ARC_TESTNET) {
-            emit log("skipped: not forked on Arc Testnet");
+        if (block.chainid != acceptedChainId) {
+            emit log("skipped: not forked on the accepted chain (see FORK_CHAIN_ID)");
             return;
         }
 

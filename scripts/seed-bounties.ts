@@ -1,9 +1,11 @@
 /**
  * Seed the marketplace with diverse demo bounties.
  *
- * Env required:
- *   PRIVATE_KEY                — poster wallet (must hold ARC for gas + USDC for rewards)
- *   ARC_TESTNET_RPC_URL        — RPC endpoint
+ * Env:
+ *   ARC_NETWORK                — "arc-testnet" (default) | "arc-mainnet" (see scripts/lib/network.ts)
+ *   ALLOW_MAINNET=yes          — required to run this against arc-mainnet (real USDC)
+ *   PRIVATE_KEY                — poster wallet (must hold gas + USDC for rewards)
+ *   ARC_TESTNET_RPC_URL        — RPC endpoint override (testnet only, optional)
  *   BOUNTY_ADAPTER_ADDRESS     — current adapter
  *   PINATA_JWT                 — for IPFS description pinning
  *
@@ -16,24 +18,20 @@ import {
   createWalletClient, createPublicClient, http, parseUnits, type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { requireNetworkForMoneyMove, buildChain } from "./lib/network.js";
 
-const RPC      = process.env.ARC_TESTNET_RPC_URL!;
+const network  = requireNetworkForMoneyMove();
+const arc      = buildChain(network);
+const RPC      = network.rpcUrl;
 const PK       = process.env.PRIVATE_KEY as `0x${string}`;
 const ADAPTER  = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
-const USDC     = (process.env.USDC_ADDRESS ?? "0x3600000000000000000000000000000000000000") as Address;
+const USDC     = (process.env.USDC_ADDRESS ?? network.contracts.USDC) as Address;
 const PINATA   = process.env.PINATA_JWT!;
 
-if (!RPC || !PK || !ADAPTER || !PINATA) {
-  console.error("Missing env: ARC_TESTNET_RPC_URL / PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS / PINATA_JWT");
+if (!PK || !ADAPTER || !PINATA) {
+  console.error("Missing env: PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS / PINATA_JWT");
   process.exit(1);
 }
-
-const arc = {
-  id: 5042002,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "Arc", symbol: "ARC", decimals: 18 },
-  rpcUrls: { default: { http: [RPC] }, public: { http: [RPC] } },
-} as const;
 
 const account = privateKeyToAccount(PK);
 const wallet = createWalletClient({ account, chain: arc, transport: http(RPC) });

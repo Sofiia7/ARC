@@ -10,7 +10,8 @@
  * make execTransaction revert (GS026 invalid signature), never a wrong
  * execution, but there's no reason to find that out the hard way.
  *
- * Env: ARC_TESTNET_RPC_URL, PRIVATE_KEY (current sole Safe owner)
+ * Env: PRIVATE_KEY (current sole Safe owner), plus ARC_NETWORK /
+ * ALLOW_MAINNET / ARC_TESTNET_RPC_URL (see scripts/lib/network.ts).
  * Usage: cd scripts && npx tsx safe-add-signer.ts
  */
 
@@ -19,25 +20,21 @@ import {
   type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { requireNetworkForMoneyMove, buildChain } from "./lib/network.js";
 
-const RPC  = process.env.ARC_TESTNET_RPC_URL!;
+const network = requireNetworkForMoneyMove();
+const arc     = buildChain(network);
+const RPC  = network.rpcUrl;
 const PK   = process.env.PRIVATE_KEY as `0x${string}`;
 const SAFE = "0x4892232f0dD235cC1B92a3A87fc8990553691BC6" as Address;
 const NEW_OWNER = "0xed733FC13B1413966cf056866B6d80eF7b490eEc" as Address;
 const NEW_THRESHOLD = 2n;
 const ZERO = "0x0000000000000000000000000000000000000000" as Address;
 
-if (!RPC || !PK) {
-  console.error("Missing env: ARC_TESTNET_RPC_URL / PRIVATE_KEY");
+if (!PK) {
+  console.error("Missing env: PRIVATE_KEY");
   process.exit(1);
 }
-
-const arc = {
-  id: 5_042_002,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
-  rpcUrls: { default: { http: [RPC] }, public: { http: [RPC] } },
-} as const;
 
 const account = privateKeyToAccount(PK);
 const wallet  = createWalletClient({ account, chain: arc, transport: http(RPC) });

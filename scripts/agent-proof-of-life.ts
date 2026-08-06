@@ -15,8 +15,9 @@
  *      exercises the full V4 bond cycle: post → refund at submit)
  *   2. "viem script: watch BountyCreated and print new bounties"
  *
- * Env: same as seed-bounties.ts (ARC_TESTNET_RPC_URL, PRIVATE_KEY,
- * BOUNTY_ADAPTER_ADDRESS, PINATA_JWT) plus AGENT_PRIVATE_KEY.
+ * Env: same as seed-bounties.ts (PRIVATE_KEY, BOUNTY_ADAPTER_ADDRESS,
+ * PINATA_JWT, plus ARC_NETWORK / ALLOW_MAINNET / ARC_TESTNET_RPC_URL — see
+ * scripts/lib/network.ts) plus AGENT_PRIVATE_KEY.
  *
  * Usage (from repo root):
  *   cd scripts && npx tsx agent-proof-of-life.ts
@@ -24,14 +25,19 @@
 
 import { ArcBountyAgent, type BountyMeta } from "arcbounty-agent-sdk";
 import type { Address } from "viem";
+import { requireNetworkForMoneyMove, type NetworkName } from "./lib/network.js";
 
-const RPC      = process.env.ARC_TESTNET_RPC_URL!;
+const network   = requireNetworkForMoneyMove();
+// Derived, not re-parsed from ARC_NETWORK — requireNetworkForMoneyMove()
+// already validated it; `testnet` is the resolved config's own source of truth.
+const networkName: NetworkName = network.testnet ? "arc-testnet" : "arc-mainnet";
+const RPC       = network.rpcUrl;
 const POSTER_PK = process.env.PRIVATE_KEY as `0x${string}`;
 const WORKER_PK = process.env.AGENT_PRIVATE_KEY as `0x${string}`;
-const ADAPTER  = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
+const ADAPTER   = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
 
-if (!RPC || !POSTER_PK || !WORKER_PK || !ADAPTER) {
-  console.error("Missing env: ARC_TESTNET_RPC_URL / PRIVATE_KEY / AGENT_PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS");
+if (!POSTER_PK || !WORKER_PK || !ADAPTER) {
+  console.error("Missing env: PRIVATE_KEY / AGENT_PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS");
   process.exit(1);
 }
 if (!process.env.PINATA_JWT && !(process.env.PINATA_API_KEY && process.env.PINATA_SECRET)) {
@@ -142,8 +148,8 @@ const fmt = (n: bigint) => `${(Number(n) / 1e6).toFixed(2)} USDC`;
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const worker = new ArcBountyAgent({ privateKey: WORKER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER });
-  const poster = new ArcBountyAgent({ privateKey: POSTER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER });
+  const worker = new ArcBountyAgent({ privateKey: WORKER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER, network: networkName });
+  const poster = new ArcBountyAgent({ privateKey: POSTER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER, network: networkName });
 
   const agentId = await worker.register(); // reuses an existing agentId if found
   const info = await worker.getAgentInfo();
