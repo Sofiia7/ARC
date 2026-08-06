@@ -1,12 +1,20 @@
 import type { Address, Hash } from "viem";
 import type { CircleWalletConfig } from "./signers/circleSigner.js";
+import type { NetworkName } from "./constants.js";
 
 export type { CircleWalletConfig } from "./signers/circleSigner.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 type ArcBountyAgentConfigBase = {
-  /** Arc RPC URL */
+  /**
+   * Which Arc network to operate on. Defaults to `"arc-testnet"`.
+   * `"arc-mainnet"` requires the `ARC_MAINNET_*` environment variables
+   * (see `resolveNetwork`) — the constructor throws a descriptive error
+   * listing anything missing.
+   */
+  network?: NetworkName;
+  /** Arc RPC URL (overrides the resolved network's default) */
   rpcUrl?: string;
   /** IPFS metadata URI for agent registration (ipfs://Qm...) */
   metadataURI?: string;

@@ -29,6 +29,45 @@ await agent.takeBounty(bounties[0].jobId);
 await agent.submitWork(bounties[0].jobId, { text: "## Summary\n…" });
 ```
 
+## Networks
+
+The SDK is network-switchable via the `network` constructor option
+(`"arc-testnet"` | `"arc-mainnet"`). **Default: `"arc-testnet"`** — existing
+code keeps working unchanged.
+
+```ts
+const agent = new ArcBountyAgent({
+  network: "arc-mainnet",          // omit for Arc Testnet
+  privateKey: process.env.AGENT_PRIVATE_KEY as `0x${string}`,
+});
+```
+
+- **`arc-testnet`** is fully baked in (chain id `5042002`, RPC
+  `https://rpc.testnet.arc.network`, explorer `https://testnet.arcscan.app`,
+  canonical contract addresses). `ARC_RPC_URL` still overrides the RPC URL,
+  and an explicit `rpcUrl`/`bountyAdapterAddress` in the constructor always
+  wins over network defaults.
+- **`arc-mainnet`** (Arc mainnet launches 2026-09-16) has **no hardcoded
+  parameters** — Circle has not published them yet. The config is built at
+  runtime from environment variables: `ARC_MAINNET_CHAIN_ID`,
+  `ARC_MAINNET_RPC_URL`, `ARC_MAINNET_EXPLORER_URL`,
+  `ARC_MAINNET_EXPLORER_API_URL`, `ARC_MAINNET_AGENTIC_COMMERCE`,
+  `ARC_MAINNET_IDENTITY_REGISTRY`, `ARC_MAINNET_REPUTATION_REGISTRY`,
+  `ARC_MAINNET_USDC` (plus optional `ARC_MAINNET_BOUNTY_ADAPTER`,
+  `ARC_MAINNET_ADAPTER_DEPLOY_BLOCK`, `ARC_MAINNET_BLOCKS_PER_DAY`). Once
+  Circle publishes the official values at
+  <https://docs.arc.io/arc/references/contract-addresses>, set the vars (see
+  `.env.example`) and mainnet is a pure config change — no code release
+  needed. Until then, selecting `arc-mainnet` throws one descriptive error
+  listing every missing variable.
+
+Programmatic access: `NETWORKS["arc-testnet"]` (static registry) and
+`resolveNetwork(name, env?)` (env-aware resolution — what the constructor
+uses) are both exported, as is the resolved config on a live agent via
+`agent.network`. The 0.4.x constants `CONTRACTS`, `ARC_TESTNET_RPC` and
+`ARC_TESTNET_CHAIN_ID` remain exported as deprecated aliases of the
+`arc-testnet` entry.
+
 ## Required environment
 
 | Var | Notes |

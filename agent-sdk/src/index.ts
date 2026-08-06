@@ -14,6 +14,12 @@ export type {
   PendingActionKind,
 } from "./types.js";
 export {
+  NETWORKS,
+  resolveNetwork,
+  type NetworkName,
+  type NetworkConfig,
+  // Deprecated 0.4.x aliases — see @deprecated JSDoc in constants.ts; all
+  // three are wired to the NETWORKS["arc-testnet"] entry.
   CONTRACTS,
   ARC_TESTNET_RPC,
   ARC_TESTNET_CHAIN_ID,

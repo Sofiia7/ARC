@@ -17,11 +17,10 @@ import { ViemSigner } from "./signers/viemSigner.js";
 import { CircleSigner } from "./signers/circleSigner.js";
 import type { Signer } from "./signers/types.js";
 import {
-  ARC_TESTNET_RPC,
-  ARC_TESTNET_CHAIN_ID,
-  CONTRACTS,
+  resolveNetwork,
   USDC_DECIMALS,
   ZERO_ADDRESS,
+  type NetworkConfig,
 } from "./constants.js";
 import { pinText, fetchIpfsText } from "./ipfs.js";
 import {
@@ -52,14 +51,10 @@ function defaultOnEvent(event: string, meta: BountyMeta): void {
   console.warn(`[ArcBountyAgent] ${event} — bounty #${meta.jobId.toString()}`);
 }
 
-const arcTestnet = defineChain({
-  id: ARC_TESTNET_CHAIN_ID,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
-  rpcUrls: { default: { http: [ARC_TESTNET_RPC] } },
-});
-
 export class ArcBountyAgent {
+  /** Resolved config of the network this agent talks to (chain id, contracts, explorer…). */
+  readonly network: NetworkConfig;
+
   private readonly publicClient: PublicClient;
   private readonly signer: Signer;
   private readonly bountyAdapter: Address;
@@ -69,19 +64,40 @@ export class ArcBountyAgent {
   private _agentId: bigint | null = null;
 
   constructor(config: ArcBountyAgentConfig) {
-    const rpcUrl = config.rpcUrl ?? ARC_TESTNET_RPC;
-    this.chain = defineChain({ ...arcTestnet, rpcUrls: { default: { http: [rpcUrl] } } });
+    // Everything network-shaped (chain id, RPC, contract addresses) comes
+    // from the RESOLVED network. Explicit config overrides still win — an
+    // rpcUrl override changes only the transport URL, never the chain id
+    // (pre-0.5 the constructor kept the testnet chain id even when rpcUrl
+    // pointed elsewhere).
+    const network = resolveNetwork(config.network ?? "arc-testnet");
+    this.network = network;
+    const rpcUrl = config.rpcUrl ?? network.rpcUrl;
+    this.chain = defineChain({
+      id: network.chainId,
+      name: network.name,
+      nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
+      rpcUrls: { default: { http: [rpcUrl] } },
+    });
 
     this.signer = config.circleWallet
       ? new CircleSigner(config.circleWallet)
       : new ViemSigner(config.privateKey as `0x${string}`, this.chain, rpcUrl);
     this.metadataURI = config.metadataURI ?? "";
-    const rawAdapter = config.bountyAdapterAddress ??
-      (process.env["BOUNTY_ADAPTER_ADDRESS"] as Address | undefined);
+    // Adapter precedence: explicit config > BOUNTY_ADAPTER_ADDRESS env
+    // (testnet only — a stale testnet env var must never leak onto mainnet)
+    // > the resolved network's canonical adapter (for mainnet that is
+    // ARC_MAINNET_BOUNTY_ADAPTER, via resolveNetwork).
+    const envAdapter = network.testnet
+      ? (process.env["BOUNTY_ADAPTER_ADDRESS"]?.trim() as Address | undefined) || undefined
+      : undefined;
+    const rawAdapter = config.bountyAdapterAddress ?? envAdapter ?? network.defaultBountyAdapter;
     if (!rawAdapter) {
       throw new Error(
-        "ArcBountyAgent: bountyAdapterAddress is required (constructor option or BOUNTY_ADAPTER_ADDRESS env). " +
-        "See agent-sdk/.env.example. Source of truth: contracts/DEPLOYMENTS.md.",
+        `ArcBountyAgent: no BountyAdapter address for network "${network.name}" — pass ` +
+        "bountyAdapterAddress in the constructor" +
+        (network.testnet
+          ? " or set BOUNTY_ADAPTER_ADDRESS. See agent-sdk/.env.example. Source of truth: contracts/DEPLOYMENTS.md."
+          : " or set ARC_MAINNET_BOUNTY_ADAPTER. Source of truth: contracts/DEPLOYMENTS.md once the mainnet deployment is published."),
       );
     }
     if (!isAddress(rawAdapter) || rawAdapter.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
@@ -113,7 +129,7 @@ export class ArcBountyAgent {
     }
 
     const hash = await this.signer.writeContract({
-      address: CONTRACTS.IDENTITY_REGISTRY,
+      address: this.network.contracts.IDENTITY_REGISTRY,
       abi: IDENTITY_REGISTRY_ABI,
       functionName: "register",
       args: [metadataURI ?? this.metadataURI],
@@ -122,7 +138,7 @@ export class ArcBountyAgent {
     // Decode the agentId straight from the registration receipt — authoritative
     // and avoids a wide getLogs scan that public RPCs reject on long chains.
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
-    const agentId = agentIdFromReceiptLogs(receipt.logs, CONTRACTS.IDENTITY_REGISTRY, this.signer.address);
+    const agentId = agentIdFromReceiptLogs(receipt.logs, this.network.contracts.IDENTITY_REGISTRY, this.signer.address);
     if (agentId === null) throw new Error("Registration succeeded but agentId not found in events");
 
     this._agentId = agentId;
@@ -499,7 +515,7 @@ export class ArcBountyAgent {
 
   async usdcBalance(): Promise<bigint> {
     return this.publicClient.readContract({
-      address: CONTRACTS.USDC,
+      address: this.network.contracts.USDC,
       abi: ERC20_ABI,
       functionName: "balanceOf",
       args: [this.address],
@@ -793,7 +809,7 @@ export class ArcBountyAgent {
       for (let to = head; to > floor; to -= CHUNK) {
         const from = to - CHUNK + 1n > floor ? to - CHUNK + 1n : floor;
         const logs = await this.publicClient.getLogs({
-          address: CONTRACTS.IDENTITY_REGISTRY,
+          address: this.network.contracts.IDENTITY_REGISTRY,
           event: IDENTITY_REGISTRY_ABI[2], // Transfer event
           args: { from: ZERO_ADDRESS, to: this.address },
           fromBlock: from,
@@ -813,7 +829,7 @@ export class ArcBountyAgent {
 
   private async _ensureUsdcAllowance(amount: bigint): Promise<void> {
     const current = await this.publicClient.readContract({
-      address: CONTRACTS.USDC,
+      address: this.network.contracts.USDC,
       abi: ERC20_ABI,
       functionName: "allowance",
       args: [this.address, this.bountyAdapter],
@@ -821,7 +837,7 @@ export class ArcBountyAgent {
     if (current >= amount) return;
 
     const hash = await this.signer.writeContract({
-      address: CONTRACTS.USDC,
+      address: this.network.contracts.USDC,
       abi: ERC20_ABI,
       functionName: "approve",
       args: [this.bountyAdapter, amount],
