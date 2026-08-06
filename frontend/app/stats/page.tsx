@@ -2,6 +2,7 @@
 
 import { formatUsdc, shortAddress } from "@/lib/format";
 import { CONTRACTS } from "@/lib/contracts";
+import { getActiveNetwork } from "@/lib/networks";
 import { useProtocolStats } from "@/hooks/useProtocolStats";
 
 // Public dashboard: every number here is derived from contract events read
@@ -9,7 +10,8 @@ import { useProtocolStats } from "@/hooks/useProtocolStats";
 // to take on faith. Linked from weekly build-in-public posts and grant
 // reports as the verifiable source of truth (Arc testnet isn't on Dune yet).
 
-const EXPLORER = "https://testnet.arcscan.app/address/";
+const network = getActiveNetwork();
+const EXPLORER = `${network.explorerUrl}/address/`;
 
 export default function StatsPage() {
   const { data: s, isLoading, isError } = useProtocolStats();
@@ -19,7 +21,7 @@ export default function StatsPage() {
       <header className="page-head">
         <h1>Protocol stats</h1>
         <p className="sub">
-          Live from Arc Testnet — every number below is an on-chain event,
+          Live from {network.name} — every number below is an on-chain event,
           read directly from the contract in your browser. No backend.
         </p>
       </header>

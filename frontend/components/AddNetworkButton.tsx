@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { getActiveNetwork } from "@/lib/networks";
 
-const ARC_TESTNET_PARAMS = {
-  chainId: "0x4CEF52", // 5042002
-  chainName: "Arc Testnet",
+const network = getActiveNetwork();
+
+const ADD_CHAIN_PARAMS = {
+  chainId: `0x${network.chainId.toString(16)}`,
+  chainName: network.name,
   nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
-  rpcUrls: ["https://rpc.testnet.arc.network"],
-  blockExplorerUrls: ["https://testnet.arcscan.app"],
+  rpcUrls: [network.rpcUrl],
+  blockExplorerUrls: [network.explorerUrl],
 };
 
 type InjectedProvider = {
@@ -30,7 +33,7 @@ export function AddNetworkButton() {
     }
     setState("pending");
     try {
-      await injected.request({ method: "wallet_addEthereumChain", params: [ARC_TESTNET_PARAMS] });
+      await injected.request({ method: "wallet_addEthereumChain", params: [ADD_CHAIN_PARAMS] });
       setState("done");
     } catch {
       // User declined, or the wallet already has it — either way there's
@@ -42,7 +45,7 @@ export function AddNetworkButton() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
       <button type="button" className="btn btn-primary" onClick={add} disabled={state === "pending"}>
-        {state === "pending" ? "Check your wallet…" : state === "done" ? "Network added ✓" : "Add Arc Testnet to my wallet"}
+        {state === "pending" ? "Check your wallet…" : state === "done" ? "Network added ✓" : `Add ${network.name} to my wallet`}
       </button>
       {state === "unavailable" && (
         <span style={{ fontSize: 13, color: "var(--ink-mute)" }}>

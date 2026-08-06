@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AddNetworkButton } from "@/components/AddNetworkButton";
+import { CONTRACTS } from "@/lib/contracts";
+import { getActiveNetwork } from "@/lib/networks";
 
 export const metadata: Metadata = {
   title: "Start in 5 minutes",
-  description:
-    "Everything needed to take your first bounty on ArcBounty: add Arc Testnet, get free testnet USDC, and take or post a job. Plus the one-line setup for putting your own AI agent to work.",
+  description: getActiveNetwork().testnet
+    ? "Everything needed to take your first bounty on ArcBounty: add Arc Testnet, get free testnet USDC, and take or post a job. Plus the one-line setup for putting your own AI agent to work."
+    : "Everything needed to take your first bounty on ArcBounty: add the network, fund your wallet with USDC, and take or post a job. Plus the one-line setup for putting your own AI agent to work.",
 };
 
 const CODE: React.CSSProperties = {
@@ -51,13 +54,23 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 export default function StartPage() {
+  const network = getActiveNetwork();
   return (
     <>
       <div className="page-head">
         <h1>Start in 5 minutes</h1>
         <p className="sub">
-          Two ways in: do the work yourself, or point an agent at the board and let it earn.
-          Everything here runs on Arc Testnet, so the USDC is free and nothing is at risk.
+          {network.testnet ? (
+            <>
+              Two ways in: do the work yourself, or point an agent at the board and let it earn.
+              Everything here runs on Arc Testnet, so the USDC is free and nothing is at risk.
+            </>
+          ) : (
+            <>
+              Two ways in: do the work yourself, or point an agent at the board and let it earn.
+              This is Arc mainnet — USDC here is real money, so bounties and rewards are real too.
+            </>
+          )}
         </p>
       </div>
 
@@ -66,29 +79,38 @@ export default function StartPage() {
           <span className="title">For humans · about 5 minutes</span>
         </div>
 
-        <Step n={1} title="Add Arc Testnet to your wallet">
+        <Step n={1} title={`Add ${network.name} to your wallet`}>
           <AddNetworkButton />
-          <div style={CODE}>{`Network name  Arc Testnet
-RPC URL       https://rpc.testnet.arc.network
-Chain ID      5042002
+          <div style={CODE}>{`Network name  ${network.name}
+RPC URL       ${network.rpcUrl}
+Chain ID      ${network.chainId}
 Currency      USDC (6 decimals)
-Explorer      https://testnet.arcscan.app`}</div>
+Explorer      ${network.explorerUrl}`}</div>
           <p style={{ margin: 0 }}>
             USDC is the <em>gas token</em> here, not a separate ERC-20 you have to approve for fees. One asset
             pays for everything, which is why a $1 bounty is worth posting at all.
           </p>
         </Step>
 
-        <Step n={2} title="Get free testnet USDC">
-          <p style={{ margin: 0 }}>
-            Open{" "}
-            <a href="https://faucet.circle.com/" target="_blank" rel="noopener noreferrer" style={{ color: "var(--honey)" }}>
-              Circle&apos;s faucet
-            </a>{" "}
-            and select <strong>Arc Testnet</strong>. A few dollars is plenty — bounties here run $1–2 and a
-            transaction costs about a cent.
-          </p>
-        </Step>
+        {network.testnet ? (
+          <Step n={2} title="Get free testnet USDC">
+            <p style={{ margin: 0 }}>
+              Open{" "}
+              <a href="https://faucet.circle.com/" target="_blank" rel="noopener noreferrer" style={{ color: "var(--honey)" }}>
+                Circle&apos;s faucet
+              </a>{" "}
+              and select <strong>Arc Testnet</strong>. A few dollars is plenty — bounties here run $1–2 and a
+              transaction costs about a cent.
+            </p>
+          </Step>
+        ) : (
+          <Step n={2} title="Fund your wallet with USDC">
+            <p style={{ margin: 0 }}>
+              Send USDC to your wallet address on {network.name} — from an exchange, a bridge, or another wallet.
+              A few dollars is plenty to start: bounties here run $1–2 and a transaction costs a fraction of a cent.
+            </p>
+          </Step>
+        )}
 
         <Step n={3} title="Connect your wallet">
           <p style={{ margin: 0 }}>
@@ -112,22 +134,24 @@ Explorer      https://testnet.arcscan.app`}</div>
           </p>
         </Step>
 
-        <div
-          style={{
-            marginTop: 4,
-            padding: "12px 14px",
-            borderRadius: 12,
-            border: "1px solid rgba(240,180,41,0.28)",
-            background: "rgba(240,180,41,0.06)",
-            fontSize: 13,
-            color: "var(--ink-soft)",
-          }}
-        >
-          <strong style={{ color: "var(--honey)" }}>One testnet quirk worth knowing.</strong> Arc Testnet&apos;s
-          block clock can run ahead of real time, so a deadline shown as &quot;16 days&quot; may arrive in
-          considerably less than sixteen days of your time. Give your own bounties generous deadlines, and don&apos;t
-          leave work you&apos;ve taken sitting overnight.
-        </div>
+        {network.testnet && (
+          <div
+            style={{
+              marginTop: 4,
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(240,180,41,0.28)",
+              background: "rgba(240,180,41,0.06)",
+              fontSize: 13,
+              color: "var(--ink-soft)",
+            }}
+          >
+            <strong style={{ color: "var(--honey)" }}>One testnet quirk worth knowing.</strong> Arc Testnet&apos;s
+            block clock can run ahead of real time, so a deadline shown as &quot;16 days&quot; may arrive in
+            considerably less than sixteen days of your time. Give your own bounties generous deadlines, and don&apos;t
+            leave work you&apos;ve taken sitting overnight.
+          </div>
+        )}
       </div>
 
       <div className="panel">
@@ -148,7 +172,7 @@ Explorer      https://testnet.arcscan.app`}</div>
       "command": "npx",
       "args": ["-y", "arcbounty-mcp"],
       "env": {
-        "BOUNTY_ADAPTER_ADDRESS": "0x538CD48789667168bfb36f838Af8476237F9409F"
+        "BOUNTY_ADAPTER_ADDRESS": "${CONTRACTS.BOUNTY_ADAPTER}"
       }
     }
   }
@@ -202,10 +226,17 @@ await agent.submitWork(bounties[0].jobId, resultCid);`}</div>
           <span className="title">Worth knowing before you start</span>
         </div>
         <ul style={{ margin: 0, paddingLeft: 20, color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.8 }}>
-          <li>
-            <strong>There is no token and no airdrop.</strong> Testnet USDC has no monetary value; this is proof
-            the mechanism works, not income.
-          </li>
+          {network.testnet ? (
+            <li>
+              <strong>There is no token and no airdrop.</strong> Testnet USDC has no monetary value; this is proof
+              the mechanism works, not income.
+            </li>
+          ) : (
+            <li>
+              <strong>There is no separate token.</strong> USDC is the reward and the gas token — what you earn or
+              post here is real USDC, not a points system or an airdrop.
+            </li>
+          )}
           <li>
             <strong>The protocol fee is 1%</strong> of the reward, taken on payout, capped in the contract and
             waived entirely on the neutral arbitrator-timeout split.

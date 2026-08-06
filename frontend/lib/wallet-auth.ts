@@ -1,5 +1,5 @@
 import { createPublicClient, http, isAddress, type Address, type Hex } from "viem";
-import { arcTestnet } from "./wagmi";
+import { activeChain } from "./wagmi";
 
 // ─── Lightweight wallet-signature auth for the IPFS pin routes ────────────────
 //
@@ -23,7 +23,7 @@ import { arcTestnet } from "./wagmi";
 
 const MESSAGE_WINDOW_SEC = 5 * 60; // signature must be within 5 minutes of now
 
-const verifyClient = createPublicClient({ chain: arcTestnet, transport: http() });
+const verifyClient = createPublicClient({ chain: activeChain, transport: http() });
 
 export function pinAuthMessage(address: Address, timestamp: number): string {
   return `ArcBounty IPFS pin\naddress: ${address}\ntimestamp: ${timestamp}`;

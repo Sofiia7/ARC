@@ -5,6 +5,7 @@ import {
   type Hex,
   type PublicClient,
 } from "viem";
+import { getActiveNetwork } from "./networks";
 
 // ─── Full-history event scans without an indexer ─────────────────────────────
 //
@@ -26,10 +27,12 @@ import {
 // minutes. The bound means the fallback may under-count old events — it
 // logs a console.warn so the degradation is visible, not silent.
 
-const BLOCKSCOUT_API = "https://testnet.arcscan.app/api";
+const network = getActiveNetwork();
+
+const BLOCKSCOUT_API = network.explorerApiUrl;
 const CHUNK = 10_000n;
 const CONCURRENCY = 10;
-const MAX_LOOKBACK = 500_000n; // fallback only: ~2 days of Arc testnet blocks
+const MAX_LOOKBACK = network.maxLookbackBlocks; // fallback only
 
 export type ScannedLog = { args: unknown; blockNumber?: bigint };
 

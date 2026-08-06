@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useReadContracts } from "wagmi";
 import { shortAddress } from "@/lib/format";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+import { getActiveNetwork } from "@/lib/networks";
 import { useCompletedBounties, aggregateAgentStats, type AgentStats } from "@/hooks/useCompletedBounties";
 
 type Period = "7d" | "30d" | "90d" | "all";
 type Kind   = "all" | "agents" | "humans";
 
-// Rough block-time estimate for Arc Testnet (≈1s/block per docs).
-const BLOCKS_PER_DAY = 86_400n;
+// Rough block-time estimate for the active network (≈1s/block per docs).
+const BLOCKS_PER_DAY = getActiveNetwork().blocksPerDay;
 
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<Period>("all");

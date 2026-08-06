@@ -1,11 +1,20 @@
 import { isAddress, type Address } from "viem";
+import { getActiveNetwork } from "./networks";
+
+const network = getActiveNetwork();
 
 // Fail-fast: bad config must blow up at module load time, never produce a
 // "successful" tx against the zero address. This module is imported by every
 // page that talks to the chain, so the check runs on every build and every
 // cold start.
+//
+// NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS keeps working as the adapter override
+// exactly as today, on either network. If it's unset, we fall back to the
+// active network's own default (arc-mainnet always has one — see
+// lib/networks.ts's required NEXT_PUBLIC_ARC_MAINNET_BOUNTY_ADAPTER; arc-testnet
+// never has one, so it stays exactly as mandatory as it always was).
 function requireAdapterAddress(): Address {
-  const raw = process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS;
+  const raw = process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS ?? network.bountyAdapterAddress;
   if (!raw) {
     throw new Error(
       "[arcbounty] NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS is not set. " +
@@ -22,18 +31,18 @@ function requireAdapterAddress(): Address {
 }
 
 export const CONTRACTS = {
-  AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583" as Address,
-  IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address,
-  REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address,
-  USDC:                "0x3600000000000000000000000000000000000000" as Address,
+  AGENTIC_COMMERCE:    network.contracts.AGENTIC_COMMERCE,
+  IDENTITY_REGISTRY:   network.contracts.IDENTITY_REGISTRY,
+  REPUTATION_REGISTRY: network.contracts.REPUTATION_REGISTRY,
+  USDC:                network.contracts.USDC,
   BOUNTY_ADAPTER:      requireAdapterAddress(),
 } as const;
 
-// Deployment block of the V4.1 adapter (creation tx 0x1d2b2698…3b83c). Anchor
-// for chunked event scans — see lib/chainLogs.ts. A redeploy only moves the
-// true deploy block later, so leaving this at the earliest-known deployment
-// stays correct (scans a few extra empty chunks at worst).
-export const BOUNTY_ADAPTER_DEPLOY_BLOCK = 50_610_373n;
+// Deployment block of the adapter on the active network. Anchor for chunked
+// event scans — see lib/chainLogs.ts. A redeploy only moves the true deploy
+// block later, so leaving this at the earliest-known deployment stays correct
+// (scans a few extra empty chunks at worst).
+export const BOUNTY_ADAPTER_DEPLOY_BLOCK = network.adapterDeployBlock;
 
 const BOUNTY_META_TUPLE = {
   name: "", type: "tuple",

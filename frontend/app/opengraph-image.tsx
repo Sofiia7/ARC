@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { getActiveNetwork } from "@/lib/networks";
 
 // Every launch link — X, Discord, Telegram, HN, LinkedIn — unfurls with this
 // card. Generated rather than shipped as a PNG so the numbers and wording stay
@@ -14,6 +15,7 @@ export const contentType = "image/png";
 export const runtime = "edge";
 
 export default function OpengraphImage() {
+  const network = getActiveNetwork();
   return new ImageResponse(
     (
       <div
@@ -57,7 +59,7 @@ export default function OpengraphImage() {
               color: "#9aa3b8",
             }}
           >
-            Arc Testnet
+            {network.name}
           </div>
         </div>
 

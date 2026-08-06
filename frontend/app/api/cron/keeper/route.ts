@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import {
-  createPublicClient, createWalletClient, http, defineChain, type Address,
+  createPublicClient, createWalletClient, http, type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+import { activeChain } from "@/lib/wagmi";
 
 // Plain !== leaks comparison time proportional to the matching prefix length.
 // CRON_SECRET is Vercel-generated (not attacker-guessable in practice), but
@@ -31,11 +32,10 @@ export const dynamic = "force-dynamic";
 // Env:
 //   KEEPER_PRIVATE_KEY   — funded wallet (ARC for gas). Send a low-value key.
 //   CRON_SECRET          — Vercel sets `Authorization: Bearer <CRON_SECRET>`.
-//   NEXT_PUBLIC_RPC_URL  — Arc RPC.
+//   Chain + RPC come from the shared `activeChain` (lib/wagmi.ts) — whichever
+//   network this build was compiled for (NEXT_PUBLIC_ARC_NETWORK).
 // Query:
 //   ?dryRun=1            — list candidates without sending transactions.
-
-const CHAIN_ID = 5042002;
 
 // `allJobIds(uint256)` is a public array getter on the adapter but isn't in the
 // shared ABI (the UI never enumerates the full set). The keeper does, so add it
@@ -78,15 +78,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const rpc = process.env.NEXT_PUBLIC_RPC_URL ?? "https://rpc.testnet.arc.network";
   const dryRun = req.nextUrl.searchParams.get("dryRun") === "1";
   const adapter = CONTRACTS.BOUNTY_ADAPTER;
 
-  const chain = defineChain({
-    id: CHAIN_ID, name: "Arc Testnet",
-    nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
-    rpcUrls: { default: { http: [rpc] } },
-  });
+  const chain = activeChain;
+  const rpc = chain.rpcUrls.default.http[0];
   const pub = createPublicClient({ chain, transport: http(rpc) });
   const account = privateKeyToAccount(pk as `0x${string}`);
   const wallet = createWalletClient({ account, chain, transport: http(rpc) });

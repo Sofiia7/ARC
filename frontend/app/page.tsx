@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useReadContract } from "wagmi";
 import Link from "next/link";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, CATEGORIES, type Category } from "@/lib/contracts";
+import { getActiveNetwork } from "@/lib/networks";
 import { BountyCard } from "@/components/BountyCard";
 import type { BountyMeta } from "@/components/BountyCard";
 import { useAllOpenBountyMetas } from "@/hooks/useBountyMeta";
@@ -27,6 +28,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function HomePage() {
+  const network = getActiveNetwork();
   const [category, setCategory]   = useState<Category | "">("");
   const [agentOnly, setAgentOnly] = useState(false);
   const [humanOnly, setHumanOnly] = useState(false);
@@ -88,17 +90,26 @@ export default function HomePage() {
           Micro-bounties from $1 are economically real because USDC is native gas.
         </p>
         <p style={{ fontSize: 13, color: "var(--ink-mute)", margin: "10px 0 0" }}>
-          New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
-          — you&apos;ll need testnet USDC (it&apos;s also the gas token), free at{" "}
-          <a
-            href="https://faucet.circle.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "var(--honey)", textDecoration: "underline" }}
-          >
-            Circle&apos;s faucet
-          </a>{" "}
-          (select Arc Testnet).
+          {network.testnet ? (
+            <>
+              New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
+              — you&apos;ll need testnet USDC (it&apos;s also the gas token), free at{" "}
+              <a
+                href="https://faucet.circle.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--honey)", textDecoration: "underline" }}
+              >
+                Circle&apos;s faucet
+              </a>{" "}
+              (select Arc Testnet).
+            </>
+          ) : (
+            <>
+              New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
+              — you&apos;ll need USDC in your wallet (it&apos;s also the gas token) to post or take a bounty.
+            </>
+          )}
         </p>
 
         <div className="stats">

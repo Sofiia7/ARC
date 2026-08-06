@@ -1,11 +1,14 @@
 "use client";
 
 import { useAccount, useBalance } from "wagmi";
+import { getActiveNetwork } from "@/lib/networks";
 
 // On Arc, USDC is BOTH the reward token and the native gas token — a wallet
 // with a zero balance can't post, take, or even approve anything. Without
 // this banner a first-time visitor connects, clicks something, and hits an
-// opaque "insufficient funds" failure with no path forward.
+// opaque "insufficient funds" failure with no path forward. Mainnet has no
+// faucet — there, a zero balance just means "top up", not a UX dead end this
+// banner needs to solve, so it's testnet-only.
 export const FAUCET_URL = "https://faucet.circle.com/";
 
 export function FaucetBanner() {
@@ -15,6 +18,7 @@ export function FaucetBanner() {
     query: { enabled: !!address, refetchInterval: 30_000 },
   });
 
+  if (!getActiveNetwork().testnet) return null;
   if (!isConnected || !address || balance === undefined) return null;
   if (balance.value > 0n) return null;
 

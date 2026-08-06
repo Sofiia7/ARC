@@ -36,17 +36,42 @@ hooks/
   useBountyMeta.ts               — read BountyMeta + lifecycle status
   useTx.ts                       — tx submit + toast pipeline
 lib/
-  contracts.ts                   — addresses + ABI
-  wagmi.ts                       — arcTestnet chain + config
+  networks.ts                    — per-network config map (build-time network selection)
+  contracts.ts                   — addresses + ABI, sourced from the active network
+  wagmi.ts                       — active chain + wagmi config
   ipfs.ts                        — pin + fetch helpers
   format.ts                      — usdc/address/time helpers
 ```
+
+## Networks
+
+One build = one network, chosen at **build time** by `NEXT_PUBLIC_ARC_NETWORK`
+(`"arc-testnet"` | `"arc-mainnet"`, default `"arc-testnet"`). Production runs
+as **two separate Vercel projects** — one per network — each with its own env
+vars and, once mainnet launches, its own domain. There's no runtime network
+switcher in the UI; changing network means rebuilding.
+
+All per-network values (chain id, RPC, explorer, contract addresses, adapter
+deploy block, etc.) live in [`lib/networks.ts`](lib/networks.ts). `arc-testnet`
+is fully baked in. `arc-mainnet` is built entirely from
+`NEXT_PUBLIC_ARC_MAINNET_*` env vars, because Circle has not published Arc
+mainnet's parameters yet — building with `NEXT_PUBLIC_ARC_NETWORK=arc-mainnet`
+before they're set throws a descriptive error listing exactly what's missing,
+rather than falling back to guessed values. See `.env.example` for the full
+list of `NEXT_PUBLIC_ARC_MAINNET_*` vars.
+
+This is the frontend's own copy of the network map, not a dependency on
+`arcbounty-agent-sdk` (whose `agent-sdk/src/constants.ts` has the equivalent
+map) — the SDK's multi-network release isn't published to npm yet, and a
+Vercel build installing from the registry would break. A separate
+consistency-check script guards the two maps against drifting apart.
 
 ## Configure
 
 Create `.env.local`:
 
 ```env
+NEXT_PUBLIC_ARC_NETWORK=arc-testnet
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
 NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x538CD48789667168bfb36f838Af8476237F9409F
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect cloud project id>
@@ -55,10 +80,12 @@ PINATA_JWT=<pinata jwt with file upload permission>
 
 | Var | Purpose |
 |---|---|
-| `NEXT_PUBLIC_RPC_URL` | Arc Testnet RPC; falls back to `https://rpc.testnet.arc.network`. |
-| `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` | Deployed `BountyAdapter` address. **Must match the contract you deployed.** |
+| `NEXT_PUBLIC_ARC_NETWORK` | Which network this build targets: `arc-testnet` (default) or `arc-mainnet`. See [Networks](#networks). |
+| `NEXT_PUBLIC_RPC_URL` | Arc Testnet RPC override; falls back to `https://rpc.testnet.arc.network`. No effect on `arc-mainnet` builds (use `NEXT_PUBLIC_ARC_MAINNET_RPC_URL`). |
+| `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` | Deployed `BountyAdapter` address override, works on either network. **Must match the contract you deployed.** |
 | `NEXT_PUBLIC_WC_PROJECT_ID` | WalletConnect Cloud project id (free at cloud.walletconnect.com). |
 | `PINATA_JWT` | Server-side only. Used by `/api/ipfs/pin` and `/api/ipfs/pin-file` to pin descriptions and attachments. |
+| `NEXT_PUBLIC_ARC_MAINNET_*` | Required only when `NEXT_PUBLIC_ARC_NETWORK=arc-mainnet`. See `.env.example`. |
 
 ### IPFS pin routes require a wallet signature
 
@@ -82,11 +109,11 @@ npm start       # serve production on :3001
 
 Chain config:
 
-- Arc Testnet — chain id **`5042002`**, RPC `https://rpc.testnet.arc.network`, explorer `https://testnet.arcscan.app`. Defined in [`lib/wagmi.ts`](lib/wagmi.ts).
+- Arc Testnet — chain id **`5042002`**, RPC `https://rpc.testnet.arc.network`, explorer `https://testnet.arcscan.app`. Values in [`lib/networks.ts`](lib/networks.ts), chain object built in [`lib/wagmi.ts`](lib/wagmi.ts).
 
 ## Deploy
 
-Auto-deploys to Vercel on push to `main`. The Vercel project is the canonical host of `arcbounty.app`. Set all four env vars above in the Vercel dashboard.
+Auto-deploys to Vercel on push to `main`. The `arc-testnet` Vercel project is the canonical host of `arcbounty.app`; a second `arc-mainnet` Vercel project (its own env vars, its own domain) goes live once Circle publishes mainnet parameters. Set the env vars from [Configure](#configure) in each project's Vercel dashboard.
 
 If you fork, the production build needs `next.config.mjs` as-is — it stubs out optional wagmi peer deps (`porto/internal`, `@base-org/account`, `@metamask/connect-evm`, `accounts`) that would otherwise break the build.
 
