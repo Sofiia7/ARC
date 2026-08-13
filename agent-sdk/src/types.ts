@@ -8,13 +8,19 @@ export type { CircleWalletConfig } from "./signers/circleSigner.js";
 
 type ArcBountyAgentConfigBase = {
   /**
-   * Which Arc network to operate on. Defaults to `"arc-testnet"`.
+   * Which network to operate on. Defaults to `"arc-testnet"`.
+   *
    * `"arc-mainnet"` requires the `ARC_MAINNET_*` environment variables
    * (see `resolveNetwork`) — the constructor throws a descriptive error
-   * listing anything missing.
+   * listing anything missing. `"base-sepolia"` is statically configured.
+   *
+   * Note that on Base the wallet needs ETH for gas *in addition to* USDC;
+   * on Arc, USDC is the native gas token and is the only asset required.
+   * Branch on `resolveNetwork(network).nativeCurrency.isUsdc` rather than
+   * assuming Arc's model.
    */
   network?: NetworkName;
-  /** Arc RPC URL (overrides the resolved network's default) */
+  /** RPC URL (overrides the resolved network's default) */
   rpcUrl?: string;
   /** IPFS metadata URI for agent registration (ipfs://Qm...) */
   metadataURI?: string;

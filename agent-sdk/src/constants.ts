@@ -2,7 +2,38 @@ import { isAddress, type Address } from "viem";
 
 // ─── Networks ────────────────────────────────────────────────────────────────
 
-export type NetworkName = "arc-testnet" | "arc-mainnet";
+export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia";
+
+/**
+ * The chain's native (gas) token.
+ *
+ * This is the one place Arc and Base genuinely diverge for callers: on Arc,
+ * USDC *is* the native token, so a wallet holding only USDC can transact. On
+ * Base, USDC is an ordinary ERC-20 and gas is paid in ETH — an agent or human
+ * funded only with USDC will fail at the first transaction. Anything that
+ * tells a user what to fund their wallet with must branch on `isUsdc` rather
+ * than assume Arc's model.
+ */
+export type NativeCurrency = {
+  symbol: string;
+  decimals: number;
+  /** True when the native gas token is USDC itself (Arc), false when gas is a separate asset (Base: ETH). */
+  isUsdc: boolean;
+};
+
+/**
+ * Product branding for this network's deployment.
+ *
+ * The Base deployment ships under its own name (BaseBounty / basebounty.app),
+ * separate from the Arc one (ArcBounty / arcbounty.app) — "Arc" reads as a
+ * competing chain to a Base audience. This is one codebase and one npm
+ * package serving both; only the user-facing name differs, so anything that
+ * renders a product name must read it from here rather than hardcode one.
+ */
+export type Brand = {
+  name: string;
+  domain: string;
+};
 
 export type NetworkConfig = {
   chainId: number;
@@ -12,6 +43,10 @@ export type NetworkConfig = {
   rpcUrl: string;
   explorerUrl: string;
   explorerApiUrl: string;
+  /** Explorer's display name, e.g. for wallet "view on …" links. */
+  explorerName: string;
+  nativeCurrency: NativeCurrency;
+  brand: Brand;
   contracts: {
     AGENTIC_COMMERCE: Address;
     IDENTITY_REGISTRY: Address;
@@ -24,17 +59,28 @@ export type NetworkConfig = {
   /** Block the canonical adapter was deployed at — lower bound for log scans. */
   adapterDeployBlock?: number;
   testnet: boolean;
-  /** Rough estimate (≈1s/block on Arc) for "last N days" style block math. */
+  /** Rough estimate for "last N days" style block math (≈1s/block on Arc, ≈2s on Base). */
   blocksPerDay: number;
 };
 
 /**
- * Statically known networks. Arc MAINNET is deliberately absent: Circle has
- * not published its parameters yet (chain id, RPC, contract addresses —
- * source of truth: https://docs.arc.io/arc/references/contract-addresses).
- * Use `resolveNetwork("arc-mainnet")`, which builds the config from
- * `ARC_MAINNET_*` environment variables and fails with a descriptive error
- * while they are missing. Never hardcode guessed mainnet values here.
+ * Statically known networks.
+ *
+ * Two mainnets are deliberately absent, for different reasons:
+ *
+ * - **Arc mainnet** — Circle has not published its parameters yet (chain id,
+ *   RPC, contract addresses; source of truth:
+ *   https://docs.arc.io/arc/references/contract-addresses). Use
+ *   `resolveNetwork("arc-mainnet")`, which builds the config from
+ *   `ARC_MAINNET_*` environment variables and fails with a descriptive error
+ *   while they are missing.
+ * - **Base mainnet (8453)** — every *external* address is already known and
+ *   verified (see `docs/INTEGRATION_NOTES.md`), but our own `AgenticCommerce`
+ *   escrow and `BountyAdapter` are not deployed there yet. It gets a static
+ *   entry in the same commit as the deploy, with the real addresses.
+ *
+ * Never hardcode guessed values here — an entry exists only once every
+ * address in it has been confirmed on-chain.
  */
 export const NETWORKS = {
   "arc-testnet": {
@@ -44,6 +90,10 @@ export const NETWORKS = {
     rpcUrl: "https://rpc.testnet.arc.network",
     explorerUrl: "https://testnet.arcscan.app",
     explorerApiUrl: "https://testnet.arcscan.app/api",
+    explorerName: "ArcScan",
+    // Arc's native gas token IS USDC — that is the whole point of the chain.
+    nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
+    brand: { name: "ArcBounty", domain: "arcbounty.app" },
     contracts: {
       AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583",
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
@@ -54,6 +104,36 @@ export const NETWORKS = {
     adapterDeployBlock: 50_610_373,
     testnet: true,
     blocksPerDay: 86_400,
+  },
+  "base-sepolia": {
+    chainId: 84_532,
+    name: "Base Sepolia",
+    caip2: "eip155:84532",
+    rpcUrl: "https://sepolia.base.org",
+    explorerUrl: "https://sepolia.basescan.org",
+    // Etherscan V2: one multichain endpoint keyed by `chainid`, not a
+    // per-chain host (see docs/INTEGRATION_NOTES.md).
+    explorerApiUrl: "https://api.etherscan.io/v2/api?chainid=84532",
+    explorerName: "Basescan",
+    // Unlike Arc: gas is ETH, and USDC below is an ordinary ERC-20.
+    nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
+    brand: { name: "BaseBounty", domain: "basebounty.app" },
+    contracts: {
+      // Our own copy of Arc's escrow variant (contracts/src/base/) — no
+      // canonical AgenticCommerce instance exists on Base.
+      AGENTIC_COMMERCE:    "0x37BB41D12adC01cBFb9Ca69098F9E09E0938a673",
+      // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
+      IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+      USDC:                "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    },
+    defaultBountyAdapter: "0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9",
+    // Recovered by binary-searching eth_getCode (the 2026-07-20 rehearsal
+    // recorded tx hashes but no block number): first block with code is
+    // 44398167, 2026-07-20T16:23:42Z, matching DEPLOYMENTS.md's date.
+    adapterDeployBlock: 44_398_167,
+    testnet: true,
+    blocksPerDay: 43_200, // ≈2s blocks
   },
 } as const satisfies Record<string, NetworkConfig>;
 
@@ -104,6 +184,9 @@ function parseIntStrict(name: string, value: string, min = 1): number {
  *
  * - `"arc-testnet"` → the static {@link NETWORKS} entry. `ARC_RPC_URL` (if
  *   set) overrides `rpcUrl`, matching pre-0.5 behavior.
+ * - `"base-sepolia"` → the static {@link NETWORKS} entry. `BASE_SEPOLIA_RPC_URL`
+ *   (if set) overrides `rpcUrl` — the public `sepolia.base.org` node is rate
+ *   limited, so a dedicated RPC is expected in CI and e2e runs.
  * - `"arc-mainnet"` → built entirely from `ARC_MAINNET_*` environment
  *   variables. Circle has not published Arc mainnet parameters yet; until
  *   every required variable is set this throws a single error listing all
@@ -113,12 +196,21 @@ function parseIntStrict(name: string, value: string, min = 1): number {
  *   injectable for tests and non-Node runtimes.
  */
 export function resolveNetwork(name: NetworkName, env: Env = process.env): NetworkConfig {
-  if (name === "arc-testnet") {
-    const base = NETWORKS["arc-testnet"];
+  // Statically known networks, with a per-network RPC override env var.
+  const STATIC_RPC_OVERRIDE = {
+    "arc-testnet":  "ARC_RPC_URL",
+    "base-sepolia": "BASE_SEPOLIA_RPC_URL",
+  } as const;
+
+  if (name in STATIC_RPC_OVERRIDE) {
+    const key = name as keyof typeof STATIC_RPC_OVERRIDE;
+    const base = NETWORKS[key];
     return {
       ...base,
       contracts: { ...base.contracts },
-      rpcUrl: readEnv(env, "ARC_RPC_URL") ?? base.rpcUrl,
+      nativeCurrency: { ...base.nativeCurrency },
+      brand: { ...base.brand },
+      rpcUrl: readEnv(env, STATIC_RPC_OVERRIDE[key]) ?? base.rpcUrl,
     };
   }
 
@@ -158,6 +250,10 @@ export function resolveNetwork(name: NetworkName, env: Env = process.env): Netwo
       rpcUrl:         readEnv(env, "ARC_MAINNET_RPC_URL")!,
       explorerUrl:    readEnv(env, "ARC_MAINNET_EXPLORER_URL")!,
       explorerApiUrl: readEnv(env, "ARC_MAINNET_EXPLORER_API_URL")!,
+      explorerName: "ArcScan",
+      // USDC-as-native-gas is a property of Arc itself, not of its testnet.
+      nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
+      brand: { name: "ArcBounty", domain: "arcbounty.app" },
       contracts: {
         AGENTIC_COMMERCE:    agenticCommerce as Address,
         IDENTITY_REGISTRY:   identityRegistry as Address,
@@ -175,7 +271,10 @@ export function resolveNetwork(name: NetworkName, env: Env = process.env): Netwo
     };
   }
 
-  throw new Error(`resolveNetwork: unknown network "${name as string}" (expected "arc-testnet" or "arc-mainnet")`);
+  throw new Error(
+    `resolveNetwork: unknown network "${name as string}" ` +
+    `(expected "arc-testnet", "arc-mainnet" or "base-sepolia")`,
+  );
 }
 
 // ─── Deprecated aliases (0.4.x compatibility) ────────────────────────────────

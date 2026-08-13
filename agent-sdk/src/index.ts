@@ -18,6 +18,8 @@ export {
   resolveNetwork,
   type NetworkName,
   type NetworkConfig,
+  type NativeCurrency,
+  type Brand,
   // Deprecated 0.4.x aliases — see @deprecated JSDoc in constants.ts; all
   // three are wired to the NETWORKS["arc-testnet"] entry.
   CONTRACTS,

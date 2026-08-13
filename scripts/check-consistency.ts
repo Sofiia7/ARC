@@ -271,15 +271,19 @@ if (envFiles.length) {
 // The frontend deliberately keeps its OWN copy of the network map (it can't
 // depend on the unpublished arcbounty-agent-sdk package — see that file's
 // own header comment) — nothing else stops the two from silently drifting
-// apart. Regex-based, not AST-based: both files are hand-written, small,
-// and each field name used below appears in each file exactly once with an
-// immediately-adjacent literal (verified by hand) — an AST parser would be
-// more robust to unrelated file reshuffling but is unavailable here (no
-// TypeScript compiler API / ts-morph dependency in this workspace) and would
-// be overkill for two ~200-line hand-authored config files. If a field's
-// regex ever stops matching, this fails loudly (exit 2) rather than
-// silently skipping the comparison — a broken regex must never look like a
-// clean pass.
+// apart. Regex-based, not AST-based: both files are hand-written and small —
+// an AST parser would be more robust to unrelated file reshuffling but is
+// unavailable here (no TypeScript compiler API / ts-morph dependency in this
+// workspace). If a field's regex ever stops matching, this fails loudly
+// (exit 2) rather than silently skipping the comparison — a broken regex
+// must never look like a clean pass.
+//
+// The regexes are applied to a SINGLE network's `"<slug>": { ... }` block,
+// extracted by brace matching, not to the whole file. Matching file-wide
+// (which this did while `arc-testnet` was the only static entry) silently
+// starts comparing the wrong network the moment a second entry is added or
+// the entries are reordered — the same first-match-wins trap DEPLOYMENTS.md
+// already had.
 
 type CrossCheckField = {
   label: string;
@@ -295,6 +299,7 @@ const CROSS_CHECK_FIELDS: CrossCheckField[] = [
   { label: "rpcUrl (default)", re: /rpcUrl:.*?"([^"]+)"/ },
   { label: "explorerUrl", re: /explorerUrl:\s*"([^"]+)"/ },
   { label: "explorerApiUrl", re: /explorerApiUrl:\s*"([^"]+)"/ },
+  { label: "explorerName", re: /explorerName:\s*"([^"]+)"/ },
   { label: "contracts.AGENTIC_COMMERCE", re: /AGENTIC_COMMERCE:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
   { label: "contracts.IDENTITY_REGISTRY", re: /IDENTITY_REGISTRY:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
   { label: "contracts.REPUTATION_REGISTRY", re: /REPUTATION_REGISTRY:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
@@ -303,10 +308,35 @@ const CROSS_CHECK_FIELDS: CrossCheckField[] = [
   // frontend/lib/networks.ts documents that divergence as intentional
   // (arc-testnet has never had a baked-in default there).
   { label: "adapterDeployBlock", re: /adapterDeployBlock:\s*([\d_]+)n?/, normalize: toDecimal },
+  // Arc pays gas in USDC, Base in ETH — copy branches on this, so a drift
+  // here silently tells users to fund the wrong asset.
+  { label: "nativeCurrency.symbol", re: /nativeCurrency:\s*\{\s*symbol:\s*"([^"]+)"/ },
+  { label: "nativeCurrency.isUsdc", re: /isUsdc:\s*(true|false)/ },
+  // The Base build ships as BaseBounty, the Arc build as ArcBounty.
+  { label: "brand.name", re: /brand:\s*\{\s*name:\s*"([^"]+)"/ },
+  { label: "brand.domain", re: /brand:\s*\{[^}]*domain:\s*"([^"]+)"/ },
 ];
 
-function extractCrossCheckField(text: string, field: CrossCheckField, fileLabel: string): string {
-  const m = text.match(field.re);
+/**
+ * Extract a single `"<slug>": { ... }` entry from a network map by brace
+ * matching, so field regexes can't leak across networks.
+ */
+function extractNetworkBlock(text: string, slug: string, fileLabel: string): string {
+  const start = text.indexOf(`"${slug}": {`);
+  if (start === -1) {
+    fail(`[cross-check] Could not find the "${slug}" entry in ${fileLabel} — either the network was ` +
+      `removed or the map's shape changed; update scripts/check-consistency.ts.`);
+  }
+  let depth = 0;
+  for (let i = text.indexOf("{", start); i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}" && --depth === 0) return text.slice(start, i + 1);
+  }
+  fail(`[cross-check] Unbalanced braces while reading the "${slug}" entry in ${fileLabel}.`);
+}
+
+function extractCrossCheckField(block: string, field: CrossCheckField, fileLabel: string): string {
+  const m = block.match(field.re);
   if (!m) {
     fail(`[cross-check] Could not find "${field.label}" in ${fileLabel} — the drift-check regex ` +
       `(scripts/check-consistency.ts) needs updating to match the file's current shape.`);
@@ -323,14 +353,21 @@ if (!existsSync(SDK_CONSTANTS_PATH) || !existsSync(FRONTEND_NETWORKS_PATH)) {
 } else {
   const sdkText = readFileSync(SDK_CONSTANTS_PATH, "utf8");
   const feText = readFileSync(FRONTEND_NETWORKS_PATH, "utf8");
-  for (const field of CROSS_CHECK_FIELDS) {
-    const sdkVal = extractCrossCheckField(sdkText, field, "agent-sdk/src/constants.ts");
-    const feVal = extractCrossCheckField(feText, field, "frontend/lib/networks.ts");
-    if (sdkVal !== feVal) {
-      errors.push(
-        `[cross-check] arc-testnet "${field.label}" drifted between the two network maps: ` +
-        `agent-sdk/src/constants.ts="${sdkVal}" vs frontend/lib/networks.ts="${feVal}"`,
-      );
+  // Every network both maps declare statically. Add base-mainnet here in the
+  // same commit that adds it to the maps.
+  const MIRRORED_NETWORKS = ["arc-testnet", "base-sepolia"];
+  for (const slug of MIRRORED_NETWORKS) {
+    const sdkBlock = extractNetworkBlock(sdkText, slug, "agent-sdk/src/constants.ts");
+    const feBlock = extractNetworkBlock(feText, slug, "frontend/lib/networks.ts");
+    for (const field of CROSS_CHECK_FIELDS) {
+      const sdkVal = extractCrossCheckField(sdkBlock, field, `agent-sdk/src/constants.ts ("${slug}")`);
+      const feVal = extractCrossCheckField(feBlock, field, `frontend/lib/networks.ts ("${slug}")`);
+      if (sdkVal !== feVal) {
+        errors.push(
+          `[cross-check] ${slug} "${field.label}" drifted between the two network maps: ` +
+          `agent-sdk/src/constants.ts="${sdkVal}" vs frontend/lib/networks.ts="${feVal}"`,
+        );
+      }
     }
   }
 }

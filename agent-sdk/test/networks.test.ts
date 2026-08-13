@@ -71,6 +71,65 @@ describe("resolveNetwork — arc-testnet", () => {
   });
 });
 
+describe("resolveNetwork — base-sepolia", () => {
+  it("returns the static Base Sepolia entry", () => {
+    const net = resolveNetwork("base-sepolia", {});
+    expect(net.chainId).toBe(84_532);
+    expect(net.name).toBe("Base Sepolia");
+    expect(net.caip2).toBe("eip155:84532");
+    expect(net.rpcUrl).toBe("https://sepolia.base.org");
+    expect(net.explorerUrl).toBe("https://sepolia.basescan.org");
+    expect(net.contracts).toEqual({
+      AGENTIC_COMMERCE:    "0x37BB41D12adC01cBFb9Ca69098F9E09E0938a673",
+      IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+      USDC:                "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    });
+    expect(net.defaultBountyAdapter).toBe("0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9");
+    expect(net.adapterDeployBlock).toBe(44_398_167);
+    expect(net.testnet).toBe(true);
+    expect(net.blocksPerDay).toBe(43_200);
+  });
+
+  it("brands as BaseBounty, separately from Arc's ArcBounty", () => {
+    expect(resolveNetwork("base-sepolia", {}).brand)
+      .toEqual({ name: "BaseBounty", domain: "basebounty.app" });
+    expect(resolveNetwork("arc-testnet", {}).brand)
+      .toEqual({ name: "ArcBounty", domain: "arcbounty.app" });
+  });
+
+  it("pays gas in ETH, not USDC — the one thing that differs from Arc", () => {
+    expect(resolveNetwork("base-sepolia", {}).nativeCurrency)
+      .toEqual({ symbol: "ETH", decimals: 18, isUsdc: false });
+    // Arc's native token IS USDC; anything prompting a user to fund a wallet
+    // must branch on this rather than assume one model.
+    expect(resolveNetwork("arc-testnet", {}).nativeCurrency)
+      .toEqual({ symbol: "USDC", decimals: 6, isUsdc: true });
+  });
+
+  it("lets BASE_SEPOLIA_RPC_URL override only the RPC URL", () => {
+    const net = resolveNetwork("base-sepolia", { BASE_SEPOLIA_RPC_URL: "http://localhost:8545" });
+    expect(net.rpcUrl).toBe("http://localhost:8545");
+    expect(net.chainId).toBe(84_532);
+    expect(NETWORKS["base-sepolia"].rpcUrl).toBe("https://sepolia.base.org");
+  });
+
+  it("does not leak ARC_RPC_URL across networks", () => {
+    const net = resolveNetwork("base-sepolia", { ARC_RPC_URL: "http://arc-only.invalid" });
+    expect(net.rpcUrl).toBe("https://sepolia.base.org");
+  });
+
+  it("returns a copy — mutating the result never touches NETWORKS", () => {
+    const net = resolveNetwork("base-sepolia", {});
+    net.contracts.USDC = "0x00000000000000000000000000000000000000ff";
+    net.nativeCurrency.symbol = "MUTATED";
+    net.brand.name = "MUTATED";
+    expect(NETWORKS["base-sepolia"].contracts.USDC).toBe("0x036CbD53842c5426634e7929541eC2318f3dCF7e");
+    expect(NETWORKS["base-sepolia"].nativeCurrency.symbol).toBe("ETH");
+    expect(NETWORKS["base-sepolia"].brand.name).toBe("BaseBounty");
+  });
+});
+
 describe("resolveNetwork — arc-mainnet", () => {
   it("throws one error naming every missing variable and the docs source of truth", () => {
     let error: Error | null = null;

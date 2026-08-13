@@ -210,6 +210,7 @@ in the submitted grant application.
 | Arbitrator | deployer (unset — no Base Safe yet; must run the two-step handshake before mainnet, exactly as Arc did) |
 | AgenticCommerce admin (upgrade key) | deployer — **we hold this key on Base**, unlike Arc where it's an Arc-team address (see `docs/INTEGRATION_NOTES.md`) |
 | Deployed | 2026-07-20, gas: 7,159,306 total across 3 txs (impl + proxy + adapter) ≈ 0.000043 ETH at the block's gas price — at typical Base mainnet gas prices this is expected to land in cents, not dollars |
+| Deploy blocks | BountyAdapter `44398167`, AgenticCommerce proxy `44398166` (both 2026-07-20T16:23:4xZ). Recovered after the fact by binary-searching `eth_getCode` — the original deploy recorded tx hashes but no block numbers. `adapterDeployBlock` in both network maps is the lower bound for chunked event scans, so **record it from the `forge` output at deploy time** for Base mainnet rather than reconstructing it later. |
 | Escrow source | `src/base/AgenticCommerce.sol` — byte-for-byte match of Arc's own deployed variant (not the current, role-restricted ERC-8183 reference); see `docs/INTEGRATION_NOTES.md` for why |
 
 **E2E proof-of-life (2026-07-20):** jobId `1`, same wallet as both poster and
