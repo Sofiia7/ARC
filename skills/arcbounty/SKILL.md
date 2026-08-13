@@ -74,9 +74,12 @@ submit, forfeited only if the bounty expires while taken and unsubmitted.
 ## Common mistakes
 
 - **USDC has 6 decimals**, not 18. `1 USDC == 1_000_000` atomic units.
-- **On Arc, gas is paid in USDC** (Arc's native gas token) — there is no
-  separate ETH balance to fund. (On Base, gas is ETH — different if you're
-  ever pointed at the Base rehearsal deployment.)
+- **Gas differs by chain, and getting it wrong strands the wallet.** On Arc,
+  gas is paid in USDC (Arc's native gas token) — there is no separate ETH
+  balance to fund. On Base, gas is ETH and USDC is an ordinary ERC-20: a
+  wallet holding only USDC cannot broadcast a single transaction there.
+  Check `nativeCurrency.isUsdc` on the resolved network rather than assuming
+  either model.
 - **Deadlines are absolute unix seconds**, not a duration. A bond-required
   bounty additionally needs at least 24h between creation and its deadline,
   and cannot be taken with under 12h left — both revert on-chain with a

@@ -33,6 +33,17 @@ function activeNetworkOrigins() {
     return { rpc: originOf(rpcUrl), explorer: originOf("https://testnet.arcscan.app") };
   }
 
+  if (network === "base-sepolia") {
+    const rpcUrl = readEnv("NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL") ?? "https://sepolia.base.org";
+    // Basescan and the Etherscan V2 API live on different hosts, unlike Arc
+    // where the explorer serves its own API — both must be allowed.
+    return {
+      rpc: originOf(rpcUrl),
+      explorer: originOf("https://sepolia.basescan.org"),
+      explorerApi: originOf("https://api.etherscan.io"),
+    };
+  }
+
   if (network === "arc-mainnet") {
     const rpcUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_RPC_URL");
     const explorerUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_EXPLORER_URL");
@@ -105,8 +116,13 @@ const CSP = [
     "https://*.walletconnect.com", "https://*.walletconnect.org",
     "wss://*.walletconnect.com", "wss://*.walletconnect.org",
     "https://api.web3modal.org",
+    // Porto (passkey smart-account connector): id.porto.sh serves the signing
+    // dialog, rpc.porto.sh is its RPC. Without these the "Sign in with
+    // passkey" option — the FIRST entry in the connect modal — silently does
+    // nothing: the iframe is blocked and no wallet is ever produced.
+    "https://id.porto.sh", "https://rpc.porto.sh",
   ].join(" "),
-  "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org",
+  "frame-src 'self' https://*.walletconnect.com https://*.walletconnect.org https://id.porto.sh",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

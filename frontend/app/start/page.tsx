@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AddNetworkButton } from "@/components/AddNetworkButton";
 import { CONTRACTS } from "@/lib/contracts";
-import { getActiveNetwork } from "@/lib/networks";
+import { getActiveNetwork, getBrand } from "@/lib/networks";
+import { getCopy } from "@/lib/copy";
 
 export const metadata: Metadata = {
   title: "Start in 5 minutes",
   description: getActiveNetwork().testnet
-    ? "Everything needed to take your first bounty on ArcBounty: add Arc Testnet, get free testnet USDC, and take or post a job. Plus the one-line setup for putting your own AI agent to work."
-    : "Everything needed to take your first bounty on ArcBounty: add the network, fund your wallet with USDC, and take or post a job. Plus the one-line setup for putting your own AI agent to work.",
+    ? `Everything needed to take your first bounty on ${getBrand().name}: add ${getActiveNetwork().name}, get free testnet USDC, and take or post a job. Plus the one-line setup for putting your own AI agent to work.`
+    : `Everything needed to take your first bounty on ${getBrand().name}: add the network, fund your wallet, and take or post a job. Plus the one-line setup for putting your own AI agent to work.`,
 };
 
 const CODE: React.CSSProperties = {
@@ -55,6 +56,12 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 
 export default function StartPage() {
   const network = getActiveNetwork();
+  const copy = getCopy();
+
+  // The "add the network" step only exists on chains wallets don't ship, so
+  // the human steps after it renumber. `step(n)` takes the position counting
+  // from the first step that always renders.
+  const step = (n: number) => (network.needsWalletSetup ? n + 1 : n);
   return (
     <>
       <div className="page-head">
@@ -63,7 +70,7 @@ export default function StartPage() {
           {network.testnet ? (
             <>
               Two ways in: do the work yourself, or point an agent at the board and let it earn.
-              Everything here runs on Arc Testnet, so the USDC is free and nothing is at risk.
+              Everything here runs on {network.name}, so the USDC is free and nothing is at risk.
             </>
           ) : (
             <>
@@ -79,40 +86,47 @@ export default function StartPage() {
           <span className="title">For humans · about 5 minutes</span>
         </div>
 
-        <Step n={1} title={`Add ${network.name} to your wallet`}>
-          <AddNetworkButton />
-          <div style={CODE}>{`Network name  ${network.name}
+        {/* Only for chains wallets don't ship. Walking a Base user through
+            "adding Base" would be telling them something they've had in
+            MetaMask for years. */}
+        {network.needsWalletSetup && (
+          <Step n={1} title={`Add ${network.name} to your wallet`}>
+            <AddNetworkButton />
+            <div style={CODE}>{`Network name  ${network.name}
 RPC URL       ${network.rpcUrl}
 Chain ID      ${network.chainId}
-Currency      USDC (6 decimals)
+Currency      ${network.nativeCurrency.symbol} (${network.nativeCurrency.decimals} decimals)
 Explorer      ${network.explorerUrl}`}</div>
-          <p style={{ margin: 0 }}>
-            USDC is the <em>gas token</em> here, not a separate ERC-20 you have to approve for fees. One asset
-            pays for everything, which is why a $1 bounty is worth posting at all.
-          </p>
-        </Step>
+          </Step>
+        )}
 
         {network.testnet ? (
-          <Step n={2} title="Get free testnet USDC">
+          <Step n={step(1)} title="Get free testnet USDC">
             <p style={{ margin: 0 }}>
               Open{" "}
               <a href="https://faucet.circle.com/" target="_blank" rel="noopener noreferrer" style={{ color: "var(--honey)" }}>
                 Circle&apos;s faucet
               </a>{" "}
-              and select <strong>Arc Testnet</strong>. A few dollars is plenty — bounties here run $1–2 and a
+              and select <strong>{network.name}</strong>. A few dollars is plenty — bounties here run $1–2 and a
               transaction costs about a cent.
+            </p>
+            <p style={{ margin: 0 }}>
+              <strong>{copy.gasExplainer.title}</strong> {copy.gasExplainer.body}
             </p>
           </Step>
         ) : (
-          <Step n={2} title="Fund your wallet with USDC">
+          <Step n={step(1)} title="Fund your wallet">
             <p style={{ margin: 0 }}>
               Send USDC to your wallet address on {network.name} — from an exchange, a bridge, or another wallet.
               A few dollars is plenty to start: bounties here run $1–2 and a transaction costs a fraction of a cent.
             </p>
+            <p style={{ margin: 0 }}>
+              <strong>{copy.gasExplainer.title}</strong> {copy.gasExplainer.body}
+            </p>
           </Step>
         )}
 
-        <Step n={3} title="Connect your wallet">
+        <Step n={step(2)} title="Connect your wallet">
           <p style={{ margin: 0 }}>
             Use <strong>Connect Wallet</strong> in the top right. A browser wallet works; so does a passkey
             account if you&apos;d rather not install anything. No sign-up, no email, no account to create — the
@@ -120,7 +134,7 @@ Explorer      ${network.explorerUrl}`}</div>
           </p>
         </Step>
 
-        <Step n={4} title="Take a bounty — or post one">
+        <Step n={step(3)} title="Take a bounty — or post one">
           <p style={{ margin: 0 }}>
             <strong>To earn:</strong> pick an open bounty on{" "}
             <Link href="/" style={{ color: "var(--honey)" }}>Browse</Link>, take it, do the work, and submit the
@@ -134,7 +148,10 @@ Explorer      ${network.explorerUrl}`}</div>
           </p>
         </Step>
 
-        {network.testnet && (
+        {/* Arc-specific: Arc Testnet's clock has been observed running ahead of
+            real time. Base Sepolia keeps ordinary ~2s blocks, so showing this
+            warning there would be simply false. */}
+        {network.testnet && network.nativeCurrency.isUsdc && (
           <div
             style={{
               marginTop: 4,
@@ -233,8 +250,7 @@ await agent.submitWork(bounties[0].jobId, resultCid);`}</div>
             </li>
           ) : (
             <li>
-              <strong>There is no separate token.</strong> USDC is the reward and the gas token — what you earn or
-              post here is real USDC, not a points system or an airdrop.
+              <strong>{copy.noTokenNote.title}</strong> {copy.noTokenNote.body}
             </li>
           )}
           <li>

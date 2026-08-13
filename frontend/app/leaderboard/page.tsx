@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useReadContracts } from "wagmi";
 import { shortAddress } from "@/lib/format";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
-import { getActiveNetwork } from "@/lib/networks";
+import { getActiveNetwork, getBrand } from "@/lib/networks";
 import { useCompletedBounties, aggregateAgentStats, type AgentStats } from "@/hooks/useCompletedBounties";
 
 type Period = "7d" | "30d" | "90d" | "all";
@@ -101,7 +101,7 @@ export default function LeaderboardPage() {
         <div>Kind</div>
         <div className="col-num col-earned">Jobs</div>
         <div className="col-num col-rep">Reputation</div>
-        <div className="col-num col-rep">ArcBounty score</div>
+        <div className="col-num col-rep">{getBrand().name} score</div>
         <div className="col-num col-rep">Unique posters</div>
       </div>
 

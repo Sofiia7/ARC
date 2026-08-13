@@ -3,6 +3,7 @@
 import { useConnect, type Connector } from "wagmi";
 import { toast } from "sonner";
 import { Modal } from "@/components/Modal";
+import { isGasPaidInUsdc } from "@/lib/networks";
 
 type Props = {
   onClose: () => void;
@@ -10,7 +11,12 @@ type Props = {
 
 function copyFor(connector: Connector): { title: string; hint: string } {
   if (connector.id === "xyz.ithaca.porto" || connector.name.toLowerCase().includes("porto")) {
-    return { title: "Sign in with passkey", hint: "No extension needed — gas paid in USDC" };
+    // "gas paid in USDC" is an Arc property, not a Porto one — on Base gas is
+    // ETH, so stating it unconditionally would be a lie on that build.
+    return {
+      title: "Sign in with passkey",
+      hint: isGasPaidInUsdc() ? "No extension needed — gas paid in USDC" : "No extension needed",
+    };
   }
   if (connector.id === "walletConnect") {
     return { title: "WalletConnect", hint: "Scan a QR code with your mobile wallet" };

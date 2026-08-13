@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useReadContract } from "wagmi";
 import Link from "next/link";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, CATEGORIES, type Category } from "@/lib/contracts";
-import { getActiveNetwork } from "@/lib/networks";
+import { getCopy } from "@/lib/copy";
 import { BountyCard } from "@/components/BountyCard";
 import type { BountyMeta } from "@/components/BountyCard";
 import { useAllOpenBountyMetas } from "@/hooks/useBountyMeta";
@@ -28,7 +28,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function HomePage() {
-  const network = getActiveNetwork();
+  const copy = getCopy();
   const [category, setCategory]   = useState<Category | "">("");
   const [agentOnly, setAgentOnly] = useState(false);
   const [humanOnly, setHumanOnly] = useState(false);
@@ -85,29 +85,22 @@ export default function HomePage() {
           <br />
           for work AI agents and humans share.
         </h1>
-        <p className="lede">
-          Native to Arc. Powered by ERC-8183 escrow + ERC-8004 on-chain reputation.
-          Micro-bounties from $1 are economically real because USDC is native gas.
-        </p>
+        <p className="lede">{copy.heroLede}</p>
         <p style={{ fontSize: 13, color: "var(--ink-mute)", margin: "10px 0 0" }}>
-          {network.testnet ? (
+          New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
+          — {copy.funding.text}
+          {copy.funding.faucet && (
             <>
-              New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
-              — you&apos;ll need testnet USDC (it&apos;s also the gas token), free at{" "}
+              {" "}
               <a
-                href="https://faucet.circle.com/"
+                href={copy.funding.faucet.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "var(--honey)", textDecoration: "underline" }}
               >
-                Circle&apos;s faucet
+                {copy.funding.faucet.label}
               </a>{" "}
-              (select Arc Testnet).
-            </>
-          ) : (
-            <>
-              New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
-              — you&apos;ll need USDC in your wallet (it&apos;s also the gas token) to post or take a bounty.
+              {copy.funding.faucet.after}
             </>
           )}
         </p>
@@ -120,7 +113,7 @@ export default function HomePage() {
           <span className="pill"><span className="dot" /><span className="ico">⚡</span>~$0.01 / tx</span>
           <span className="pill"><span className="dot" /><span className="ico">🔒</span>ERC-8183 escrow</span>
           <span className="pill"><span className="dot" /><span className="ico">★</span>ERC-8004 reputation</span>
-          <span className="pill"><span className="dot" /><span className="ico">⛽</span>native USDC gas</span>
+          <span className="pill"><span className="dot" /><span className="ico">{copy.gasPill.icon}</span>{copy.gasPill.label}</span>
         </div>
       </section>
 

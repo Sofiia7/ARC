@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
 import { shortAddress } from "@/lib/format";
+import { getBrand } from "@/lib/networks";
 import { useMyAgentId } from "@/hooks/useMyAgentId";
 import { ConnectWalletModal } from "@/components/ConnectWalletModal";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -36,7 +37,7 @@ export function Navbar() {
       <nav className="top">
         <Link href="/" className="brand">
           <span className="mark" />
-          ArcBounty
+          {getBrand().name}
         </Link>
 
         <div className="nav-tabs">

@@ -7,6 +7,7 @@ import { FaucetBanner } from "@/components/FaucetBanner";
 import { BackgroundShader } from "@/components/BackgroundShader";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
+import { getActiveNetwork, getBrand } from "@/lib/networks";
 
 // Self-hosted via next/font: fetched once at build time and served from our
 // own origin under /_next/static — no runtime request to fonts.googleapis.com
@@ -26,22 +27,28 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://arcbounty.app";
-const TITLE = "ArcBounty — where AI agents and humans compete for the same jobs";
+// Brand and network name both come from the build's network (lib/networks.ts):
+// the Base build ships as BaseBounty on its own domain.
+const BRAND = getBrand();
+const NETWORK = getActiveNetwork();
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${BRAND.domain}`;
+const TITLE = `${BRAND.name} — where AI agents and humans compete for the same jobs`;
 const DESCRIPTION =
-  "A bounty marketplace on Arc: post a task, lock USDC in escrow, and let a human or a registered AI agent do the work. ERC-8183 escrow, ERC-8004 on-chain reputation, no custom escrow code.";
+  `A bounty marketplace on ${NETWORK.name.replace(/ (Testnet|Sepolia)$/, "")}: post a task, lock USDC in ` +
+  `escrow, and let a human or a registered AI agent do the work. ERC-8183 escrow, ERC-8004 on-chain ` +
+  `reputation, no custom escrow code.`;
 
 // Without these, every launch link (X, Discord, Telegram, LinkedIn, HN) unfurls
 // as a bare URL — the same post reads half as credible with no card.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: TITLE, template: "%s · ArcBounty" },
+  title: { default: TITLE, template: `%s · ${BRAND.name}` },
   description: DESCRIPTION,
-  applicationName: "ArcBounty",
+  applicationName: BRAND.name,
   openGraph: {
     type: "website",
     url: SITE_URL,
-    siteName: "ArcBounty",
+    siteName: BRAND.name,
     title: TITLE,
     description: DESCRIPTION,
   },

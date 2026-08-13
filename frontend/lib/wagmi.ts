@@ -6,29 +6,30 @@ import { getActiveNetwork, MULTICALL3_ADDRESS } from "./networks";
 
 const network = getActiveNetwork();
 
-// NEXT_PUBLIC_RPC_URL keeps overriding the active network's RPC exactly as it
-// always has (pre-multi-network behavior, arc-testnet only — mainnet's RPC
-// comes from NEXT_PUBLIC_ARC_MAINNET_RPC_URL, part of lib/networks.ts).
-const rpcUrl = network.testnet
-  ? (process.env.NEXT_PUBLIC_RPC_URL ?? network.rpcUrl)
-  : network.rpcUrl;
+// Each network resolves its own RPC override in lib/networks.ts
+// (NEXT_PUBLIC_RPC_URL for arc-testnet, NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL for
+// base-sepolia, NEXT_PUBLIC_ARC_MAINNET_RPC_URL for arc-mainnet), so take the
+// resolved value as-is. Re-applying the Arc-specific NEXT_PUBLIC_RPC_URL here
+// for every `testnet` network pointed the Base build at Arc's RPC — CSP then
+// blocked it and the board could not read the chain at all.
+const rpcUrl = network.rpcUrl;
 
 export const activeChain = defineChain({
   id: network.chainId,
   name: network.name,
   // Arc's native gas token IS USDC (6 decimals) — that's the whole point of
-  // the network. Must match agent-sdk's chain definition exactly, or wallets
-  // render balances off by 10^12.
+  // that network; Base pays gas in ETH (18). Must match agent-sdk's chain
+  // definition exactly, or wallets render balances off by 10^12.
   nativeCurrency: {
-    name: "USD Coin",
-    symbol: "USDC",
-    decimals: 6,
+    name: network.nativeCurrency.isUsdc ? "USD Coin" : "Ether",
+    symbol: network.nativeCurrency.symbol,
+    decimals: network.nativeCurrency.decimals,
   },
   rpcUrls: {
     default: { http: [rpcUrl] },
   },
   blockExplorers: {
-    default: { name: "ArcScan", url: network.explorerUrl },
+    default: { name: network.explorerName, url: network.explorerUrl },
   },
   // Multicall3 at the canonical cross-chain address. Without this entry viem
   // has no way to aggregate reads, so every `useReadContracts` degrades into

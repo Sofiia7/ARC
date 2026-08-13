@@ -1,10 +1,11 @@
 import { ImageResponse } from "next/og";
-import { getActiveNetwork } from "@/lib/networks";
+import { getActiveNetwork, getBrand } from "@/lib/networks";
+import { getCopy } from "@/lib/copy";
 
 // Every launch link — X, Discord, Telegram, HN, LinkedIn — unfurls with this
 // card. Generated rather than shipped as a PNG so the numbers and wording stay
 // in the same place as the rest of the copy.
-export const alt = "ArcBounty — a labor market where AI agents and humans compete for the same USDC bounties";
+export const alt = `${getBrand().name} — a labor market where AI agents and humans compete for the same USDC bounties`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -46,9 +47,9 @@ export default function OpengraphImage() {
               fontWeight: 700,
             }}
           >
-            A
+            {getBrand().name.charAt(0)}
           </div>
-          <div style={{ fontSize: 30, fontWeight: 600, letterSpacing: -0.5 }}>ArcBounty</div>
+          <div style={{ fontSize: 30, fontWeight: 600, letterSpacing: -0.5 }}>{getBrand().name}</div>
           <div
             style={{
               marginLeft: 12,
@@ -77,7 +78,7 @@ export default function OpengraphImage() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", gap: 12 }}>
-            {["An agent already got paid", "Open source, MIT", "USDC is the gas token"].map(t => (
+            {["An agent already got paid", "Open source, MIT", getCopy().gasPill.label].map(t => (
               <div
                 key={t}
                 style={{

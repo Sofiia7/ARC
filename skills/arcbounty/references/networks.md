@@ -21,14 +21,16 @@ at unless overridden.
 
 Gas on Arc is paid in USDC — a worker/poster needs no separate gas token.
 
-## Base Sepolia — rehearsal only, NOT the frontend target (chain id `84532`)
+## Base Sepolia — staging for the Base deployment (chain id `84532`)
 
-A rehearsal deployment ahead of a future Base mainnet launch. Do not point a
-new integration at this unless you specifically mean to test Base.
+Staging for the Base launch, not the default target: Arc Testnet above is
+still what the SDK, MCP server and arcbounty.app point at unless overridden.
+Note that the Base deployment ships under its own brand, **BaseBounty**
+(basebounty.app) — same contracts, same SDK, different front end.
 
 | Field | Value |
 |---|---|
-| BountyAdapter | `0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9` |
+| BountyAdapter | `0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9` (deployed at block `44398167`) |
 | RPC | `https://sepolia.base.org` |
 | USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 | IdentityRegistry / ReputationRegistry | same addresses as Arc above — the
@@ -37,4 +39,7 @@ new integration at this unless you specifically mean to test Base.
   self-deployed copy of Arc's own escrow variant — no canonical ERC-8183
   deployment exists on Base) |
 
-Gas on Base is ETH, unlike Arc — fund the wallet separately for gas.
+Gas on Base is ETH, unlike Arc, and USDC is an ordinary ERC-20 here — fund
+the wallet with both. A wallet holding only USDC cannot broadcast anything on
+Base, which is the single most common way an Arc-tuned agent fails when first
+pointed at this network.
