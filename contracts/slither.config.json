@@ -7,5 +7,5 @@
   ],
   "exclude_informational": false,
   "exclude_low": false,
-  "detectors_to_exclude": "timestamp,incorrect-equality,reentrancy-benign"
+  "detectors_to_exclude": "timestamp,incorrect-equality,reentrancy-benign,reentrancy-no-eth"
 }

@@ -7,7 +7,7 @@ import "./interfaces/IAgenticCommerce.sol";
 import "./interfaces/IIdentityRegistry.sol";
 import "./interfaces/IReputationRegistry.sol";
 
-/// @title BountyAdapter (V4.4 — opt-in worker bond + unique-poster reputation signal; fee-free arbitrator-timeout split)
+/// @title BountyAdapter (V4.6 — pull-payment fallback so no unpayable address can wedge a settlement)
 /// @dev V3.1 fixes two live-registry incompatibilities found by an on-chain
 ///      agent run: (1) takeBounty no longer calls the reverting isRegistered();
 ///      ownerOf alone gates agents. (2) every reputationRegistry.giveFeedback
@@ -110,6 +110,30 @@ import "./interfaces/IReputationRegistry.sol";
 ///    cap is a team-controlled safety knob, not a dispute-resolution power).
 ///    Two-step transfer, mirroring the existing arbitrator/feeRecipient
 ///    pattern.
+///
+/// V4.6 changes vs V4.5 (external report, 2026-08-09 — credit: `researchzero`
+/// on Reddit, who spotted that the "no hooks, no fee-on-transfer" framing does
+/// not cover USDC's blacklist):
+///  - Every settlement path pushed funds with `safeTransfer`, which reverts the
+///    entire transaction on failure — including the `resolved = true` effect
+///    written just before it. USDC reverts unconditionally on transfers to a
+///    blacklisted address, and `blacklister()` returns a live address on BOTH
+///    Arc and Base, so this was never Base-specific. One compliance action
+///    against a poster or worker would have stranded that bounty forever:
+///    every retry reverting identically, funds stuck in AC escrow, and no
+///    rescue function to recover them (there is deliberately none).
+///  - The blast radius was larger than one job: `_completeAndForward` pays
+///    `feeRecipient` BEFORE the worker, so blacklisting that single address
+///    would have frozen every payout protocol-wide.
+///  - Fix: `_payOrPark` replaces every push. A failed transfer credits
+///    `pendingWithdrawals[payee]` and emits `PayoutParked` instead of
+///    reverting, so terminal state is always reached and a blacklist event
+///    degrades to "funds parked" rather than "job permanently stuck". The
+///    payee pulls with `withdraw()` — the only place a settlement amount can
+///    still revert, and only ever affecting that caller's own funds.
+///  - Amounts, fee maths and ordering are deliberately untouched: this ships
+///    to a mainnet with no external audit, so the diff is kept to the transfer
+///    mechanism alone.
 contract BountyAdapter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -242,6 +266,23 @@ contract BountyAdapter is ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) private _hasPostedForAgent;
     mapping(uint256 => uint256) public uniquePosterCount;
 
+    /// @notice USDC owed to an address whose direct payout could not be pushed.
+    /// @dev V4.6. Every settlement path used to push with `safeTransfer`, which
+    ///      reverts the WHOLE transaction on failure — including the
+    ///      `meta.resolved = true` effect that precedes it. USDC (on both Arc
+    ///      and Base: `blacklister()` returns a live address on each) reverts
+    ///      unconditionally on a transfer to a blacklisted address, so a single
+    ///      compliance action against a poster or worker would have stranded
+    ///      that bounty permanently — every retry reverting the same way, funds
+    ///      left in AC escrow with no recovery path (there is no rescue
+    ///      function, by design). Worse, the fee leg pays `feeRecipient` FIRST
+    ///      on the main approval path, so blacklisting that one address would
+    ///      have frozen payouts protocol-wide, not just one job.
+    ///      Failed pushes now park here and the payee pulls them via
+    ///      `withdraw()`, so a blacklist event degrades to "funds parked"
+    ///      instead of "job permanently stuck".
+    mapping(address => uint256) public pendingWithdrawals;
+
     event BountyCreated(
         uint256 indexed jobId, address indexed poster, uint256 reward, string category, uint256 deadline
     );
@@ -271,6 +312,9 @@ contract BountyAdapter is ReentrancyGuard {
     event WorkerBondPosted(uint256 indexed jobId, address indexed worker, uint256 amount);
     event WorkerBondRefunded(uint256 indexed jobId, address indexed worker, uint256 amount);
     event WorkerBondForfeited(uint256 indexed jobId, address indexed poster, uint256 amount);
+    /// @notice A direct payout failed and was credited to `pendingWithdrawals` instead.
+    event PayoutParked(uint256 indexed jobId, address indexed payee, uint256 amount);
+    event WithdrawalClaimed(address indexed payee, uint256 amount);
 
     constructor(
         address _agenticCommerce,
@@ -419,7 +463,7 @@ contract BountyAdapter is ReentrancyGuard {
         agenticCommerce.submit(jobId, deliverable, bytes(""));
 
         if (bond > 0) {
-            usdc.safeTransfer(msg.sender, bond);
+            _payOrPark(jobId, msg.sender, bond);
             emit WorkerBondRefunded(jobId, msg.sender, bond);
         }
 
@@ -569,7 +613,7 @@ contract BountyAdapter is ReentrancyGuard {
 
         meta.resolved = true;
         // Funds never left adapter (AC not funded until takeBounty). Full refund — no fee.
-        usdc.safeTransfer(meta.poster, meta.reward);
+        _payOrPark(jobId, meta.poster, meta.reward);
         emit BountyCancelled(jobId, "cancelled by poster");
     }
 
@@ -591,11 +635,11 @@ contract BountyAdapter is ReentrancyGuard {
             // submitting — forfeit the bond to the poster whose listing was
             // blocked for the bounty's whole duration.
             if (bond > 0) {
-                usdc.safeTransfer(meta.poster, bond);
+                _payOrPark(jobId, meta.poster, bond);
                 emit WorkerBondForfeited(jobId, meta.poster, bond);
             }
         } else {
-            usdc.safeTransfer(meta.poster, meta.reward);
+            _payOrPark(jobId, meta.poster, meta.reward);
         }
         emit BountyExpired(jobId);
     }
@@ -731,6 +775,46 @@ contract BountyAdapter is ReentrancyGuard {
             catch {}
     }
 
+    // ─── Payouts: push, or park for later pull (V4.6) ──────────────────────────
+
+    /// @notice Claim USDC that a failed direct payout parked for you.
+    /// @dev The only place a settlement amount may still revert — and it can
+    ///      only ever affect the caller's own funds, never another job.
+    function withdraw() external nonReentrant returns (uint256 amount) {
+        amount = pendingWithdrawals[msg.sender];
+        require(amount > 0, "nothing to withdraw");
+        pendingWithdrawals[msg.sender] = 0; // effect before interaction — CEI
+        usdc.safeTransfer(msg.sender, amount);
+        emit WithdrawalClaimed(msg.sender, amount);
+    }
+
+    /// @dev Push `amount` to `payee`, or credit `pendingWithdrawals` if that
+    ///      fails, so no single unpayable address can wedge a terminal state.
+    ///      See the `pendingWithdrawals` docs for why this exists.
+    ///
+    ///      Deliberately a low-level call, not `safeTransfer` or a typed
+    ///      `try usdc.transfer(...)`: SafeERC20 reverts on failure, which is
+    ///      the exact behavior being defended against, and a typed try/catch
+    ///      still reverts when a token returns no data or malformed data.
+    ///      Every failure mode — revert, `false`, unexpected return data — is
+    ///      treated identically here: park it.
+    function _payOrPark(uint256 jobId, address payee, uint256 amount) internal {
+        if (amount == 0) return;
+        // Deliberate: safeTransfer reverts on failure, which is the exact
+        // behavior being defended against here. See SLITHER.md.
+        (bool ok, bytes memory ret) = address(usdc).call(
+            abi.encodeCall(IERC20.transfer, (payee, amount))
+        );
+        if (ok && (ret.length == 0 || (ret.length == 32 && abi.decode(ret, (bool))))) {
+            return;
+        }
+        // Written after the call above. Unreachable as reentrancy: usdc is
+        // immutable real USDC (no callbacks) and every entry point that can
+        // reach this is nonReentrant. See SLITHER.md.
+        pendingWithdrawals[payee] += amount;
+        emit PayoutParked(jobId, payee, amount);
+    }
+
     // ─── Internal payout helpers (balance-delta accounting) ────────────────────
 
     /// @dev Pulls received USDC from AC, splits fee, forwards remainder to payee.
@@ -742,12 +826,12 @@ contract BountyAdapter is ReentrancyGuard {
 
         uint256 fee = (received * feeBps) / BPS_DENOMINATOR;
         if (fee > 0) {
-            usdc.safeTransfer(feeRecipient, fee);
+            _payOrPark(jobId, feeRecipient, fee);
             emit ProtocolFeePaid(jobId, feeRecipient, fee);
         }
         uint256 net = received - fee;
         if (net > 0) {
-            usdc.safeTransfer(payee, net);
+            _payOrPark(jobId, payee, net);
         }
     }
 
@@ -768,8 +852,8 @@ contract BountyAdapter is ReentrancyGuard {
 
         amountA = received / 2;
         amountB = received - amountA; // remainder (if received is odd) goes to payeeB
-        if (amountA > 0) usdc.safeTransfer(payeeA, amountA);
-        if (amountB > 0) usdc.safeTransfer(payeeB, amountB);
+        if (amountA > 0) _payOrPark(jobId, payeeA, amountA);
+        if (amountB > 0) _payOrPark(jobId, payeeB, amountB);
     }
 
     /// @dev Pulls received USDC from AC and refunds poster — NO fee charged.
@@ -779,7 +863,7 @@ contract BountyAdapter is ReentrancyGuard {
         agenticCommerce.reject(jobId, keccak256(abi.encodePacked(reason)), bytes(reason));
         uint256 received = usdc.balanceOf(address(this)) - before;
         if (received > 0) {
-            usdc.safeTransfer(meta.poster, received);
+            _payOrPark(jobId, meta.poster, received);
         }
     }
 

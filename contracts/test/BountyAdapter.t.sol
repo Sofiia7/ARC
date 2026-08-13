@@ -13,6 +13,17 @@ contract MockUSDC {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
 
+    /// Mirrors real USDC (FiatToken's `Blacklistable`): transfers touching a
+    /// blacklisted address revert unconditionally, on BOTH the sender and the
+    /// recipient side. Circle has used this in practice (Tornado-Cash-linked
+    /// addresses, 2022), and `blacklister()` returns a live address on Arc and
+    /// Base alike — so this is a real operating condition, not a hypothetical.
+    mapping(address => bool) public blacklisted;
+
+    function setBlacklisted(address who, bool on) external {
+        blacklisted[who] = on;
+    }
+
     function mint(address to, uint256 amount) external {
         balanceOf[to] += amount;
     }
@@ -23,6 +34,8 @@ contract MockUSDC {
     }
 
     function transfer(address to, uint256 amount) external returns (bool) {
+        require(!blacklisted[msg.sender], "Blacklistable: sender blacklisted");
+        require(!blacklisted[to], "Blacklistable: recipient blacklisted");
         require(balanceOf[msg.sender] >= amount, "insufficient balance");
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
@@ -30,6 +43,8 @@ contract MockUSDC {
     }
 
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        require(!blacklisted[from], "Blacklistable: sender blacklisted");
+        require(!blacklisted[to], "Blacklistable: recipient blacklisted");
         require(allowance[from][msg.sender] >= amount, "insufficient allowance");
         require(balanceOf[from] >= amount, "insufficient balance");
         allowance[from][msg.sender] -= amount;
@@ -1587,5 +1602,158 @@ contract BountyAdapterTest is Test {
         adapter.approveBounty(jobId, 95);
 
         assertEq(adapter.uniquePosterCount(0), 0, "agentId=0 must never accrue a count");
+    }
+
+    // ─── V4.6: USDC blacklist must not wedge a settlement ──────────────────────
+    //
+    // Before V4.6 every one of these reverted, and reverted FOREVER: the payout
+    // was a bare safeTransfer, so its revert rolled back the whole call
+    // including `resolved = true`. Funds stayed in escrow with no recovery
+    // path. These tests assert the terminal state is now always reached and the
+    // unpayable amount is parked for a later pull.
+
+    function testBlacklist_autoApprove_parksWorkerPayoutInsteadOfReverting() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+
+        usdc.setBlacklisted(worker, true);
+        vm.warp(block.timestamp + 14 days + 1);
+
+        uint256 net = reward - reward / 100;
+        vm.expectEmit(true, true, false, true);
+        emit BountyAdapter.PayoutParked(jobId, worker, net);
+        vm.prank(stranger);
+        adapter.autoApprove(jobId); // must NOT revert
+
+        assertTrue(adapter.getBountyMeta(jobId).resolved, "terminal state must still be reached");
+        assertEq(usdc.balanceOf(worker), 1000e6, "blacklisted worker cannot receive directly");
+        assertEq(adapter.pendingWithdrawals(worker), net, "payout must be parked");
+        // The fee leg is unaffected — only the blacklisted party is parked.
+        assertEq(usdc.balanceOf(feeAddr), reward / 100, "fee must still be paid");
+    }
+
+    function testBlacklist_parkedPayoutIsWithdrawableOnceUnblacklisted() public {
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        usdc.setBlacklisted(worker, true);
+        vm.warp(block.timestamp + 14 days + 1);
+        adapter.autoApprove(jobId);
+
+        uint256 net = reward - reward / 100;
+
+        // Still blacklisted: the pull reverts, but only for this caller, and
+        // the credit survives for a later attempt.
+        vm.prank(worker);
+        vm.expectRevert();
+        adapter.withdraw();
+        assertEq(adapter.pendingWithdrawals(worker), net, "credit must survive a failed pull");
+
+        usdc.setBlacklisted(worker, false);
+        vm.prank(worker);
+        adapter.withdraw();
+
+        assertEq(usdc.balanceOf(worker), 1000e6 + net, "funds recovered after unblacklisting");
+        assertEq(adapter.pendingWithdrawals(worker), 0, "credit cleared");
+    }
+
+    function testBlacklist_feeRecipientDoesNotFreezeWorkerPayout() public {
+        // The worst case pre-V4.6: feeRecipient is paid FIRST on the main
+        // settlement path, so blacklisting that one address would have frozen
+        // payouts for every bounty at once, not just one job.
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+
+        usdc.setBlacklisted(feeAddr, true);
+
+        vm.prank(poster);
+        adapter.approveBounty(jobId, 95); // must NOT revert
+
+        uint256 fee = reward / 100;
+        assertEq(usdc.balanceOf(worker), 1000e6 + (reward - fee), "worker paid in full");
+        assertEq(adapter.pendingWithdrawals(feeAddr), fee, "only the fee is parked");
+        assertTrue(adapter.getBountyMeta(jobId).resolved, "bounty resolved");
+    }
+
+    function testBlacklist_expireRefundToPosterParks() public {
+        uint256 jobId = _create();
+        usdc.setBlacklisted(poster, true);
+        vm.warp(deadline + 1);
+
+        adapter.expireBounty(jobId); // must NOT revert
+
+        assertTrue(adapter.getBountyMeta(jobId).resolved, "expiry must reach terminal state");
+        assertEq(adapter.pendingWithdrawals(poster), reward, "refund parked for the poster");
+    }
+
+    function testBlacklist_cancelRefundToPosterParks() public {
+        uint256 jobId = _create();
+        usdc.setBlacklisted(poster, true);
+
+        vm.prank(poster);
+        adapter.cancelBounty(jobId); // must NOT revert
+
+        assertTrue(adapter.getBountyMeta(jobId).resolved, "cancel must reach terminal state");
+        assertEq(adapter.pendingWithdrawals(poster), reward, "refund parked for the poster");
+    }
+
+    function testBlacklist_submitWorkStillSucceedsWhenBondRefundFails() public {
+        // The bond refund lives inside submitWork, so a blacklisted worker was
+        // blocked from delivering at all — the failure was not confined to
+        // settlement.
+        uint256 jobId = _createWithBond();
+        uint256 beforeTake = usdc.balanceOf(worker);
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        // Derive the bond from the actual transfer rather than restating the
+        // formula, so this test can't drift from the contract's own maths.
+        uint256 bond = beforeTake - usdc.balanceOf(worker);
+        assertGt(bond, 0, "bond must have been pulled");
+
+        usdc.setBlacklisted(worker, true);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT); // must NOT revert
+
+        assertEq(adapter.getBountyMeta(jobId).submittedResultHash, RESULT, "work must be recorded");
+        assertEq(adapter.pendingWithdrawals(worker), bond, "bond refund parked");
+    }
+
+    function testBlacklist_arbitratorTimeoutSplitParksOnlyTheBlacklistedSide() public {
+        // The 50/50 split touches BOTH parties, so pre-V4.6 either one being
+        // blacklisted froze the whole path.
+        uint256 jobId = _create();
+        vm.prank(worker);
+        adapter.takeBounty(jobId, 0);
+        vm.prank(worker);
+        adapter.submitWork(jobId, RESULT);
+        vm.prank(poster);
+        adapter.disputeBounty(jobId, REASON);
+        vm.prank(worker);
+        adapter.respondToDispute(jobId, REASON);
+
+        usdc.setBlacklisted(poster, true);
+        vm.warp(block.timestamp + 30 days + 1);
+
+        uint256 workerBefore = usdc.balanceOf(worker);
+        vm.prank(stranger);
+        adapter.claimArbitratorTimeout(jobId); // must NOT revert
+
+        assertTrue(adapter.getBountyMeta(jobId).resolved, "timeout split must settle");
+        assertGt(adapter.pendingWithdrawals(poster), 0, "blacklisted poster's half parked");
+        assertGt(usdc.balanceOf(worker), workerBefore, "unaffected side paid directly");
+    }
+
+    function testWithdraw_revertsWhenNothingIsPending() public {
+        vm.prank(stranger);
+        vm.expectRevert("nothing to withdraw");
+        adapter.withdraw();
     }
 }

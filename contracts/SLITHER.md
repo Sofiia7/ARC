@@ -1,7 +1,12 @@
 # Slither triage
 
-`slither.config.json` excludes three detector classes from the CI gate. Each is
+`slither.config.json` excludes four detector classes from the CI gate. Each is
 a reviewed, accepted finding — not a blanket silence. Re-review before mainnet.
+
+One finding is **deliberately left visible** rather than excluded:
+`low-level-calls` (Informational). It shows up in every report, is explained
+below, and does not fail CI — the gate is `fail-on: low`, and Informational
+sits below Low.
 
 Run the full report (including excluded detectors) any time with:
 
@@ -29,6 +34,49 @@ manipulation cannot change any outcome.
 measured before/after the trusted AgenticCommerce `complete()` call. USDC is a
 standard ERC-20 with no rebasing or fee-on-transfer; the delta is exact. A
 strict `== 0` short-circuit is correct and intentional.
+
+### `reentrancy-no-eth` (3 findings — added with V4.6)
+
+`_payOrPark` credits `pendingWithdrawals[payee] += amount` *after* the
+low-level `usdc.transfer` call it just attempted, so Slither flags the three
+settlement helpers that reach it (`_completeAndForward`, `_completeAndSplit`,
+`expireBounty`) as cross-function reentrancy on `pendingWithdrawals`.
+
+Accepted, for the same two reasons as `reentrancy-benign` above:
+
+1. Every external entry point is `nonReentrant`, so no reentrant call can
+   interleave and observe the intermediate state.
+2. The only contract called is `usdc` — an **immutable** address fixed in the
+   constructor, i.e. real USDC, not an attacker-supplied token. USDC performs
+   no callbacks into the caller; there is no hook to reenter from.
+
+Writing the credit *before* the attempt and subtracting it again on success
+would silence this, but costs two extra SSTOREs on every successful payout —
+i.e. a permanent gas tax on the happy path to appease a finding that cannot
+fire. **Re-check this if `usdc` ever becomes mutable or configurable per
+deployment** — that assumption is what makes this safe.
+
+Excluded globally rather than suppressed per-line, and that is a real
+downside: a genuine `reentrancy-no-eth` elsewhere in the contract will now go
+unreported. Per-line and block suppressions (`slither-disable-next-line`,
+`slither-disable-start/end`) were tried first and behave inconsistently in
+Slither 0.11.5 — the identical construct suppressed the finding in
+`_completeAndForward` and `expireBounty` but not in `_completeAndSplit`,
+with or without a single-line signature. Rather than ship markers that look
+like protection while silently doing nothing, the exclude is global and this
+note records the cost. Worth retrying when Slither is next upgraded.
+
+### `low-level-calls` (1 finding — NOT excluded, visible in every report)
+
+`_payOrPark` uses `address(usdc).call(abi.encodeCall(IERC20.transfer, …))`
+rather than `safeTransfer`. This is the entire point of V4.6: `safeTransfer`
+reverts on failure, and a revert here rolls back the terminal state
+(`resolved = true`) written moments earlier, which is exactly how a USDC
+blacklist could strand a bounty forever. A typed `try usdc.transfer(…)` is not
+sufficient either — it still reverts when a token returns no data or malformed
+data. The low-level call collapses every failure mode (revert, `false`,
+unexpected return data) into a single "park it" branch, with the return value
+explicitly length-checked before decoding.
 
 ### `reentrancy-benign` (1 finding)
 
