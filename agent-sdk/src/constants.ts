@@ -121,17 +121,15 @@ export const NETWORKS = {
     contracts: {
       // Our own copy of Arc's escrow variant (contracts/src/base/) — no
       // canonical AgenticCommerce instance exists on Base.
-      AGENTIC_COMMERCE:    "0x37BB41D12adC01cBFb9Ca69098F9E09E0938a673",
+      AGENTIC_COMMERCE:    "0xbe6e78207140d21d5FcF5595Ad396e482f1Cd384",
       // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     },
-    defaultBountyAdapter: "0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9",
-    // Recovered by binary-searching eth_getCode (the 2026-07-20 rehearsal
-    // recorded tx hashes but no block number): first block with code is
-    // 44398167, 2026-07-20T16:23:42Z, matching DEPLOYMENTS.md's date.
-    adapterDeployBlock: 44_398_167,
+    defaultBountyAdapter: "0x32EC90A4dad0bbdFF0eF44461c353aC5C02757F4",
+    // V4.6 staging deploy, 2026-08-13 (from the forge broadcast receipt).
+    adapterDeployBlock: 45_438_882,
     testnet: true,
     blocksPerDay: 43_200, // ≈2s blocks
   },

@@ -182,12 +182,39 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
   dispute response/ruling fields.
 - `0x2f5171317be1c912153c4760af03d6ee77d52894` — empty, abandoned.
 
-## Base Sepolia (chain id `84532`) — rehearsal, V4.5, NOT the frontend target
+## Base Sepolia (chain id `84532`) — staging, V4.6 current
 
 > Arc Testnet above remains the live, canonical deployment (the address the
-> frontend/SDK/MCP server all target). This section is a rehearsal ahead of
+> frontend/SDK/MCP server all target). This section is staging ahead of
 > Base mainnet — it does not change what "canonical" means anywhere else in
 > this repo.
+
+### BountyAdapter (V4.6 — current staging target)
+
+| Field | Value |
+|---|---|
+| Address | `0x32EC90A4dad0bbdFF0eF44461c353aC5C02757F4` |
+| AgenticCommerce (proxy) | `0xbe6e78207140d21d5FcF5595Ad396e482f1Cd384` |
+| AgenticCommerce (impl) | `0xB15a22b6E16A3717B655796Ada4Fc64C57Ea90A1` |
+| Deployed | 2026-08-13, block `45438882`, gas 7,272,443 across 3 txs (impl 258,837 + proxy 2,127,457 + adapter 4,886,149) at 0.011 gwei ≈ 0.0001 ETH |
+| Change vs V4.5 | `_payOrPark` pull-payment fallback — see the V4.6 notes in `src/BountyAdapter.sol`. Same USDC / registry / fee-recipient / cap configuration as V4.5 below. |
+
+**E2E proof-of-life on V4.6 (2026-08-13):** jobId `1`, same wallet as poster and
+worker. Full cycle `approve` → `createBounty` (1 USDC) → `takeBounty` →
+`submitWork` → `approveBounty(95)`. Balances reconcile exactly: deployer
+19.99 → 18.99 (bounty funded) → **19.98** (0.99 payout received), 0.01 fee to
+the fee recipient, **0 USDC left in the adapter**, and
+`pendingWithdrawals(deployer) == 0` — i.e. the direct push succeeded and the
+new fallback did not fire on a healthy transfer.
+
+> **What this run does NOT prove.** The park-and-withdraw path itself cannot be
+> exercised on a live network: blacklisting is Circle's privilege, not
+> something a deployment can trigger. That path is covered by the 8 unit tests
+> against a `Blacklistable` mock, which were verified to fail against the old
+> push implementation. Live testing here only confirms V4.6 did not regress the
+> healthy path.
+
+### BountyAdapter (V4.5 — superseded 2026-08-13, kept for reference)
 
 Rehearsal deploy ahead of Base mainnet (per `Part2_Base/TZ_arcbounty_circle_stack_base.md`
 Block 4). Deployed via `contracts/script/DeployBaseSepolia.s.sol`. Does **not**

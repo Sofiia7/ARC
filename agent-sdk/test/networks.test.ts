@@ -80,13 +80,13 @@ describe("resolveNetwork — base-sepolia", () => {
     expect(net.rpcUrl).toBe("https://sepolia.base.org");
     expect(net.explorerUrl).toBe("https://sepolia.basescan.org");
     expect(net.contracts).toEqual({
-      AGENTIC_COMMERCE:    "0x37BB41D12adC01cBFb9Ca69098F9E09E0938a673",
+      AGENTIC_COMMERCE:    "0xbe6e78207140d21d5FcF5595Ad396e482f1Cd384",
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     });
-    expect(net.defaultBountyAdapter).toBe("0x39e8D70BF771001d8FDa13354c2CE5c2DD6229D9");
-    expect(net.adapterDeployBlock).toBe(44_398_167);
+    expect(net.defaultBountyAdapter).toBe("0x32EC90A4dad0bbdFF0eF44461c353aC5C02757F4");
+    expect(net.adapterDeployBlock).toBe(45_438_882);
     expect(net.testnet).toBe(true);
     expect(net.blocksPerDay).toBe(43_200);
   });
