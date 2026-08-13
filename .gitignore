@@ -15,6 +15,10 @@
 !**/.eslintrc.json
 !**/vercel.json
 !mcp-server/server.json
+# .mcpb manifest — declares tool schemas and the NAMES of user-supplied
+# credentials, never their values (env entries are ${user_config.*}
+# placeholders). Needed in-tree to rebuild a .mcpb reproducibly.
+!mcp-server/manifest.json
 !glama.json
 secrets.json
 
@@ -43,6 +47,10 @@ logs/
 GRANT_SUBMISSION_GUIDE.md
 MARKETING.md
 marketing_new/
+
+# Local launcher scripts with embedded credentials (never publish)
+add_arcbounty_circle_mcp.bat
+agent-sdk/run_circle_demo.bat
 
 # Local video recordings (never publish)
 Видео/
