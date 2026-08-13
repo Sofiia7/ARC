@@ -26,7 +26,8 @@
     "build": "tsup src/index.ts --format esm --dts --clean",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "pack:mcpb": "npm run build && rm -rf build-mcpb && mkdir -p build-mcpb/server && cp manifest.json build-mcpb/ && cp -r dist build-mcpb/server/ && cp package.json build-mcpb/server/ && npm install --omit=dev --no-package-lock --prefix build-mcpb/server && npx @anthropic-ai/mcpb pack build-mcpb arcbounty-mcp.mcpb && node patch-mcpb.mjs arcbounty-mcp.mcpb manifest.smithery.json arcbounty-mcp-smithery.mcpb"
   },
   "keywords": [
     "mcp",
