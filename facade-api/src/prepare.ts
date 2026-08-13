@@ -36,7 +36,7 @@ export const prepareBountySchema = z.object({
    * the request is rejected (400) rather than silently prepared for the
    * wrong chain. Omit it to just use whatever network this instance serves.
    */
-  chain: z.enum(["arc-testnet", "arc-mainnet"]).optional(),
+  chain: z.enum(["arc-testnet", "arc-mainnet", "base-sepolia"]).optional(),
 });
 
 export type PrepareBountyRequest = z.infer<typeof prepareBountySchema>;
@@ -104,7 +104,11 @@ export function buildPrepareResponse(req: PrepareBountyRequest, config: FacadeCo
     ],
     notes: [
       "The facade never sees your keys and never relays — sign and broadcast these yourself.",
-      `On ${config.networkName} gas is paid in USDC (the native token).`,
+      config.nativeCurrency.isUsdc
+        ? `On ${config.networkName} gas is paid in USDC (the native token) — no second asset needed.`
+        : `On ${config.networkName} gas is paid in ${config.nativeCurrency.symbol}, NOT in USDC: fund this ` +
+          `wallet with ${config.nativeCurrency.symbol} for gas in addition to the USDC reward, or these ` +
+          `transactions cannot be broadcast.`,
       "The contract enforces its own minimum reward and deadline rules on-chain; passing validation here does not guarantee acceptance if chain state changed.",
     ],
   };

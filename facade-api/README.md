@@ -6,7 +6,8 @@ v2) and settled through Circle Gateway on **Arc Testnet** (`eip155:5042002`).
 
 Built for agents: any wallet-holding agent can *discover* bounties
 programmatically and pay fractions of a cent per call — no API keys, no signup.
-This is the service listed in Circle's Agent Marketplace.
+Submitted to Circle's Agent Marketplace (seller form, 2026-07-20); the
+catalogue is curated and the listing is not live yet.
 
 **Non-custodial by construction.** The facade never holds keys and never relays
 transactions. `POST /v1/bounties/prepare` returns *unsigned* transactions the

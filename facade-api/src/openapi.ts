@@ -161,7 +161,7 @@ export function buildOpenApi(baseUrl: string, config: FacadeConfig) {
                     requireWorkerBond: { type: "boolean" },
                     chain: {
                       type: "string",
-                      enum: ["arc-testnet", "arc-mainnet"],
+                      enum: ["arc-testnet", "arc-mainnet", "base-sepolia"],
                       description: `Optional. If set, must equal "${config.network}" — this facade instance serves that network only.`,
                     },
                   },
