@@ -802,9 +802,7 @@ contract BountyAdapter is ReentrancyGuard {
         if (amount == 0) return;
         // Deliberate: safeTransfer reverts on failure, which is the exact
         // behavior being defended against here. See SLITHER.md.
-        (bool ok, bytes memory ret) = address(usdc).call(
-            abi.encodeCall(IERC20.transfer, (payee, amount))
-        );
+        (bool ok, bytes memory ret) = address(usdc).call(abi.encodeCall(IERC20.transfer, (payee, amount)));
         if (ok && (ret.length == 0 || (ret.length == 32 && abi.decode(ret, (bool))))) {
             return;
         }
