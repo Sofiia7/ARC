@@ -217,8 +217,41 @@ async function ensureAllowance(total: bigint) {
   console.log(`  approve tx: ${hash}`);
 }
 
+/**
+ * BOUNTY_ADAPTER_ADDRESS in a long-lived `.env` points at whichever network
+ * was current when it was written — almost always Arc. Pointing this script at
+ * Base while that variable still holds the Arc adapter would spray approvals
+ * and createBounty calls at an address that means nothing there, so cross-check
+ * the adapter against the network actually being targeted before spending
+ * anything.
+ */
+async function assertAdapterMatchesNetwork() {
+  const code = await pub.getCode({ address: ADAPTER });
+  if (!code || code === "0x") {
+    throw new Error(
+      `No contract at BOUNTY_ADAPTER_ADDRESS=${ADAPTER} on ${network.name} (chain ${network.chainId}). ` +
+      (network.defaultBountyAdapter
+        ? `That network's adapter is ${network.defaultBountyAdapter}.`
+        : `Check ARC_NETWORK and BOUNTY_ADAPTER_ADDRESS.`),
+    );
+  }
+  const adapterUsdc = await pub.readContract({
+    address: ADAPTER,
+    abi: [{ name: "usdc", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }] as const,
+    functionName: "usdc",
+  });
+  if (adapterUsdc.toLowerCase() !== USDC.toLowerCase()) {
+    throw new Error(
+      `Adapter ${ADAPTER} settles in ${adapterUsdc}, but this run would approve ${USDC}. ` +
+      `Wrong network/adapter pairing — refusing to continue.`,
+    );
+  }
+}
+
 async function main() {
+  console.log(`Network: ${network.name} (chain ${network.chainId})`);
   console.log("Seeder address:", account.address);
+  await assertAdapterMatchesNetwork();
   const usdcBal = await pub.readContract({
     address: USDC, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address],
   });

@@ -9,13 +9,19 @@
  * single self-contained hop with no build/publish step in between.
  *
  * Env:
- *   ARC_NETWORK           — "arc-testnet" (default) | "arc-mainnet"
- *   ARC_TESTNET_RPC_URL   — testnet-only RPC override (the ops scripts'
+ *   ARC_NETWORK           — "arc-testnet" (default) | "arc-mainnet" |
+ *                           "base-sepolia" | "base-mainnet". The variable name
+ *                           predates Base support and is kept as-is so existing
+ *                           `.env` files and runbooks keep working.
+ *   ARC_TESTNET_RPC_URL   — Arc-testnet-only RPC override (the ops scripts'
  *                           long-standing var name — kept for back-compat
  *                           with existing `.env` files; resolveNetwork's own
- *                           ARC_RPC_URL still applies underneath it)
+ *                           ARC_RPC_URL still applies underneath it). The Base
+ *                           networks use resolveNetwork's own
+ *                           BASE_SEPOLIA_RPC_URL / BASE_MAINNET_RPC_URL.
  *   ALLOW_MAINNET=yes     — required opt-in for money-moving scripts before
- *                           they'll touch arc-mainnet (see assertMoneyMoveAllowed)
+ *                           they'll touch any non-testnet network, Arc or Base
+ *                           (see assertMoneyMoveAllowed)
  *   ARC_MAINNET_*         — required by resolveNetwork() once ARC_NETWORK is
  *                           "arc-mainnet"; see agent-sdk/.env.example
  */
@@ -28,13 +34,15 @@ export { resolveNetwork };
 
 type Env = Record<string, string | undefined>;
 
+const NETWORK_NAMES: NetworkName[] = ["arc-testnet", "arc-mainnet", "base-sepolia", "base-mainnet"];
+
 /** Which network the ops scripts target — ARC_NETWORK, default "arc-testnet". */
 export function getNetworkName(env: Env = process.env): NetworkName {
   const raw = env["ARC_NETWORK"]?.trim();
-  if (!raw || raw === "arc-testnet") return "arc-testnet";
-  if (raw === "arc-mainnet") return "arc-mainnet";
+  if (!raw) return "arc-testnet";
+  if ((NETWORK_NAMES as string[]).includes(raw)) return raw as NetworkName;
   throw new Error(
-    `ARC_NETWORK="${raw}" is not a valid network — expected "arc-testnet" or "arc-mainnet".`,
+    `ARC_NETWORK="${raw}" is not a valid network — expected one of ${NETWORK_NAMES.join(", ")}.`,
   );
 }
 
@@ -57,15 +65,17 @@ export function getNetwork(env: Env = process.env): NetworkConfig {
 }
 
 /**
- * Build a viem `Chain` for a resolved network. Native gas on Arc is USDC
- * (Circle L1) — matches the chain object every other package in this repo
- * defines (agent-sdk's ArcBountyAgent, frontend's wagmi config).
+ * Build a viem `Chain` for a resolved network. Takes the gas token from the
+ * resolved config rather than assuming Arc's: native gas on Arc is USDC
+ * (Circle L1), on Base it is ETH and USDC is an ordinary ERC-20. Hardcoding
+ * 6-decimal USDC here would misreport every gas figure on Base by 1e12.
  */
 export function buildChain(network: NetworkConfig): Chain {
+  const { symbol, decimals, isUsdc } = network.nativeCurrency;
   return defineChain({
     id: network.chainId,
     name: network.name,
-    nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
+    nativeCurrency: { name: isUsdc ? "USD Coin" : "Ether", symbol, decimals },
     rpcUrls: { default: { http: [network.rpcUrl] }, public: { http: [network.rpcUrl] } },
   });
 }
@@ -74,8 +84,9 @@ export function buildChain(network: NetworkConfig): Chain {
  * Money-moving scripts (seed-bounties, seed-extra, reseed-2,
  * post-single-bounty, reclaim-bounties, safe-add-signer,
  * agent-proof-of-life) MUST call this — right after resolving the network,
- * before touching any wallet/tx logic. Refuses to run against arc-mainnet
- * (real USDC) unless the operator explicitly opts in with ALLOW_MAINNET=yes.
+ * before touching any wallet/tx logic. Refuses to run against any non-testnet
+ * network — arc-mainnet or base-mainnet, both real USDC — unless the operator
+ * explicitly opts in with ALLOW_MAINNET=yes.
  */
 export function assertMoneyMoveAllowed(network: NetworkConfig, env: Env = process.env): void {
   if (network.testnet) return;
