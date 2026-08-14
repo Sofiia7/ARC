@@ -28,8 +28,12 @@ contract DeployBaseSepolia is Script {
         address feeRecipient = vm.envAddress("FEE_RECIPIENT");
         uint256 maxBountyAmount = vm.envOr("MAX_BOUNTY_AMOUNT", uint256(500e6));
 
+        // vm.addr(key), NOT msg.sender — see DeployBaseMainnet.s.sol. The
+        // 2026-07-19 rehearsal ran the msg.sender version and handed the
+        // escrow's DEFAULT_ADMIN_ROLE to Foundry's keyless default sender.
+        address deployer = vm.addr(deployerKey);
+
         vm.startBroadcast(deployerKey);
-        address deployer = msg.sender;
 
         // ── AgenticCommerce (UUPS proxy) ────────────────────────────────────
         AgenticCommerce impl = new AgenticCommerce();
