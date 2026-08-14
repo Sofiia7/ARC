@@ -12,7 +12,8 @@ type ArcBountyAgentConfigBase = {
    *
    * `"arc-mainnet"` requires the `ARC_MAINNET_*` environment variables
    * (see `resolveNetwork`) — the constructor throws a descriptive error
-   * listing anything missing. `"base-sepolia"` is statically configured.
+   * listing anything missing. `"base-sepolia"` and `"base-mainnet"` are
+   * statically configured.
    *
    * Note that on Base the wallet needs ETH for gas *in addition to* USDC;
    * on Arc, USDC is the native gas token and is the only asset required.

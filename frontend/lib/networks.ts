@@ -15,7 +15,7 @@ import { isAddress, type Address } from "viem";
 // per-network values mirrored with `agent-sdk/src/constants.ts` when editing
 // either one.
 
-export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia";
+export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base-mainnet";
 
 /**
  * The chain's native (gas) token — mirrors `NativeCurrency` in the SDK.
@@ -109,9 +109,8 @@ export const MULTICALL3_ADDRESS: Address = "0xcA11bde05977b3631167028862bE2a1739
  *   `resolveNetwork("arc-mainnet")`, which builds the config from
  *   `NEXT_PUBLIC_ARC_MAINNET_*` environment variables and throws a
  *   descriptive error while any of them are missing.
- * - **Base mainnet (8453)** — every external address is known and verified,
- *   but our own escrow and adapter are not deployed there yet. It gets a
- *   static entry in the same commit as the deploy, with the real addresses.
+ * - **Base mainnet (8453)** — live since 2026-08-14 (BaseBounty), static entry
+ *   below with the real deployed addresses.
  *
  * Never hardcode guessed values here.
  */
@@ -173,7 +172,40 @@ export const NETWORKS = {
     blocksPerDay: 43_200n, // ≈2s blocks
     maxLookbackBlocks: 500_000n,
   },
-} as const satisfies Record<"arc-testnet" | "base-sepolia", NetworkConfig>;
+  "base-mainnet": {
+    chainId: 8_453,
+    name: "Base",
+    rpcUrl: process.env.NEXT_PUBLIC_BASE_MAINNET_RPC_URL ?? "https://mainnet.base.org",
+    explorerUrl: "https://basescan.org",
+    // Etherscan V2: one multichain endpoint keyed by `chainid`.
+    explorerApiUrl: "https://api.etherscan.io/v2/api?chainid=8453",
+    explorerName: "Basescan",
+    // Every wallet has shipped Base for years.
+    needsWalletSetup: false,
+    // Unlike Arc: gas is ETH, and USDC below is an ordinary ERC-20.
+    nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
+    brand: { name: "BaseBounty", domain: "basebounty.app" },
+    contracts: {
+      // Our own copy of Arc's escrow variant — no canonical instance on Base.
+      AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
+      // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
+      IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+      USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    },
+    // Same as Base Sepolia: one adapter, baked in as the default.
+    // NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS still wins.
+    bountyAdapterAddress: "0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2",
+    // V4.6 mainnet deploy, 2026-08-14 (from the forge broadcast receipt).
+    adapterDeployBlock: 49_964_666n,
+    // Verified on-chain, not assumed: eth_getCode at the canonical Multicall3
+    // address returns bytecode on both Base Sepolia and Base mainnet.
+    multicall3: true,
+    testnet: false,
+    blocksPerDay: 43_200n, // ≈2s blocks
+    maxLookbackBlocks: 500_000n,
+  },
+} as const satisfies Record<"arc-testnet" | "base-sepolia" | "base-mainnet", NetworkConfig>;
 
 const MAINNET_DOCS_URL = "https://docs.arc.io/arc/references/contract-addresses";
 
@@ -233,7 +265,8 @@ function parseBigIntStrict(name: string, value: string, min = 0n): bigint {
 /**
  * Resolve a network name into a concrete {@link NetworkConfig}.
  *
- * - `"arc-testnet"` / `"base-sepolia"` → the static {@link NETWORKS} entry.
+ * - `"arc-testnet"` / `"base-sepolia"` / `"base-mainnet"` → the static
+ *   {@link NETWORKS} entry.
  * - `"arc-mainnet"` → built entirely from `NEXT_PUBLIC_ARC_MAINNET_*`
  *   environment variables. Circle has not published Arc mainnet parameters
  *   yet; until every required variable is set this throws a single error
@@ -241,7 +274,7 @@ function parseBigIntStrict(name: string, value: string, min = 0n): bigint {
  *   ${MAINNET_DOCS_URL}.
  */
 export function resolveNetwork(name: NetworkName): NetworkConfig {
-  if (name === "arc-testnet" || name === "base-sepolia") {
+  if (name === "arc-testnet" || name === "base-sepolia" || name === "base-mainnet") {
     return NETWORKS[name];
   }
 
@@ -303,9 +336,10 @@ export function getActiveNetworkName(): NetworkName {
   if (!raw || raw === "arc-testnet") return "arc-testnet";
   if (raw === "arc-mainnet") return "arc-mainnet";
   if (raw === "base-sepolia") return "base-sepolia";
+  if (raw === "base-mainnet") return "base-mainnet";
   throw new Error(
     `[arcbounty] NEXT_PUBLIC_ARC_NETWORK="${raw}" is not a valid network — ` +
-    `expected "arc-testnet", "arc-mainnet" or "base-sepolia".`,
+    `expected "arc-testnet", "arc-mainnet", "base-sepolia" or "base-mainnet".`,
   );
 }
 

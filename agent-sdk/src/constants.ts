@@ -2,7 +2,7 @@ import { isAddress, type Address } from "viem";
 
 // ─── Networks ────────────────────────────────────────────────────────────────
 
-export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia";
+export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base-mainnet";
 
 /**
  * The chain's native (gas) token.
@@ -133,6 +133,34 @@ export const NETWORKS = {
     testnet: true,
     blocksPerDay: 43_200, // ≈2s blocks
   },
+  "base-mainnet": {
+    chainId: 8_453,
+    name: "Base",
+    caip2: "eip155:8453",
+    rpcUrl: "https://mainnet.base.org",
+    explorerUrl: "https://basescan.org",
+    // Etherscan V2: one multichain endpoint keyed by `chainid`, not a
+    // per-chain host (see docs/INTEGRATION_NOTES.md).
+    explorerApiUrl: "https://api.etherscan.io/v2/api?chainid=8453",
+    explorerName: "Basescan",
+    // Unlike Arc: gas is ETH, and USDC below is an ordinary ERC-20.
+    nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
+    brand: { name: "BaseBounty", domain: "basebounty.app" },
+    contracts: {
+      // Our own copy of Arc's escrow variant (contracts/src/base/) — no
+      // canonical AgenticCommerce instance exists on Base.
+      AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
+      // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
+      IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+      USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    },
+    defaultBountyAdapter: "0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2",
+    // V4.6 mainnet deploy, 2026-08-14 (from the forge broadcast receipt).
+    adapterDeployBlock: 49_964_666,
+    testnet: false,
+    blocksPerDay: 43_200, // ≈2s blocks
+  },
 } as const satisfies Record<string, NetworkConfig>;
 
 const MAINNET_DOCS_URL = "https://docs.arc.io/arc/references/contract-addresses";
@@ -185,6 +213,10 @@ function parseIntStrict(name: string, value: string, min = 1): number {
  * - `"base-sepolia"` → the static {@link NETWORKS} entry. `BASE_SEPOLIA_RPC_URL`
  *   (if set) overrides `rpcUrl` — the public `sepolia.base.org` node is rate
  *   limited, so a dedicated RPC is expected in CI and e2e runs.
+ * - `"base-mainnet"` → the static {@link NETWORKS} entry (BaseBounty, live
+ *   since 2026-08-14). `BASE_MAINNET_RPC_URL` (if set) overrides `rpcUrl`;
+ *   the public `mainnet.base.org` node is rate limited and also load-balanced,
+ *   so reads issued immediately after a receipt can hit a lagging node.
  * - `"arc-mainnet"` → built entirely from `ARC_MAINNET_*` environment
  *   variables. Circle has not published Arc mainnet parameters yet; until
  *   every required variable is set this throws a single error listing all
@@ -198,6 +230,7 @@ export function resolveNetwork(name: NetworkName, env: Env = process.env): Netwo
   const STATIC_RPC_OVERRIDE = {
     "arc-testnet":  "ARC_RPC_URL",
     "base-sepolia": "BASE_SEPOLIA_RPC_URL",
+    "base-mainnet": "BASE_MAINNET_RPC_URL",
   } as const;
 
   if (name in STATIC_RPC_OVERRIDE) {

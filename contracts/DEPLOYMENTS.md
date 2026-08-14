@@ -182,12 +182,70 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
   dispute response/ruling fields.
 - `0x2f5171317be1c912153c4760af03d6ee77d52894` — empty, abandoned.
 
+## Base Mainnet (chain id `8453`) — BaseBounty, V4.6 live
+
+> Arc Testnet above remains the deployment cited in the submitted grant
+> application. This is the separate **BaseBounty** brand on Base mainnet
+> (`basebounty.app`), same V4.6 contracts, its own signer set.
+
+### BountyAdapter (V4.6 — live)
+
+| Field | Value |
+|---|---|
+| Address | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2` |
+| AgenticCommerce (proxy) | `0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f` |
+| AgenticCommerce (impl) | `0x2948F64Af4d218394c426609D8Aea22914D13468` |
+| RPC | `https://mainnet.base.org` |
+| USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (re-verified at deploy time: `symbol()=="USDC"`, `decimals()==6`) |
+| IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` (official 8004-team registry — same canonical address as testnet, code confirmed on 8453) |
+| ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` (official 8004-team registry — same canonical address as testnet, code confirmed on 8453) |
+| Fee | 100 bps (1%), matches Arc |
+| Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` (same wallet as Arc; two-step `transferFeeRecipient` if it ever moves) |
+| maxBountyAmount | `500000000` (500 USDC, atomic) |
+| Owner (`setMaxBountyAmount` admin) | deployer `0x6abc2b575eC66701c17DAD96dDA97F22b837849E` — fresh mainnet key, never used on testnet |
+| AgenticCommerce admin (upgrade key) | deployer — verified on-chain `hasRole(DEFAULT_ADMIN_ROLE, deployer) == true` |
+| Arbitrator | **transfer in flight** — `arbitrator()` is still the deployer, `pendingArbitrator()` is the Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54`. `transferArbitrator` tx `0xf285578a8c21745994169beaa0f837c6ad933a300ec9778f080a3f3105158326` (block `49964879`); `acceptArbitrator()` must be executed **from the Safe** with 2 signatures, exactly as Arc did. |
+| Deployed | 2026-08-14, block `49964666`, gas 7,272,443 across 3 txs (impl 258,837 + proxy 2,127,457 + adapter 4,886,149) at ~0.01 gwei ≈ 0.0000366 ETH actually spent |
+| Deploy txs | impl `0xd1b104b8a3239948323ad8bec5d2ef9ba357cb87a7c6914e2b2d8a0c2ecc45cf`, proxy `0x3720c5a95c4403e9ccaa41dadf558fb0be5470857dc18e391c6602bfe12c64e4`, adapter `0x4a0b161934b9861d7fdde03c0329c4f2b0bfdee589602a1c5ed3461edbba0f0e` |
+| `adapterDeployBlock` for the network maps | `49964666` (recorded from the `forge` output at deploy time, per the Sepolia lesson below) |
+| Basescan | all three contracts verified during the deploy run (`--verify`, Etherscan V2 key) |
+| Deploy script | `contracts/script/DeployBaseMainnet.s.sol` — hard `block.chainid == 8453` guard, code-presence checks on USDC and both registries before broadcasting, and post-deploy `require`s that the escrow admin role and adapter owner landed on the deployer |
+
+### Arbitrator Safe (Base mainnet)
+
+| Field | Value |
+|---|---|
+| Address | `0x74678c072Ca546f11466CD44eB7e21730a312a54` |
+| Version | SafeL2 v1.4.1 — singleton `0x29fcB43b46531BcA003ddC8FCB67FFE91900C762`, fallback handler `0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99`, byte-for-byte the same configuration as the Arc Safe (verified by reading Arc's slot 0 / handler slot / `VERSION()`) |
+| Owners | `0xed733FC13B1413966cf056866B6d80eF7b490eEc`, `0x403A027b6c217C5E08cE4497A55732056067FD2D`, `0xC6B48f603C439B4a6b55462AfCae10594D31242A` |
+| Threshold | 2 of 3 (confirmed on-chain via `getOwners()` / `getThreshold()`) |
+| Created | 2026-08-14, block `49964833`, tx `0xf3f5fdcf4bc36e3a0df884372e2da6d3e140a4746a4bbbc3e924369744346669`, 313k gas |
+| How | `scripts/safe-create-base.ts` — canonical `SafeProxyFactory` `0x4e1DCf7A…0ec67`, not app.safe.global. The result is an ordinary canonical Safe and appears in the Safe web app: `https://app.safe.global/home?safe=base:0x74678c072Ca546f11466CD44eB7e21730a312a54` |
+| Signer set | Deliberately **not** Arc's: the third Arc signer was the testnet deployer whose key lives in plaintext `.env`. Per `PRE_MAINNET_RUNBOOK.md` §9, mainnet gets its own set, and the mainnet deploy key is not an owner — it only paid gas. |
+
 ## Base Sepolia (chain id `84532`) — staging, V4.6 current
 
 > Arc Testnet above remains the live, canonical deployment (the address the
 > frontend/SDK/MCP server all target). This section is staging ahead of
 > Base mainnet — it does not change what "canonical" means anywhere else in
 > this repo.
+
+> **⚠️ Both staging escrows have an unreachable admin (found 2026-08-14).**
+> `DeployBaseSepolia.s.sol` read `address deployer = msg.sender;` *inside*
+> `run()`. `vm.startBroadcast(pk)` rewrites the sender of the calls the script
+> makes, but not `msg.sender` of the script's own frame — that stays Foundry's
+> default sender `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38` unless `--sender`
+> or `--private-key` is passed on the command line. So the address handed to
+> `AgenticCommerce.initialize(..., admin_)` was that keyless constant, and
+> `DEFAULT_ADMIN_ROLE` (UUPS upgrade authority, `setPlatformFee`) landed there
+> on both V4.5 and V4.6. `BountyAdapter` was unaffected — its constructor reads
+> its own `msg.sender`, which really is the broadcaster — which is why the
+> owner/arbitrator rows are correct and the E2E runs passed: the admin role is
+> never touched at runtime. Consequence is limited to staging: those two
+> escrows can never be upgraded or re-configured. **Fixed** in both deploy
+> scripts by deriving the address explicitly (`vm.addr(deployerKey)`), plus
+> post-deploy `require`s; Base mainnet was deployed with the fixed script and
+> verified on-chain to hold the role on the real deployer.
 
 ### BountyAdapter (V4.6 — current staging target)
 
@@ -235,7 +293,7 @@ in the submitted grant application.
 | maxBountyAmount (V4.5) | `500000000` (500 USDC, atomic) |
 | Owner (maxBountyAmount admin) | deployer `0xde427f3967cc7a0BF7A9F891195760cCffC82edA` — no Base Safe yet; create one before mainnet |
 | Arbitrator | deployer (unset — no Base Safe yet; must run the two-step handshake before mainnet, exactly as Arc did) |
-| AgenticCommerce admin (upgrade key) | deployer — **we hold this key on Base**, unlike Arc where it's an Arc-team address (see `docs/INTEGRATION_NOTES.md`) |
+| AgenticCommerce admin (upgrade key) | ⚠️ **not the deployer — stranded.** Verified 2026-08-14: `hasRole(DEFAULT_ADMIN_ROLE, 0xde427f…)` is `false` and the role sits on `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`, Foundry's default sender, for which no private key exists. Same on the V4.6 escrow above. Cause and fix in the note below. |
 | Deployed | 2026-07-20, gas: 7,159,306 total across 3 txs (impl + proxy + adapter) ≈ 0.000043 ETH at the block's gas price — at typical Base mainnet gas prices this is expected to land in cents, not dollars |
 | Deploy blocks | BountyAdapter `44398167`, AgenticCommerce proxy `44398166` (both 2026-07-20T16:23:4xZ). Recovered after the fact by binary-searching `eth_getCode` — the original deploy recorded tx hashes but no block numbers. `adapterDeployBlock` in both network maps is the lower bound for chunked event scans, so **record it from the `forge` output at deploy time** for Base mainnet rather than reconstructing it later. |
 | Escrow source | `src/base/AgenticCommerce.sol` — byte-for-byte match of Arc's own deployed variant (not the current, role-restricted ERC-8183 reference); see `docs/INTEGRATION_NOTES.md` for why |

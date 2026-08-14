@@ -355,7 +355,7 @@ if (!existsSync(SDK_CONSTANTS_PATH) || !existsSync(FRONTEND_NETWORKS_PATH)) {
   const feText = readFileSync(FRONTEND_NETWORKS_PATH, "utf8");
   // Every network both maps declare statically. Add base-mainnet here in the
   // same commit that adds it to the maps.
-  const MIRRORED_NETWORKS = ["arc-testnet", "base-sepolia"];
+  const MIRRORED_NETWORKS = ["arc-testnet", "base-sepolia", "base-mainnet"];
   for (const slug of MIRRORED_NETWORKS) {
     const sdkBlock = extractNetworkBlock(sdkText, slug, "agent-sdk/src/constants.ts");
     const feBlock = extractNetworkBlock(feText, slug, "frontend/lib/networks.ts");

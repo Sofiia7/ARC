@@ -130,6 +130,70 @@ describe("resolveNetwork — base-sepolia", () => {
   });
 });
 
+describe("resolveNetwork — base-mainnet", () => {
+  it("returns the static Base mainnet entry", () => {
+    const net = resolveNetwork("base-mainnet", {});
+    expect(net.chainId).toBe(8_453);
+    expect(net.name).toBe("Base");
+    expect(net.caip2).toBe("eip155:8453");
+    expect(net.rpcUrl).toBe("https://mainnet.base.org");
+    expect(net.explorerUrl).toBe("https://basescan.org");
+    expect(net.contracts).toEqual({
+      AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
+      IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+      USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    });
+    expect(net.defaultBountyAdapter).toBe("0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2");
+    expect(net.adapterDeployBlock).toBe(49_964_666);
+    expect(net.blocksPerDay).toBe(43_200);
+  });
+
+  it("is the only network flagged as non-testnet today", () => {
+    expect(resolveNetwork("base-mainnet", {}).testnet).toBe(false);
+    expect(resolveNetwork("base-sepolia", {}).testnet).toBe(true);
+    expect(resolveNetwork("arc-testnet", {}).testnet).toBe(true);
+  });
+
+  it("shares BaseBounty branding and ETH gas with Base Sepolia", () => {
+    expect(resolveNetwork("base-mainnet", {}).brand)
+      .toEqual({ name: "BaseBounty", domain: "basebounty.app" });
+    expect(resolveNetwork("base-mainnet", {}).nativeCurrency)
+      .toEqual({ symbol: "ETH", decimals: 18, isUsdc: false });
+  });
+
+  it("uses its own contracts, never Base Sepolia's", () => {
+    const mainnet = resolveNetwork("base-mainnet", {});
+    const sepolia = resolveNetwork("base-sepolia", {});
+    expect(mainnet.contracts.USDC).not.toBe(sepolia.contracts.USDC);
+    expect(mainnet.contracts.AGENTIC_COMMERCE).not.toBe(sepolia.contracts.AGENTIC_COMMERCE);
+    expect(mainnet.defaultBountyAdapter).not.toBe(sepolia.defaultBountyAdapter);
+    // The 8004 registries genuinely are the same canonical addresses.
+    expect(mainnet.contracts.IDENTITY_REGISTRY).toBe(sepolia.contracts.IDENTITY_REGISTRY);
+    expect(mainnet.contracts.REPUTATION_REGISTRY).toBe(sepolia.contracts.REPUTATION_REGISTRY);
+  });
+
+  it("lets BASE_MAINNET_RPC_URL override only the RPC URL", () => {
+    const net = resolveNetwork("base-mainnet", { BASE_MAINNET_RPC_URL: "http://localhost:8545" });
+    expect(net.rpcUrl).toBe("http://localhost:8545");
+    expect(net.chainId).toBe(8_453);
+    expect(NETWORKS["base-mainnet"].rpcUrl).toBe("https://mainnet.base.org");
+  });
+
+  it("does not leak the Base Sepolia override across networks", () => {
+    const net = resolveNetwork("base-mainnet", { BASE_SEPOLIA_RPC_URL: "http://sepolia-only.invalid" });
+    expect(net.rpcUrl).toBe("https://mainnet.base.org");
+  });
+
+  it("returns a copy — mutating the result never touches NETWORKS", () => {
+    const net = resolveNetwork("base-mainnet", {});
+    net.contracts.USDC = "0x00000000000000000000000000000000000000ff";
+    net.brand.name = "MUTATED";
+    expect(NETWORKS["base-mainnet"].contracts.USDC).toBe("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+    expect(NETWORKS["base-mainnet"].brand.name).toBe("BaseBounty");
+  });
+});
+
 describe("resolveNetwork — arc-mainnet", () => {
   it("throws one error naming every missing variable and the docs source of truth", () => {
     let error: Error | null = null;

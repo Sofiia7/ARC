@@ -8,7 +8,8 @@ const network = getActiveNetwork();
 
 // Each network resolves its own RPC override in lib/networks.ts
 // (NEXT_PUBLIC_RPC_URL for arc-testnet, NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL for
-// base-sepolia, NEXT_PUBLIC_ARC_MAINNET_RPC_URL for arc-mainnet), so take the
+// base-sepolia, NEXT_PUBLIC_BASE_MAINNET_RPC_URL for base-mainnet,
+// NEXT_PUBLIC_ARC_MAINNET_RPC_URL for arc-mainnet), so take the
 // resolved value as-is. Re-applying the Arc-specific NEXT_PUBLIC_RPC_URL here
 // for every `testnet` network pointed the Base build at Arc's RPC — CSP then
 // blocked it and the board could not read the chain at all.
