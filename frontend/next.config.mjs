@@ -44,6 +44,17 @@ function activeNetworkOrigins() {
     };
   }
 
+  if (network === "base-mainnet") {
+    const rpcUrl = readEnv("NEXT_PUBLIC_BASE_MAINNET_RPC_URL") ?? "https://mainnet.base.org";
+    // Same split as Base Sepolia: Basescan serves the UI, the Etherscan V2 API
+    // lives on its own host, and the CSP must allow both.
+    return {
+      rpc: originOf(rpcUrl),
+      explorer: originOf("https://basescan.org"),
+      explorerApi: originOf("https://api.etherscan.io"),
+    };
+  }
+
   if (network === "arc-mainnet") {
     const rpcUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_RPC_URL");
     const explorerUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_EXPLORER_URL");
