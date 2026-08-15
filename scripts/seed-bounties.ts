@@ -28,6 +28,16 @@ const ADAPTER  = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
 const USDC     = (process.env.USDC_ADDRESS ?? network.contracts.USDC) as Address;
 const PINATA   = process.env.PINATA_JWT!;
 
+// Seed copy is product copy — it lands on a live public board under whichever
+// brand this network ships as (ArcBounty on Arc, BaseBounty on Base). The few
+// entries that name the product or the ecosystem follow the network instead of
+// hardcoding Arc; everything else is chain-agnostic already.
+const BRAND = network.brand.name;
+const IS_ARC = BRAND === "ArcBounty";
+const ECOSYSTEM = IS_ARC ? "Arc Network" : "Base";
+const ECOSYSTEM_BLOG = IS_ARC ? "blog.arc.network" : "base.org/blog";
+const ECOSYSTEM_TAG = IS_ARC ? "arc" : "base";
+
 if (!PK || !ADAPTER || !PINATA) {
   console.error("Missing env: PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS / PINATA_JWT");
   process.exit(1);
@@ -102,7 +112,7 @@ const FULL_SEEDS: Seed[] = [
     requireWorkerBond: true, // showcase the V4 opt-in bond on a live listing
   },
   {
-    title: "Design a Twitter/X banner for ArcBounty",
+    title: `Design a Twitter/X banner for ${BRAND}`,
     body: "1500×500 PNG, dark sunset palette matching the site. Submit the source file (Figma/Affinity/PSD) plus the PNG export, pinned to IPFS.",
     category: "design", tags: ["banner", "branding", "x"], rewardUsdc: 1, days: 6, agentOnly: false,
   },
@@ -112,14 +122,14 @@ const FULL_SEEDS: Seed[] = [
     category: "design", tags: ["figma", "wireframe", "ux"], rewardUsdc: 1, days: 8, agentOnly: false, humanOnly: true,
   },
   {
-    title: "Translate ArcBounty README to Spanish",
+    title: `Translate the ${BRAND} README to Spanish`,
     body: "Translate `README.md` into idiomatic Spanish. Keep code blocks untouched. Submit the translated markdown.",
     category: "content", tags: ["translation", "es", "docs"], rewardUsdc: 1, days: 7, agentOnly: false,
   },
   {
-    title: "Summarize 5 recent Arc Network blog posts",
-    body: "Pick the 5 latest posts from blog.arc.network. Produce a 150-word summary each with key takeaways. Submit as markdown.",
-    category: "content", tags: ["summary", "arc", "research"], rewardUsdc: 1, days: 5, agentOnly: true,
+    title: `Summarize 5 recent ${ECOSYSTEM} blog posts`,
+    body: `Pick the 5 latest posts from ${ECOSYSTEM_BLOG}. Produce a 150-word summary each with key takeaways. Submit as markdown.`,
+    category: "content", tags: ["summary", ECOSYSTEM_TAG, "research"], rewardUsdc: 1, days: 5, agentOnly: true,
   },
   {
     title: "Scrape & dedupe ETH-related job postings (CSV, 200 rows)",
@@ -150,9 +160,9 @@ const FULL_SEEDS: Seed[] = [
     category: "content", tags: ["blog", "agents", "erc-8004"], rewardUsdc: 1, days: 8, agentOnly: false,
   },
   {
-    title: "Compile a list of 50 Arc Testnet contracts with activity",
+    title: `Compile a list of 50 ${network.name} contracts with activity`,
     body: "Use the explorer. Output JSON: `[{address, name?, tx_count_7d, first_seen}]`. Highest activity first.",
-    category: "data", tags: ["onchain", "arc", "json"], rewardUsdc: 1, days: 6, agentOnly: true,
+    category: "data", tags: ["onchain", ECOSYSTEM_TAG, "json"], rewardUsdc: 1, days: 6, agentOnly: true,
   },
   {
     title: "Build a 30-day USDC price dataset (CSV)",
@@ -161,7 +171,7 @@ const FULL_SEEDS: Seed[] = [
   },
   {
     title: "Propose 3 new bounty categories with rationale",
-    body: "Short markdown: 3 proposed categories beyond dev/design/content/data/other, each with 2–3 example bounties and why it fits Arc's agent economy.",
+    body: `Short markdown: 3 proposed categories beyond dev/design/content/data/other, each with 2–3 example bounties and why it fits ${ECOSYSTEM}'s agent economy.`,
     category: "other", tags: ["product", "proposal", "community"], rewardUsdc: 1, days: 7, agentOnly: false,
   },
 ];
@@ -184,7 +194,7 @@ const SEEDS: Seed[] = FULL_SEEDS.slice(OFFSET, LIMIT).map(s => ({
 }));
 
 async function pinDescription(seed: Seed): Promise<string> {
-  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by ArcBounty seed script — demo bounty._\n`;
+  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by the ${BRAND} seed script — demo bounty._\n`;
   const blob = new Blob([md], { type: "text/markdown" });
   const form = new FormData();
   form.append("file", blob, `${seed.title.slice(0, 40).replace(/\W+/g, "-")}.md`);
