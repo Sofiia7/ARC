@@ -63,6 +63,7 @@ export function useAllOpenBountyMetas(category: string) {
   const metaReadsFailed =
     (jobIds?.length ?? 0) > 0 && !metaReads.isLoading && metas.length === 0;
 
+
   return {
     metas,
     isLoading: idsLoading || metaReads.isLoading,

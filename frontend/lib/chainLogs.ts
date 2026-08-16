@@ -36,21 +36,30 @@ const MAX_LOOKBACK = network.maxLookbackBlocks; // fallback only
 
 export type ScannedLog = { args: unknown; blockNumber?: bigint };
 
+// Once the explorer API has refused us, it will refuse every subsequent call
+// for the same reason (unsupported chain, no key, CORS). Retrying it per scan
+// only buys a wasted round-trip and a console error before the same fallback
+// runs — so remember the refusal for the rest of the session.
+let explorerUnavailable = false;
+
 export async function getLogsChunked(
   client: PublicClient,
   params: { address: `0x${string}`; event: AbiEvent },
   fromBlock: bigint,
 ): Promise<ScannedLog[]> {
-  try {
-    return await blockscoutLogs(params.address, params.event, fromBlock);
-  } catch (err) {
-    console.warn(
-      "[chainLogs] Blockscout log fetch failed, falling back to bounded RPC scan "
-      + `(most recent ${MAX_LOOKBACK} blocks only):`,
-      err,
-    );
-    return rpcChunkedLogs(client, params, fromBlock);
+  if (!explorerUnavailable) {
+    try {
+      return await blockscoutLogs(params.address, params.event, fromBlock);
+    } catch (err) {
+      explorerUnavailable = true;
+      console.warn(
+        "[chainLogs] explorer log API unavailable, using the bounded RPC scan for the rest "
+        + `of this session (most recent ${MAX_LOOKBACK} blocks only):`,
+        err,
+      );
+    }
   }
+  return rpcChunkedLogs(client, params, fromBlock);
 }
 
 type BlockscoutLog = {
@@ -65,8 +74,12 @@ async function blockscoutLogs(
   fromBlock: bigint,
 ): Promise<ScannedLog[]> {
   const [topic0] = encodeEventTopics({ abi: [event], eventName: event.name } as never);
+  // Arc's ArcScan API takes no query string of its own, but Etherscan V2 is a
+  // single multichain endpoint keyed by `?chainid=…` — appending another `?`
+  // produced a URL the API rejects outright ("Missing or unsupported chainid").
+  const sep = BLOCKSCOUT_API.includes("?") ? "&" : "?";
   const url =
-    `${BLOCKSCOUT_API}?module=logs&action=getLogs`
+    `${BLOCKSCOUT_API}${sep}module=logs&action=getLogs`
     + `&fromBlock=${fromBlock}&toBlock=latest&address=${address}&topic0=${topic0}`;
 
   const res = await fetch(url);

@@ -5,22 +5,6 @@ import { usePublicClient } from "wagmi";
 import type { Address } from "viem";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 
-const EVENTS = [
-  "BountyCreated",
-  "BountyTaken",
-  "WorkSubmitted",
-  "BountyCompleted",
-  "BountyAutoApproved",
-  "BountyCancelled",
-  "BountyExpired",
-  "RejectionProposed",
-  "RejectionFinalized",
-  "RejectionChallenged",
-  "DisputeRaised",
-  "DisputeResponded",
-  "DisputeResolved",
-] as const;
-
 /**
  * Subscribe to BountyAdapter events and invoke `onEvent` on any match.
  *
@@ -46,17 +30,38 @@ export function useBountyEvents(onEvent: () => void, jobId?: bigint): void {
 
   useEffect(() => {
     if (!publicClient) return;
-    const unwatches = EVENTS.map(eventName =>
-      publicClient.watchContractEvent({
-        address: adapter,
-        abi: BOUNTY_ADAPTER_ABI,
-        eventName,
-        args: jobId !== undefined ? ({ jobId } as never) : undefined,
-        onLogs: () => cb.current(),
-        // Sane default poll — viem batches multiple events per call.
-        pollingInterval: 4_000,
-      }),
-    );
-    return () => unwatches.forEach(u => u());
+
+    // ONE subscription for all 13 events, not one per event.
+    //
+    // Every watcher is an independent poller issuing its own eth_getLogs, so
+    // the per-event version cost 13 requests every 4s — measured at ~17 rps
+    // from a single tab against Base's public RPC, which then throttles
+    // everything else the page does. The symptom is not an error: the board's
+    // own reads silently never settle and it renders "No open bounties found"
+    // while the contract has open bounties. Omitting `eventName` watches every
+    // event in the ABI in one poll, and since all 13 handlers did the same
+    // thing — call `onEvent` — nothing is lost.
+    const unwatch = publicClient.watchContractEvent({
+      address: adapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      // Server-side arg filtering needs a single event; with the merged watch
+      // the jobId check moves into onLogs (see below).
+      onLogs: logs => {
+        if (jobId === undefined) {
+          cb.current();
+          return;
+        }
+        const match = logs.some(log => {
+          const args = (log as { args?: { jobId?: bigint } }).args;
+          return args?.jobId === jobId;
+        });
+        if (match) cb.current();
+      },
+      // 12s instead of 4s: this is a refresh nudge for data that also polls on
+      // its own, not a trading feed. Three times fewer requests for latency
+      // nobody notices.
+      pollingInterval: 12_000,
+    });
+    return () => unwatch();
   }, [publicClient, adapter, jobId]);
 }
