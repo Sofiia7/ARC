@@ -211,6 +211,22 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 | Basescan | all three contracts verified during the deploy run (`--verify`, Etherscan V2 key) |
 | Deploy script | `contracts/script/DeployBaseMainnet.s.sol` — hard `block.chainid == 8453` guard, code-presence checks on USDC and both registries before broadcasting, and post-deploy `require`s that the escrow admin role and adapter owner landed on the deployer |
 
+**E2E proof-of-life on Base mainnet (2026-08-16):** jobId `5`
+("Translate the BaseBounty README to Spanish"), same wallet as poster and
+worker — allowed, `takeBounty` has no poster≠worker restriction. Full cycle
+`approve` → `createBounty` (1 USDC) → `takeBounty` → `submitWork` →
+`approveBounty(95)`. Balances reconcile exactly: seeder 0.40 → **1.39 USDC**
+(0.99 payout received), fee recipient 0 → **0.01 USDC** (the 1% protocol fee),
+adapter left holding exactly the 4 USDC still escrowed for the open listings,
+and `getOpenBounties` drops to `[1,2,3,4]`. Whole cycle cost ~0.00002 ETH in
+gas. Tx: take `0xb2067c4f…d8fe`, submit `0x8958f65d…9069`, approve
+`0x415ac8b0…19d0` (block `50062131`).
+
+> **Not yet exercised on mainnet:** the dispute/arbitration path (and so the
+> Safe has never actually ruled here), `autoApprove`/`expire` (no keeper is
+> configured on Base — see below), and posting from the web UI rather than the
+> ops scripts.
+
 ### Arbitrator Safe (Base mainnet)
 
 | Field | Value |
