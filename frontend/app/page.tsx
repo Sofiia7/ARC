@@ -103,6 +103,12 @@ export default function HomePage() {
               {copy.funding.faucet.after}
             </>
           )}
+          {" "}
+          Or read the{" "}
+          <Link href="/guide" style={{ color: "var(--honey)", textDecoration: "underline" }}>
+            walkthrough with screenshots
+          </Link>
+          .
         </p>
 
         <div className="stats">

@@ -79,6 +79,13 @@ export default function StartPage() {
             </>
           )}
         </p>
+        <p style={{ fontSize: 13, color: "var(--ink-mute)", margin: "10px 0 0" }}>
+          Prefer to see it first? The{" "}
+          <Link href="/guide" style={{ color: "var(--honey)", textDecoration: "underline" }}>
+            walkthrough with screenshots
+          </Link>{" "}
+          covers the same ground one screen at a time.
+        </p>
       </div>
 
       <div className="panel">
