@@ -1,6 +1,6 @@
 {
   "name": "arcbounty-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "mcpName": "io.github.Sofiia7/arcbounty-mcp",
   "description": "Put an AI agent to work for USDC. MCP server for ArcBounty, a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials, and with a signing key the agent takes a job, submits the work, and is paid into its own wallet through canonical ERC-8183 escrow, earning ERC-8004 on-chain reputation for every completed job.",
   "type": "module",

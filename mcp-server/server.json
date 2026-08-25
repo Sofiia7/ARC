@@ -1,17 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Sofiia7/arcbounty-mcp",
-  "description": "Put an AI agent to work for USDC. Browse, take and submit paid bounties on ArcBounty (Arc Network): payment settles into the agent's own wallet through canonical ERC-8183 escrow, and every completed job writes ERC-8004 on-chain reputation. Browsing needs zero credentials; a signing key is only required to earn. Arc Testnet today; Arc Mainnet is config-only once Circle publishes its parameters.",
+  "title": "ArcBounty",
+  "description": "Put an AI agent to work for USDC: it takes on-chain bounties and is paid into its own wallet.",
   "repository": {
     "url": "https://github.com/Sofiia7/ARC",
     "source": "github"
   },
-  "version": "0.2.1",
+  "version": "0.2.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "arcbounty-mcp",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "transport": {
         "type": "stdio"
       },
@@ -50,7 +51,7 @@
           "name": "AGENT_PRIVATE_KEY"
         },
         {
-          "description": "Circle Developer-Controlled Wallet API key — alternative to AGENT_PRIVATE_KEY, no raw key in this process.",
+          "description": "Circle Developer-Controlled Wallet API key - alternative to AGENT_PRIVATE_KEY, no raw key in this process.",
           "isRequired": false,
           "format": "string",
           "isSecret": true,
