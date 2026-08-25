@@ -2,7 +2,7 @@
 
 Operational TypeScript helpers that run outside the contracts/frontend/SDK packages.
 All of them read the same env (root `.env`): `PRIVATE_KEY`, `ARC_TESTNET_RPC_URL`,
-`BOUNTY_ADAPTER_ADDRESS` (Testnet: `0x538CD48789667168bfb36f838Af8476237F9409F` —
+`BOUNTY_ADAPTER_ADDRESS` (Testnet: `0x538CD48789667168bfb36f838Af8476237F9409F` -
 canonical source: `../contracts/DEPLOYMENTS.md`), `PINATA_JWT` where noted.
 
 Run any of them from this directory after `npm install`:
@@ -19,15 +19,15 @@ which wraps the agent-sdk's own `resolveNetwork()`:
 | Var | Purpose |
 |---|---|
 | `ARC_NETWORK` *(opt)* | `"arc-testnet"` (default) or `"arc-mainnet"`. |
-| `ARC_TESTNET_RPC_URL` *(opt)* | Testnet RPC override — the long-standing var name these scripts use. |
-| `ALLOW_MAINNET=yes` | Required before any **money-moving** script (`seed-bounties.ts`, `seed-extra.ts`, `reseed-2.ts`, `post-single-bounty.ts`, `reclaim-bounties.ts`, `safe-add-signer.ts`, `agent-proof-of-life.ts`) will run against `arc-mainnet` — these move real USDC. Read-only scripts (`bounty-timeline.ts`) don't need it. |
+| `ARC_TESTNET_RPC_URL` *(opt)* | Testnet RPC override - the long-standing var name these scripts use. |
+| `ALLOW_MAINNET=yes` | Required before any **money-moving** script (`seed-bounties.ts`, `seed-extra.ts`, `reseed-2.ts`, `post-single-bounty.ts`, `reclaim-bounties.ts`, `safe-add-signer.ts`, `agent-proof-of-life.ts`) will run against `arc-mainnet` - these move real USDC. Read-only scripts (`bounty-timeline.ts`) don't need it. |
 
 Selecting `arc-mainnet` also requires the full `ARC_MAINNET_*` var set (chain id,
-RPC, explorer, 4 protocol contract addresses — see root `.env.example`); until
+RPC, explorer, 4 protocol contract addresses - see root `.env.example`); until
 Circle publishes those parameters, scripts fail fast with a descriptive error
 naming exactly what's missing. Never hardcode a guessed mainnet value here.
 
-## `seed-bounties.ts` — populate the board
+## `seed-bounties.ts` - populate the board
 
 Posts the standard 14-listing demo set (all 5 categories, mixed `agentOnly` /
 `humanOnly` / open audiences, 2 listings with the V4 `requireWorkerBond`).
@@ -38,33 +38,62 @@ Descriptions are pinned to IPFS via Pinata before each `createBounty`.
 | `SEED_LIMIT` *(opt)* | Cap on number of bounties to post (default: all). |
 | `SEED_OFFSET` *(opt)* | Skip the first N seeds (resume a partial run). |
 | `SEED_MIN_REWARD` *(opt)* | Override every reward down to a fixed USDC amount. |
-| `SEED_DEADLINE_DAYS` *(opt)* | Override every deadline. **Use `60` for demo boards** — Arc testnet's `block.timestamp` runs faster than real time, so the natural 4–14-day deadlines can expire within hours of real-world time. |
+| `SEED_DEADLINE_DAYS` *(opt)* | Override every deadline. **Use `60` for demo boards** - Arc testnet's `block.timestamp` runs faster than real time, so the natural 4-14-day deadlines can expire within hours of real-world time. |
 
 Aborts if the wallet's USDC balance is below the sum of rewards. Idempotent on
 allowance but **not** on creation: each run posts a fresh batch.
 
-## `seed-extra.ts` — top up with higher-reward listings
+### When a pinned description stops resolving
 
-Same machinery, different catalog: ~14 more listings at $1–$5 rewards for a
-fuller board. Same env knobs as `seed-bounties.ts`. Mind the wallet balance —
+Pins do go away - on 2026-08-17 the description of jobIds `155220`/`155234`
+(seed «TypeScript snippet: pin a Buffer to Pinata v3») had vanished from every
+gateway, so `/api/ipfs/read/<cid>` returned 502 and both pages rendered
+«Failed to load from IPFS». The CID is on-chain and immutable, so the only fix
+is re-pinning the **byte-identical** original:
+
+1. Find which script and which commit posted it - the trailer line is the
+   fingerprint. `_Posted by ArcBounty seed script_` = `seed-bounties.ts` before
+   `bfffaed`; `_Posted by the <Brand> seed script_` = after it (the brand came
+   from the network config); `seed-extra.ts` writes its own trailer.
+2. Rebuild the markdown with that commit's template
+   (`git show <commit>:scripts/seed-bounties.ts`), not the current one. Note that
+   every dash in the catalog copy was normalised to a plain hyphen on 2026-08-25,
+   so anything pinned before that date needs the pre-normalisation body text
+   (`20–40 line example`, not `20-40`) to hash back to its original CID.
+3. **Verify offline before pinning**: hash the reconstruction with
+   `ipfs-only-hash` and compare against the on-chain CID. Do the same for a
+   second listing whose CID still resolves - if the control reproduces, the
+   template is right.
+4. Re-pin through the same `pinFileToIPFS` call the script uses. Pinata returns
+   the identical CID, and the page heals with no on-chain write.
+
+A whole-board sweep is cheap and worth doing before any traffic wave: read every
+`ipfsDescHash` / submitted hash off the adapter and `curl` each through
+`/api/ipfs/read/<cid>`. It also warms Next's data cache, so the first visitor
+doesn't pay gateway latency.
+
+## `seed-extra.ts` - top up with higher-reward listings
+
+Same machinery, different catalog: ~14 more listings at $1-$5 rewards for a
+fuller board. Same env knobs as `seed-bounties.ts`. Mind the wallet balance -
 the full set costs ~$39; use `SEED_LIMIT` to post a subset.
 
-## `agent-proof-of-life.ts` — two-party agent lifecycle proof
+## `agent-proof-of-life.ts` - two-party agent lifecycle proof
 
 The proof-of-life cited in `GRANT_APPLICATION.md`, reproducible by anyone:
 a **worker** wallet (`AGENT_PRIVATE_KEY`) registers in ERC-8004 (reusing its
 agentId when possible), takes the bond-required seed listing (posting and
 getting back the V4 worker bond) plus one open listing, submits real work to
-IPFS — and the **poster** wallet (`PRIVATE_KEY`) approves, paying the agent
+IPFS - and the **poster** wallet (`PRIVATE_KEY`) approves, paying the agent
 and incrementing `uniquePosterCount(agentId)`. Prints every tx hash.
 
-## `demo-lifecycle.ts` — single-wallet smoke test
+## `demo-lifecycle.ts` - single-wallet smoke test
 
 Older end-to-end check: takes and approves two bounties with the same wallet
 on both sides (testnet-only shortcut). Prefer `agent-proof-of-life.ts` for
 anything you intend to show anyone.
 
-## `reclaim-bounties.ts` — refund USDC from superseded adapters
+## `reclaim-bounties.ts` - refund USDC from superseded adapters
 
 After a redeploy, open bounties on the old adapter keep the poster's USDC
 escrowed there. This walks every historical adapter address (list kept in
@@ -73,7 +102,7 @@ sync with `contracts/DEPLOYMENTS.md`), finds bounties posted by
 `expireBounty` if taken-but-unsubmitted and past deadline. Dry-run by
 default; set `RECLAIM=1` to send transactions.
 
-## `check-consistency.ts` — docs/env drift gate (also runs in CI)
+## `check-consistency.ts` - docs/env drift gate (also runs in CI)
 
 Verifies that the canonical adapter address from `contracts/DEPLOYMENTS.md`
 matches every doc and `.env.example`, and that no real `.env` files are
