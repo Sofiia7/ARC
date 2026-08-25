@@ -5,6 +5,7 @@ import { createPaymentGate } from "./payments.js";
 import { buildOpenApi } from "./openapi.js";
 import { serializeBounty, serializeSubmissions } from "./serialize.js";
 import { prepareBountySchema, validatePrepare, buildPrepareResponse } from "./prepare.js";
+import { QuestVerifier, QuestIndeterminate, QUEST_TASKS, isQuestTask } from "./quest.js";
 
 /**
  * The Express app, separated from the listener so the same code runs as a
@@ -14,6 +15,7 @@ import { prepareBountySchema, validatePrepare, buildPrepareResponse } from "./pr
 export function buildApp(config: FacadeConfig = loadConfig()) {
   const reader = new BountyReader(config);
   const gate = createPaymentGate(config);
+  const quest = new QuestVerifier(reader, config);
 
   const app = express();
   app.disable("x-powered-by");
@@ -94,6 +96,110 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
         "App: https://arcbounty.app · Code: https://github.com/Sofiia7/ARC",
       ].join("\n"),
     );
+  });
+
+  // ─── Quest verification (free, for Galxe / Zealy) ──────────────────────────
+  //
+  // Galxe's REST credential and Zealy's `api` task both work by calling an
+  // endpoint the project hosts with a wallet address, which is what makes a
+  // quest on Arc possible at all: neither platform lists Arc among the chains
+  // it verifies natively, and neither has to.
+  //
+  // Free on purpose. x402 exists so agents pay for discovery; a quest platform
+  // is not an agent, will not pay, and would simply fail the credential.
+
+  // Galxe checks CORS before it will even save a campaign, including a real
+  // OPTIONS preflight, and its docs name "test succeeded but the save failed"
+  // as the symptom of getting this wrong. The data behind it is public chain
+  // state keyed by an address the caller already knows, and no credentials
+  // ride along, so a wildcard origin costs nothing.
+  const questCors = (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    next();
+  };
+
+  app.options("/v1/quest/*", questCors, (_req, res) => res.status(204).end());
+
+  async function handleVerify(req: Request, res: Response): Promise<void> {
+    if (config.questApiKey) {
+      const supplied =
+        req.get("X-API-Key") ?? req.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+      if (supplied !== config.questApiKey) {
+        res.status(401).json({ error: "bad or missing quest API key" });
+        return;
+      }
+    }
+
+    // Galxe sends whichever variable the campaign was configured with, and
+    // Zealy's payload shape is set in its task editor rather than published,
+    // so every plausible spelling is accepted instead of guessed at.
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const raw =
+      req.query["address"] ??
+      req.query["wallet"] ??
+      body["address"] ??
+      body["wallet"] ??
+      body["accounts"] ??
+      (body["user"] as Record<string, unknown> | undefined)?.["wallet"];
+
+    const address = QuestVerifier.parseAddress(Array.isArray(raw) ? raw[0] : raw);
+    if (!address) {
+      res.status(400).json({
+        error: "supply an EVM address as ?address= or {\"address\": \"0x...\"}",
+        tasks: QUEST_TASKS,
+      });
+      return;
+    }
+
+    const taskRaw = req.query["task"] ?? body["task"];
+    const task = typeof taskRaw === "string" ? taskRaw : undefined;
+    if (task !== undefined && !isQuestTask(task)) {
+      res.status(400).json({ error: `unknown task "${task}"`, tasks: QUEST_TASKS });
+      return;
+    }
+
+    try {
+      const status = await quest.verify(address);
+      // `result` is the single field a platform can read when it has no
+      // scripting step of its own; Galxe users point their JS expression at
+      // the named task instead and can ignore it.
+      res.json(task ? { ...status, task, result: status[task] } : status);
+    } catch (err) {
+      if (err instanceof QuestIndeterminate) {
+        // Never a zero. See QuestIndeterminate for why a false negative is
+        // the one answer this endpoint must not give.
+        res.status(503).json({ error: err.message, retryAfterSec: 10 });
+        return;
+      }
+      throw err;
+    }
+  }
+
+  app.get("/v1/quest/verify", questCors, (req, res, next) => {
+    handleVerify(req, res).catch(next);
+  });
+  app.post("/v1/quest/verify", questCors, (req, res, next) => {
+    handleVerify(req, res).catch(next);
+  });
+
+  /** What a campaign builder needs in front of them while filling the form. */
+  app.get("/v1/quest/tasks", questCors, (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get("host") ?? "localhost"}`;
+    res.json({
+      network: config.network,
+      brand: config.brandName,
+      adapter: config.bountyAdapterAddress,
+      endpoint: `${baseUrl}/v1/quest/verify`,
+      authRequired: config.questApiKey !== null,
+      tasks: QUEST_TASKS.map(name => ({
+        name,
+        galxeExpression: `function(resp){ return resp.${name} }`,
+        example: `${baseUrl}/v1/quest/verify?address=0x0000000000000000000000000000000000000000&task=${name}`,
+      })),
+    });
   });
 
   // ─── Paid endpoints ────────────────────────────────────────────────────────

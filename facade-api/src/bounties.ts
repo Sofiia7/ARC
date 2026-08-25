@@ -1,6 +1,6 @@
 import { BOUNTY_ADAPTER_ABI } from "./sdk.js";
 import type { BountyMeta, OpenBountiesFilter } from "arcbounty-agent-sdk";
-import { createPublicClient, defineChain, http, type PublicClient } from "viem";
+import { createPublicClient, defineChain, http, type Address, type PublicClient } from "viem";
 import { TtlCache } from "./cache.js";
 import type { FacadeConfig } from "./config.js";
 
@@ -119,5 +119,34 @@ export class BountyReader {
 
   async get(jobId: bigint): Promise<{ value: BountyMeta; stale: boolean }> {
     return this.bountyCache.getOrFetch(jobId.toString(), () => this.readMeta(jobId));
+  }
+
+  /**
+   * Job ids this address took as the provider, straight off the adapter's own
+   * index. One eth_call, no log scan: quest verification runs on the request
+   * path under a 5s ceiling (Galxe cancels past that), and lib/chainLogs-style
+   * chunked getLogs would blow it on the first burst.
+   */
+  async assignedJobs(provider: Address): Promise<bigint[]> {
+    return this.paced(() =>
+      this.client.readContract({
+        address: this.config.bountyAdapterAddress,
+        abi: BOUNTY_ADAPTER_ABI,
+        functionName: "getMyAssignedBounties",
+        args: [provider],
+      }),
+    ).then(r => [...(r as readonly bigint[])]);
+  }
+
+  /** Job ids this address posted. Same one-call shape as assignedJobs(). */
+  async postedJobs(poster: Address): Promise<bigint[]> {
+    return this.paced(() =>
+      this.client.readContract({
+        address: this.config.bountyAdapterAddress,
+        abi: BOUNTY_ADAPTER_ABI,
+        functionName: "getMyPostedBounties",
+        args: [poster],
+      }),
+    ).then(r => [...(r as readonly bigint[])]);
   }
 }

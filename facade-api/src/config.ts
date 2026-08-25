@@ -52,6 +52,13 @@ export type FacadeConfig = {
   /** Circle Gateway facilitator. Default: per-network facilitator (see FACILITATOR_DEFAULTS). */
   facilitatorUrl: string;
   cacheTtlMs: number;
+  /**
+   * Shared secret quest platforms send back to us. Unset -> the verifier is
+   * open, which is the right default: it discloses nothing a block explorer
+   * would not, and a key that has to exist before the first campaign can be
+   * saved is a key that gets pasted wrong at 2am.
+   */
+  questApiKey: string | null;
 };
 
 const SUPPORTED_NETWORKS: NetworkName[] = ["arc-testnet", "arc-mainnet", "base-sepolia"];
@@ -106,5 +113,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacadeConfig {
     sellerAddress: (sellerRaw as Address | undefined) ?? null,
     facilitatorUrl: clean("FACILITATOR_URL") ?? FACILITATOR_DEFAULTS[network],
     cacheTtlMs: Number(clean("CACHE_TTL_MS") ?? 20_000),
+    questApiKey: clean("QUEST_API_KEY") ?? null,
   };
 }
