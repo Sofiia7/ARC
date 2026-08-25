@@ -1,5 +1,5 @@
 /* ====================================================================
-   ArcBounty — shared styles (glassmorphic UI on sunrise shader)
+   ArcBounty - shared styles (glassmorphic UI on sunrise shader)
    ==================================================================== */
 
 :root {
@@ -573,7 +573,7 @@ p.lede {
 .input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
-/* custom select — glass dropdown that matches the rest of the system */
+/* custom select - glass dropdown that matches the rest of the system */
 .select-wrap { position: relative; }
 .select-trigger {
   width: 100%;
@@ -957,7 +957,7 @@ p.lede {
 }
 .action-bar > * { flex: 1; }
 
-/* destructive variant — warm-aligned, not jarring red */
+/* destructive variant - warm-aligned, not jarring red */
 .btn-danger {
   background: linear-gradient(180deg, rgba(255,140,120,0.16), rgba(255,90,75,0.08));
   border-color: rgba(255,140,120,0.32);

@@ -15,11 +15,11 @@
 !**/.eslintrc.json
 !**/vercel.json
 !mcp-server/server.json
-# .mcpb manifest — declares tool schemas and the NAMES of user-supplied
+# .mcpb manifest - declares tool schemas and the NAMES of user-supplied
 # credentials, never their values (env entries are ${user_config.*}
 # placeholders). Needed in-tree to rebuild a .mcpb reproducibly.
 !mcp-server/manifest.json
-# Same file with per-tool inputSchema, for Smithery — the official mcpb schema
+# Same file with per-tool inputSchema, for Smithery - the official mcpb schema
 # rejects that key, so the two variants cannot be one file.
 !mcp-server/manifest.smithery.json
 !glama.json
@@ -55,7 +55,7 @@ marketing_new/
 add_arcbounty_circle_mcp.bat
 agent-sdk/run_circle_demo.bat
 
-# Built MCPB bundles — ~41 MB each, rebuildable from manifest.json via
+# Built MCPB bundles - ~41 MB each, rebuildable from manifest.json via
 # `mcpb pack`. Distributed as GitHub release assets, not committed.
 *.mcpb
 

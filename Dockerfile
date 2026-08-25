@@ -32,7 +32,7 @@ ENV BOUNTY_ADAPTER_ADDRESS=0x538CD48789667168bfb36f838Af8476237F9409F
 #   -e ARC_MAINNET_EXPLORER_URL=... -e ARC_MAINNET_EXPLORER_API_URL=... \
 #   -e ARC_MAINNET_AGENTIC_COMMERCE=... -e ARC_MAINNET_IDENTITY_REGISTRY=... \
 #   -e ARC_MAINNET_REPUTATION_REGISTRY=... -e ARC_MAINNET_USDC=...
-# Circle has not published these values yet (see agent-sdk/.env.example) —
+# Circle has not published these values yet (see agent-sdk/.env.example) -
 # the server fails fast with a clear error if ARC_NETWORK=arc-mainnet is set
 # without them.
 COPY mcp-server/package.json mcp-server/package-lock.json ./

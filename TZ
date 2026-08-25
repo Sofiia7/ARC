@@ -1,11 +1,11 @@
-> ⚠️ **Historical planning document — superseded.** This is the original project
+> ⚠️ **Historical planning document - superseded.** This is the original project
 > specification (v1.0, April 2026), written before implementation began. Several
 > details below no longer match the shipped system: function names
 > (`getBountiesByCategory` → now `getOpenBounties`; the separate `fundBounty`
 > step was folded into `takeBounty`), the `BountyMeta` struct (now includes full
 > dispute/rejection-challenge and V4 worker-bond fields), the roadmap (now V4,
 > live on testnet), and the Circle Wallets note in §4.4 (agent-side
-> Developer-Controlled Wallets since shipped and verified live — see
+> Developer-Controlled Wallets since shipped and verified live - see
 > `pitch_deck.md` for the current, honest status). For the current, accurate
 > architecture and status, see [`ARCHITECTURE.md`](ARCHITECTURE.md),
 > [`README.md`](README.md), and [`contracts/DEPLOYMENTS.md`](contracts/DEPLOYMENTS.md).
@@ -13,18 +13,18 @@
 
 ArcBounty
 Decentralized Bounty Board on Arc Network
-Document version	1.0 — April 2026
+Document version	1.0 - April 2026
 Network	Arc Testnet → Arc Mainnet
 Standards	ERC-8183 (AgenticCommerce) + ERC-8004 (Agent Identity)
 Stack	Solidity 0.8.30 / Foundry / Next.js 14 / wagmi / viem
 Audience	AI agents + developers + freelancers
 Grant type	Arc Ecosystem Grant
 
-"The first native labor market for AI agents on Arc — using ERC-8183 + ERC-8004 as the foundation, not a wrapper"
+"The first native labor market for AI agents on Arc - using ERC-8183 + ERC-8004 as the foundation, not a wrapper"
 
 1. Project overview
 1.1 Concept
-ArcBounty is a decentralized task board with USDC rewards, built on top of Arc's native ERC-8183 (AgenticCommerce) and ERC-8004 (Agent Identity) standards. Any user or protocol creates a task with a USDC deposit. A worker — human or AI agent — takes the task, does the work, and submits the result. The poster approves, and the money moves automatically. ERC-8004 gives workers verifiable reputation based on completed jobs. ArcBounty is the first bounty board where a human and an AI agent compete for the same task on equal terms (one contract, one reputation).
+ArcBounty is a decentralized task board with USDC rewards, built on top of Arc's native ERC-8183 (AgenticCommerce) and ERC-8004 (Agent Identity) standards. Any user or protocol creates a task with a USDC deposit. A worker - human or AI agent - takes the task, does the work, and submits the result. The poster approves, and the money moves automatically. ERC-8004 gives workers verifiable reputation based on completed jobs. ArcBounty is the first bounty board where a human and an AI agent compete for the same task on equal terms (one contract, one reputation).
 
 Key difference from an ordinary bounty board: ArcBounty does not write its own escrow logic.
 The entire task lifecycle (create → fund → submit → complete) is handled by
@@ -34,10 +34,10 @@ ArcBounty = UI + agent layer + reputation on top of Arc's ready-made infrastruct
 1.2 Why Arc
 Arc feature	What it gives ArcBounty
 USDC as native gas	The worker holds a single token: gets paid in it, pays gas in it. Micro-bounties from $1 are realistic
-~$0.01 per transaction	Economically sensible to post $5–20 bounties — on Ethereum, gas would eat the whole thing
-Deterministic finality <1 sec	The worker sees payment confirmation instantly — no "pending" limbo
-ERC-8183 native standard	No need to write escrow logic — it's already on-chain and audited by the Arc team
-ERC-8004 native standard	On-chain agent identity and reputation — no custom contracts needed
+~$0.01 per transaction	Economically sensible to post $5-20 bounties - on Ethereum, gas would eat the whole thing
+Deterministic finality <1 sec	The worker sees payment confirmation instantly - no "pending" limbo
+ERC-8183 native standard	No need to write escrow logic - it's already on-chain and audited by the Arc team
+ERC-8004 native standard	On-chain agent identity and reputation - no custom contracts needed
 
 1.3 Target users
 Role	Description	Example
@@ -48,7 +48,7 @@ Protocol/contract	Creates tasks programmatically, evaluates automatically	Arc ec
 
 2. System architecture
 2.1 Components
-ArcBounty has three layers: Arc-native contracts (already deployed by the Arc team), a thin adapter smart contract, BountyAdapter, and a Next.js frontend. No backend — everything is on-chain or client-side.
+ArcBounty has three layers: Arc-native contracts (already deployed by the Arc team), a thin adapter smart contract, BountyAdapter, and a Next.js frontend. No backend - everything is on-chain or client-side.
 
 Layer	Component	Deployed by	Address / Repo
 Arc Infrastructure	AgenticCommerce (ERC-8183)	Arc Team	0x0747EEf070...4583
@@ -90,9 +90,9 @@ contract BountyAdapter {
 2.3 Bounty lifecycle
 Status	Who can transition it	Description
 OPEN	Anyone / agent	Bounty created, waiting for a worker
-ASSIGNED	—	Worker took the task (setBudget called)
-FUNDED	—	Poster deposited USDC into the ERC-8183 escrow
-SUBMITTED	—	Worker submitted the result (IPFS hash)
+ASSIGNED	-	Worker took the task (setBudget called)
+FUNDED	-	Poster deposited USDC into the ERC-8183 escrow
+SUBMITTED	-	Worker submitted the result (IPFS hash)
 COMPLETED	Poster / evaluator	Result approved, USDC sent to the worker
 EXPIRED	Automatic	Deadline passed, USDC refunded to the poster
 REJECTED	Poster / evaluator	Result rejected, re-submit possible (v2)
@@ -101,17 +101,17 @@ REJECTED	Poster / evaluator	Result rejected, re-submit possible (v2)
 3.1 Full function interface
 Function	Caller	ERC-8183 mapping	Description
 createBounty(...)	Anyone	createJob() → setBudget()	Create a bounty + record metadata to IPFS
-takeBounty(jobId)	Worker / agent	—	Claim yourself as the worker (off-chain reservation)
+takeBounty(jobId)	Worker / agent	-	Claim yourself as the worker (off-chain reservation)
 fundBounty(jobId)	Poster	fund()	Deposit USDC into the ERC-8183 escrow
 submitWork(jobId, ipfsHash)	Worker / agent	submit(keccak256(hash))	Submit the result; the hash is stored on IPFS
 approveBounty(jobId)	Poster / evaluator	complete()	Approve → USDC goes to the worker + reputation
-rejectBounty(jobId, reason)	Poster	—	Reject (MVP: refund to poster; v2: re-submit)
-cancelBounty(jobId)	Poster (only while OPEN)	—	Cancel before a worker is assigned, refund USDC
+rejectBounty(jobId, reason)	Poster	-	Reject (MVP: refund to poster; v2: re-submit)
+cancelBounty(jobId)	Poster (only while OPEN)	-	Cancel before a worker is assigned, refund USDC
 getAgentReputation(agentId)	View	ReputationRegistry	Agent's ERC-8004 score and history
-getBountiesByCategory(cat)	View	—	Filter bounties by category
-getMyBounties(addr)	View	—	All bounties for a user/agent
+getBountiesByCategory(cat)	View	-	Filter bounties by category
+getMyBounties(addr)	View	-	All bounties for a user/agent
 
-3.2 createBounty — detailed signature
+3.2 createBounty - detailed signature
 
 function createBounty(
     address  provider,      // worker address (address(0) if open)
@@ -186,7 +186,7 @@ Step	Agent action	On-chain call	Note
 2	Get the agentId from the Transfer event	getLogs(IdentityRegistry, Transfer)	Store the agentId locally
 3	Scan open bounties	BountyAdapter.getBountiesByCategory()	Filter: agentOnly=true or any
 4	Take a bounty	BountyAdapter.takeBounty(jobId)	Atomically reserves the task
-5	Do the task off-chain	—	Upload the result to IPFS
+5	Do the task off-chain	-	Upload the result to IPFS
 6	Submit the result	BountyAdapter.submitWork(jobId, cid)	keccak256(cid) → ERC-8183.submit()
 7	Get paid USDC	Automatic on complete()	Poster calls approveBounty()
 8	Get reputation	ReputationRegistry.giveFeedback()	Called automatically by BountyAdapter
@@ -270,7 +270,7 @@ export const config = createConfig({
   transports: { [arcTestnet.id]: http('https://rpc.testnet.arc.network') },
 });
 
-// lib/contracts.ts — Arc-native contract addresses
+// lib/contracts.ts - Arc-native contract addresses
 export const CONTRACTS = {
   AGENTIC_COMMERCE:   '0x0747EEf0706327138c69792bF28Cd525089e4583',
   IDENTITY_REGISTRY:  '0x8004A818BFB912233c491871b3d84c89A494BD9e',
@@ -359,7 +359,7 @@ ARC_TESTNET_RPC_URL="https://rpc.testnet.arc.network"
 PRIVATE_KEY="0x..."                   # deployer wallet
 FEE_RECIPIENT="0x..."                  # address for the protocol fee (1%)
 
-# Already deployed by the Arc team — do not change
+# Already deployed by the Arc team - do not change
 AGENTIC_COMMERCE="0x0747EEf0706327138c69792bF28Cd525089e4583"
 IDENTITY_REGISTRY="0x8004A818BFB912233c491871b3d84c89A494BD9e"
 REPUTATION_REGISTRY="0x8004B663056A597Dffe9eCcC1965A193B7388713"
@@ -414,7 +414,7 @@ Week	Tasks	Deliverable
 5	arcbounty-agent-sdk TypeScript. README + documentation. Demo agent script.	SDK published on npm, demo agent completes a real bounty
 6 (bonus)	Notifications (webhook or polling). Category pages. UX improvements.	Production-ready version for mainnet
 
-Tech stack — summary
+Tech stack - summary
 Category	Technology	Version
 Smart contracts	Solidity + Foundry	^0.8.30
 Frontend	Next.js App Router + TypeScript	14.x
@@ -422,7 +422,7 @@ Web3 client	wagmi + viem	v2 / v2
 Styling	Tailwind CSS	3.x
 IPFS	Pinata SDK	latest
 Agent SDK	TypeScript + viem	ESM package
-Frontend deployment	Vercel	—
+Frontend deployment	Vercel	-
 Testing	forge test + fork tests	>90% coverage
 
 10. The case for the Arc Grant
@@ -430,10 +430,10 @@ Testing	forge test + fork tests	>90% coverage
 Argument	Detail
 Direct fit with the Arc roadmap	Arc explicitly names agentic commerce and AI-mediated marketplaces as target use cases. ArcBounty is exactly that.
 Uses BOTH agent standards	ERC-8183 for job lifecycle + ERC-8004 for identity/reputation. No other project uses both together.
-Doesn't duplicate Arc's sample apps	Arc Escrow (AI-powered), Arc Commerce, Arc Fintech — none of them is a bounty board.
+Doesn't duplicate Arc's sample apps	Arc Escrow (AI-powered), Arc Commerce, Arc Fintech - none of them is a bounty board.
 Real infrastructure for the ecosystem	Any Arc project can create bounties programmatically. ArcBounty is a public good for the whole ecosystem.
 Demonstrates Arc's core value proposition	$0.01 gas + native USDC = micro-bounties from $1 are realistic. Impossible on Ethereum.
-Open source + documentation	All code on GitHub, arcbounty-agent-sdk on npm — ecosystem tooling.
+Open source + documentation	All code on GitHub, arcbounty-agent-sdk on npm - ecosystem tooling.
 Realistic scope	One developer, 5-6 weeks, one smart contract. No overpromising.
 
 10.2 Competitive positioning
@@ -478,10 +478,10 @@ BountyAdapter is a thin facade that holds no funds, but it interacts with truste
 - **Access control**:
   - `approveBounty` and `rejectBounty` can only be called by the evaluator (by default, the poster from ERC-8183) or an assigned address.
   - `takeBounty` on an agentOnly bounty checks via IdentityRegistry that msg.sender owns the agentId.
-- **Reject / dispute flow (MVP)**: On `rejectBounty`, USDC is refunded to the poster via a `refund` call in ERC-8183. v2 plans an optional dispute period (24–48 hours) with the option to escalate to the ValidationRegistry (ERC-8004).
+- **Reject / dispute flow (MVP)**: On `rejectBounty`, USDC is refunded to the poster via a `refund` call in ERC-8183. v2 plans an optional dispute period (24-48 hours) with the option to escalate to the ValidationRegistry (ERC-8004).
 - **Expiry**: Automatic USDC refund on deadline expiry is implemented via an off-chain script (cron/job) or a subgraph trigger that calls `expire` in ERC-8183.
 - **Upgradability**: BountyAdapter is not upgradable (minimal risk). If ERC-8183/ERC-8004 change, we deploy a new Adapter.
-- **Audit**: Before mainnet — a full audit (Slither + Aderyn + manual review). For testnet, fork tests against the real Arc contracts are sufficient.
+- **Audit**: Before mainnet - a full audit (Slither + Aderyn + manual review). For testnet, fork tests against the real Arc contracts are sufficient.
 - **Gas limits**: Every function is tested to stay under 300k gas (so micro-bounties remain economically viable).
 
 Additional test coverage: double-taking a task, calling from a non-owner of the agent, insufficient allowance, expired deadline, reject after submit.
@@ -502,7 +502,7 @@ An optional `useCircleWallet: true` parameter is added to the SDK.
 
 - **Wallet support**: wagmi connectors include MetaMask, WalletConnect, and Circle Wallets.
 - **USDC UX**: All amounts shown in human-readable form (6 decimals). Automatic approve + fund in a single flow with progress indicators and toast notifications.
-- **Real-time updates**: Poll every 5–10 seconds for bounty status, plus use events (BountyCreated, WorkSubmitted, etc.) via viem's watchContractEvent.
+- **Real-time updates**: Poll every 5-10 seconds for bounty status, plus use events (BountyCreated, WorkSubmitted, etc.) via viem's watchContractEvent.
 - **Agent-friendly**: The /bounty/[jobId] page shows an "Agent-only" badge plus a direct "Take as Agent" button with SDK guidance.
 - **Countdown + auto-expiry**: A deadline timer that automatically updates status to EXPIRED.
 - **IPFS**: Upload the description and result via Pinata (with a fallback to nft.storage). Render Markdown from the CID with caching.
@@ -515,16 +515,16 @@ An optional `useCircleWallet: true` parameter is added to the SDK.
 |------|-------------|---------|------------|
 | ERC-8183/ERC-8004 address or interface changes | Medium | High | Immutable constants + a disclaimer in the code and docs. Fast Adapter redeploy. |
 | Low AI-agent activity at launch | High | Medium | Launch with human bounties + a public SDK + demo agents (translation, code review). |
-| Arc mainnet delay | Medium | Medium | Run fully on testnet for the first 2–3 months. |
+| Arc mainnet delay | Medium | Medium | Run fully on testnet for the first 2-3 months. |
 | IPFS issues (content availability) | Low | Medium | Pin via Pinata + multiple gateways. |
-| Gas/fee spikes (even on Arc) | Low | Low | Monitoring + a minimum reward floor ($1–2). |
+| Gas/fee spikes (even on Arc) | Low | Low | Monitoring + a minimum reward floor ($1-2). |
 | Security (a bug in BountyAdapter) | Low | High | Full test suite + fork tests + a planned audit. |
 
 All critical dependencies are on official Arc infrastructure only (audited by the Arc team).
 
 ### 11. Project success metrics
 
-After launching on testnet (target: 6–8 weeks):
+After launching on testnet (target: 6-8 weeks):
 
 **Short-term (first 30 days):**
 - ≥ 30 bounties created
@@ -559,7 +559,7 @@ These sections make the spec more mature, more secure, and more persuasive for t
 
 ### 12.2 Extending the dispute mechanics
 The ERC-8183 (AgenticCommerce) standard hard-codes three roles: Client, Provider, and Evaluator. If the Evaluator is the client themselves, they can simply reject a perfect agent's work and get their money back.
-The ERC-8004 standard has three layers: Identity, Reputation, and Validation. Checking reputation alone isn't enough — you also need to confirm the agent's NFT identifier actually exists.
+The ERC-8004 standard has three layers: Identity, Reputation, and Validation. Checking reputation alone isn't enough - you also need to confirm the agent's NFT identifier actually exists.
 
 **MVP solution:**
 BountyAdapter acts as the sole `Evaluator` for the ERC-8183 contract.
