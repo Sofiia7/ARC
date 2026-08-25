@@ -33,7 +33,7 @@ export function consume(key: string, opts: RateLimitOptions, cost = 1): RateLimi
   let b = BUCKETS.get(key);
   if (!b) {
     if (BUCKETS.size >= MAX_BUCKETS) {
-      // Drop the oldest 10% — coarse LRU; we don't care about precision.
+      // Drop the oldest 10% - coarse LRU; we don't care about precision.
       let i = 0;
       for (const k of BUCKETS.keys()) {
         BUCKETS.delete(k);
@@ -65,7 +65,7 @@ export function clientKey(req: Request): string {
 
 // ─── Distributed backend (Upstash Redis REST) ────────────────────────────────
 // Cross-instance limiting for multi-region/serverless. Uses a fixed-window
-// counter via the Upstash REST API — NO extra npm dependency (plain fetch).
+// counter via the Upstash REST API - NO extra npm dependency (plain fetch).
 // Activates only when both env vars are present; otherwise the in-memory bucket
 // above is used. On any Redis error we fail OPEN to the in-memory limiter so a
 // Redis outage never takes the API down.
@@ -105,7 +105,7 @@ async function upstashFixedWindow(key: string, max: number, windowSec: number, c
  * Rate-limit a key, preferring the distributed Upstash backend when configured
  * and falling back to the in-memory token bucket otherwise (or on Redis error).
  * The `opts` are reused: window length is derived as capacity / refillPerSecond.
- * @param cost Tokens to consume for this call (default 1) — see `consume()`.
+ * @param cost Tokens to consume for this call (default 1) - see `consume()`.
  */
 export async function consumeAsync(key: string, opts: RateLimitOptions, cost = 1): Promise<RateLimitResult> {
   if (upstashConfigured()) {
@@ -113,7 +113,7 @@ export async function consumeAsync(key: string, opts: RateLimitOptions, cost = 1
       const windowSec = Math.max(1, Math.round(opts.capacity / opts.refillPerSecond));
       return await upstashFixedWindow(key, opts.capacity, windowSec, cost);
     } catch {
-      // Redis unreachable — fail open to in-memory so the API stays up.
+      // Redis unreachable - fail open to in-memory so the API stays up.
       return consume(key, opts, cost);
     }
   }

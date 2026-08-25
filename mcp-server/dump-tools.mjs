@@ -7,7 +7,7 @@ const child = spawn(process.execPath, ["dist/index.js"], {
   env: {
     ...process.env,
     BOUNTY_ADAPTER_ADDRESS: "0x538CD48789667168bfb36f838Af8476237F9409F",
-    // burner key straight out of src/index.ts — only forces the write tools to
+    // burner key straight out of src/index.ts - only forces the write tools to
     // register so tools/list is complete; never used to sign anything
     AGENT_PRIVATE_KEY: "0x0000000000000000000000000000000000000000000000000000000000000001",
   },

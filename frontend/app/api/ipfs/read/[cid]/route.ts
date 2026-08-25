@@ -8,14 +8,14 @@ export const runtime = "nodejs";
 //
 // Every bounty description/result was previously fetched straight from public
 // gateways, from the browser, on every single page view by every single
-// visitor — several seconds of gateway latency paid over and over for content
+// visitor - several seconds of gateway latency paid over and over for content
 // that never changes (a CID is a content hash; the same CID always resolves
 // to the same bytes). Routing reads through this endpoint means only the
-// *first* request for a given CID pays gateway latency — Next's fetch data
+// *first* request for a given CID pays gateway latency - Next's fetch data
 // cache (see `next.revalidate` below) serves everyone after that straight
 // from Vercel's edge cache, effectively instantly.
 
-// Generous — a single bounty list page fires this once per visible card, and
+// Generous - a single bounty list page fires this once per visible card, and
 // browsers dedupe identical GETs anyway. Just bounds "someone scripts a scrape
 // of arbitrary CIDs through our server" abuse, not normal browsing.
 const IP_RATE = { capacity: 120, refillPerSecond: 120 / 60 };

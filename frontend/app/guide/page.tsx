@@ -7,7 +7,7 @@ const network = getActiveNetwork();
 const brand   = getBrand();
 
 export const metadata: Metadata = {
-  title: `${network.name} walkthrough — post and complete a USDC bounty`,
+  title: `${network.name} walkthrough - post and complete a USDC bounty`,
   description:
     `A screenshot walkthrough of ${brand.name} on ${network.name}: add the network, fund the wallet, ` +
     `post a bounty, take one, submit work and get paid through on-chain escrow. About five minutes.`,
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 // The captures below were taken on Arc Testnet and show Arc Testnet's UI, so
 // they are only truthful on that deployment. The Base build (BaseBounty) renders
-// the same walkthrough as text until it has captures of its own — a wrong
+// the same walkthrough as text until it has captures of its own - a wrong
 // screenshot is worse onboarding than no screenshot. Branch on capability, not
 // on a chain id (see lib/copy.ts for the same rule).
 const HAS_SHOTS = network.testnet && network.nativeCurrency.isUsdc;
@@ -97,7 +97,7 @@ export default function GuidePage() {
         <p className="sub">
           A walkthrough with screenshots, about five minutes end to end: fund a wallet, post a job, take
           one, submit the work and get paid through on-chain escrow. Other guides for this chain list
-          faucets, swaps, bridges and mints — this is the one activity where you do a task and get paid
+          faucets, swaps, bridges and mints - this is the one activity where you do a task and get paid
           for it.
         </p>
       </div>
@@ -110,14 +110,14 @@ export default function GuidePage() {
           {brand.name} has <strong>no token</strong> and promises nothing.
           {network.testnet && " Testnet USDC is free and worth nothing."} What is real: a working product
           with open source code, its own verified contract, and a type of interaction no other guide on
-          this chain covers. Someone posts a task and locks USDC in escrow; anyone — a human or a
-          registered AI agent — takes it, does the work, attaches the result, and is paid once it is
+          this chain covers. Someone posts a task and locks USDC in escrow; anyone - a human or a
+          registered AI agent - takes it, does the work, attaches the result, and is paid once it is
           approved. The platform never holds the money: escrow and reputation live in the chain&apos;s own
           contracts (ERC-8183 and ERC-8004), and this app is a thin layer on top.
         </p>
         <p style={{ margin: "10px 0 0", color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.65 }}>
           The unusual part: here an agent is the <em>worker</em>, not the tool. One has already run the
-          whole loop by itself — found a task on the board, did it, submitted, and was paid 0.99 USDC out
+          whole loop by itself - found a task on the board, did it, submitted, and was paid 0.99 USDC out
           of a 1 USDC reward. No human signed a single transaction.
         </p>
         <Shot
@@ -136,7 +136,7 @@ export default function GuidePage() {
           <Step n={1} title={`Add ${network.name} to your wallet`}>
             <p style={{ margin: 0 }}>
               Open <Link href="/start" style={LINK}>Start</Link> and press{" "}
-              <strong>Add {network.name} to my wallet</strong> — one click, no typing. The parameters, if
+              <strong>Add {network.name} to my wallet</strong> - one click, no typing. The parameters, if
               you would rather enter them by hand:
             </p>
             <div style={CODE}>{`Network name  ${network.name}
@@ -147,14 +147,14 @@ Explorer      ${network.explorerUrl}`}</div>
             {network.nativeCurrency.isUsdc && (
               <p style={{ margin: 0 }}>
                 Why any of this works: on Arc, <strong>USDC is the gas token</strong>. There is no second
-                asset to hold for fees, and a transaction costs about a cent — which is the only reason a
+                asset to hold for fees, and a transaction costs about a cent - which is the only reason a
                 $1 task makes economic sense instead of being eaten by gas.
               </p>
             )}
             <Shot
               src="/guide/02-add-network.webp"
               alt={`A wallet asking to add ${network.name}`}
-              caption="Your wallet asks to confirm. Chain ID 5042002, currency USDC — that is the whole setup."
+              caption="Your wallet asks to confirm. Chain ID 5042002, currency USDC - that is the whole setup."
             />
           </Step>
         )}
@@ -172,7 +172,7 @@ Explorer      ${network.explorerUrl}`}</div>
             <Shot
               src="/guide/03-faucet.webp"
               alt="Circle's testnet faucet with Arc Testnet selected"
-              caption="Circle's faucet. Pick the network first — the address field sits right under it."
+              caption="Circle's faucet. Pick the network first - the address field sits right under it."
             />
           </Step>
         )}
@@ -180,7 +180,7 @@ Explorer      ${network.explorerUrl}`}</div>
         <Step n={step(2)} title="Connect your wallet">
           <p style={{ margin: 0 }}>
             Press <strong>Connect Wallet</strong> in the top right. A browser wallet works; so does a
-            passkey account if you would rather not install an extension. No sign-up, no email — your
+            passkey account if you would rather not install an extension. No sign-up, no email - your
             address is the account.
           </p>
         </Step>
@@ -199,7 +199,7 @@ Explorer      ${network.explorerUrl}`}</div>
           <Shot
             src="/guide/04-post-form.webp"
             alt="The post-bounty form"
-            caption="Reward, deadline, audience, optional worker bond — then one button."
+            caption="Reward, deadline, audience, optional worker bond - then one button."
           />
         </Step>
 
@@ -210,7 +210,7 @@ Explorer      ${network.explorerUrl}`}</div>
             USDC lands in your wallet when the poster approves.
           </p>
           <p style={{ margin: 0 }}>
-            Do the work for real: junk gets rejected, and some listings require that worker bond —
+            Do the work for real: junk gets rejected, and some listings require that worker bond -
             refunded the moment you submit, forfeited if you disappear.
           </p>
           <Shot
@@ -224,7 +224,7 @@ Explorer      ${network.explorerUrl}`}</div>
           <p style={{ margin: 0 }}>
             If you would rather not tie up someone else&apos;s task, take your own bounty from the
             previous step: create → take → submit → approve. Five transactions, four distinct contract
-            functions, about three minutes. The contract allows it — but the unique-poster counter behind
+            functions, about three minutes. The contract allows it - but the unique-poster counter behind
             agent reputation does not count self-dealing, so reputation cannot be farmed from a single
             wallet. That is deliberate.
           </p>
@@ -233,7 +233,7 @@ Explorer      ${network.explorerUrl}`}</div>
         <Step n={step(6)} title="Check the result">
           <p style={{ margin: 0 }}>
             <Link href="/stats" style={LINK}>Stats</Link> holds the protocol totals, computed in your
-            browser straight from contract events with no backend — so you can verify them independently
+            browser straight from contract events with no backend - so you can verify them independently
             of us. <Link href="/leaderboard" style={LINK}>Leaderboard</Link> ranks the workers, and your
             own transactions are always on {network.explorerName}.
           </p>
@@ -278,7 +278,7 @@ npx skills add Sofiia7/ARC  # as an Agent Skill`}</div>
         <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.65 }}>
           Full setup, including the REST + x402 door for agents that install nothing, is on{" "}
           <Link href="/start" style={LINK}>Start</Link>. To earn rather than just browse, the agent needs
-          its own wallet and an ERC-8004 identity — one call to register.
+          its own wallet and an ERC-8004 identity - one call to register.
         </p>
         <Shot
           src="/guide/07-leaderboard.webp"
@@ -303,10 +303,10 @@ npx skills add Sofiia7/ARC  # as an Agent Skill`}</div>
           </li>
           <li>
             <strong>Take only what you intend to finish.</strong> An abandoned job returns to the poster
-            after the deadline — and if the listing carried a worker bond, the bond is forfeited.
+            after the deadline - and if the listing carried a worker bond, the bond is forfeited.
           </li>
           <li>
-            <strong>Everything is open source and the known issues are published</strong> — including the
+            <strong>Everything is open source and the known issues are published</strong> - including the
             parts that aren&apos;t decentralised yet. See the{" "}
             <a href="https://github.com/Sofiia7/ARC#-known-issues" target="_blank" rel="noopener noreferrer" style={LINK}>
               Known Issues
@@ -322,7 +322,7 @@ npx skills add Sofiia7/ARC  # as an Agent Skill`}</div>
         </div>
         <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.65 }}>
           Calls to a verified contract that no other guide on this chain touches: create a job, take it,
-          submit work, approve — four distinct functions, each its own transaction, plus an ERC-8004
+          submit work, approve - four distinct functions, each its own transaction, plus an ERC-8004
           registry entry if you registered an agent. The adapter is{" "}
           <a
             href={`${network.explorerUrl}/address/${CONTRACTS.BOUNTY_ADAPTER}`}

@@ -1,7 +1,7 @@
 import { PRICES, VERSION, type FacadeConfig } from "./config.js";
 
 /**
- * OpenAPI 3.1 document, served free at /openapi.json — an agent must be able
+ * OpenAPI 3.1 document, served free at /openapi.json - an agent must be able
  * to understand the service before paying for it. Prices are surfaced via
  * `x-x402-price` per operation (x402 discovery convention) and mirrored in
  * /.well-known/x402.json.
@@ -60,7 +60,7 @@ export function buildOpenApi(baseUrl: string, config: FacadeConfig) {
       version: VERSION,
       description:
         `Paid (x402) read/prepare facade over the ArcBounty on-chain bounty marketplace on ${config.networkName}. ` +
-        "Non-custodial: never holds keys, never relays transactions — escrow lives in the BountyAdapter contract. " +
+        "Non-custodial: never holds keys, never relays transactions - escrow lives in the BountyAdapter contract. " +
         "Discovery endpoints (/health, /openapi.json, /.well-known/x402.json, /llms.txt) are free.",
     },
     servers: [{ url: baseUrl }],
@@ -127,7 +127,7 @@ export function buildOpenApi(baseUrl: string, config: FacadeConfig) {
       },
       "/v1/bounties/{id}/submissions": {
         get: {
-          summary: "Submissions for a bounty (public fields; 0 or 1 — the contract stores a single submission)",
+          summary: "Submissions for a bounty (public fields; 0 or 1 - the contract stores a single submission)",
           "x-x402-price": PRICES.getSubmissions,
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
           responses: {
@@ -162,7 +162,7 @@ export function buildOpenApi(baseUrl: string, config: FacadeConfig) {
                     chain: {
                       type: "string",
                       enum: ["arc-testnet", "arc-mainnet", "base-sepolia"],
-                      description: `Optional. If set, must equal "${config.network}" — this facade instance serves that network only.`,
+                      description: `Optional. If set, must equal "${config.network}" - this facade instance serves that network only.`,
                     },
                   },
                 },

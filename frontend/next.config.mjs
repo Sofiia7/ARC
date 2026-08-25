@@ -3,8 +3,8 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // Active-network origins for the CSP below.
 //
-// next.config.mjs runs directly under plain Node — before Next's own
-// TypeScript pipeline exists — so it can't `import` the app's
+// next.config.mjs runs directly under plain Node - before Next's own
+// TypeScript pipeline exists - so it can't `import` the app's
 // lib/networks.ts. This mirrors just the handful of fields the CSP needs
 // (RPC + explorer origins) straight from the same NEXT_PUBLIC_* env vars.
 // Keep this in sync with lib/networks.ts if either changes.
@@ -36,7 +36,7 @@ function activeNetworkOrigins() {
   if (network === "base-sepolia") {
     const rpcUrl = readEnv("NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL") ?? "https://sepolia.base.org";
     // Basescan and the Etherscan V2 API live on different hosts, unlike Arc
-    // where the explorer serves its own API — both must be allowed.
+    // where the explorer serves its own API - both must be allowed.
     return {
       rpc: originOf(rpcUrl),
       explorer: originOf("https://sepolia.basescan.org"),
@@ -68,7 +68,7 @@ function activeNetworkOrigins() {
       throw new Error(
         `[arcbounty] next.config.mjs: NEXT_PUBLIC_ARC_NETWORK=arc-mainnet but missing ${missing.join(", ")}. ` +
         "Arc mainnet parameters are published by Circle at https://docs.arc.io/arc/references/contract-addresses " +
-        "— see lib/networks.ts.",
+        "- see lib/networks.ts.",
       );
     }
     // explorerApiUrl is same-origin as explorerUrl in practice, but derive it
@@ -88,12 +88,12 @@ const EXPLORER_ORIGINS = [...new Set([EXPLORER_ORIGIN, EXPLORER_API_ORIGIN].filt
 // Tight enough to neutralize stored-XSS via IPFS content (defence in depth on
 // top of rehype-sanitize). Loosen only with eyes open.
 //   • script-src: 'unsafe-inline' is required by Next dev + wagmi connectors.
-//     A production-hardened build should move to nonce-based CSP — see Sprint 1.
+//     A production-hardened build should move to nonce-based CSP - see Sprint 1.
 //   • connect-src: covers RPC, Pinata, IPFS gateways, WalletConnect relay.
 //   • img-src: needed for IPFS-hosted images in bounty descriptions.
 //
 // RPC_ORIGIN / EXPLORER_ORIGINS are the resolved ACTIVE network's exact
-// origins (see activeNetworkOrigins() above) — not a `*.arcscan.app`-style
+// origins (see activeNetworkOrigins() above) - not a `*.arcscan.app`-style
 // wildcard. The previous wildcard was also a bug: it doesn't cover the apex
 // `arcscan.app`, only subdomains of it.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ const CSP = [
   // at 10k blocks).
   // api.web3modal.org + fonts.reown.com: the WalletConnect modal is Reown
   // AppKit, and it loads its config, wallet list, icons and fonts from those
-  // two hosts — everything else it touches is already covered by
+  // two hosts - everything else it touches is already covered by
   // *.walletconnect.*. Without them the modal still opens but comes up with no
   // wallets to pick from, and the console fills with "Failed to fetch usage".
   [
@@ -129,7 +129,7 @@ const CSP = [
     "https://api.web3modal.org",
     // Porto (passkey smart-account connector): id.porto.sh serves the signing
     // dialog, rpc.porto.sh is its RPC. Without these the "Sign in with
-    // passkey" option — the FIRST entry in the connect modal — silently does
+    // passkey" option - the FIRST entry in the connect modal - silently does
     // nothing: the iframe is blocked and no wallet is ever produced.
     "https://id.porto.sh", "https://rpc.porto.sh",
   ].join(" "),

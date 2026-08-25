@@ -166,7 +166,7 @@ describe("bondCreateDeadlineOk (V4.1 floor + safety buffer)", () => {
   const DAY = 24n * 3600n;
   const BUFFER = 15n * 60n;
 
-  it("rejects a deadline exactly at the 24h floor — it would revert on-chain by mining time", () => {
+  it("rejects a deadline exactly at the 24h floor - it would revert on-chain by mining time", () => {
     expect(bondCreateDeadlineOk(now + DAY, now)).toBe(false);
   });
 
@@ -203,7 +203,7 @@ describe("workerBondFor (V4)", () => {
 
   it("returns the floor exactly at the crossover point (~$3.33)", () => {
     // reward where 15% == $0.50: pct is not > min, so the floor branch wins
-    // (same value either way — this pins the boundary behavior).
+    // (same value either way - this pins the boundary behavior).
     const reward = (500_000n * 10_000n) / 1500n; // 3_333_333
     expect(workerBondFor(reward)).toBe(500_000n);
   });

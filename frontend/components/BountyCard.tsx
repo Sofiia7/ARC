@@ -56,7 +56,7 @@ const KNOWN_CATS = new Set(["dev", "design", "content", "data", "other"]);
 
 // Module-level cache so scrolling a card out of view and back doesn't
 // re-fetch, and every list (Browse, My Tasks, category pages) shares hits.
-// `null` marks a fetch that failed — falls back to showing the raw hash.
+// `null` marks a fetch that failed - falls back to showing the raw hash.
 const titleCache = new Map<string, string | null>();
 
 function extractTitle(markdown: string): string {

@@ -8,7 +8,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 /**
  * Subscribe to BountyAdapter events and invoke `onEvent` on any match.
  *
- * If `jobId` is provided, only events whose `jobId` topic matches fire — the
+ * If `jobId` is provided, only events whose `jobId` topic matches fire - the
  * detail page uses this to live-refresh a single bounty. The home page omits
  * it and reacts to anything.
  *
@@ -34,13 +34,13 @@ export function useBountyEvents(onEvent: () => void, jobId?: bigint): void {
     // ONE subscription for all 13 events, not one per event.
     //
     // Every watcher is an independent poller issuing its own eth_getLogs, so
-    // the per-event version cost 13 requests every 4s — measured at ~17 rps
+    // the per-event version cost 13 requests every 4s - measured at ~17 rps
     // from a single tab against Base's public RPC, which then throttles
     // everything else the page does. The symptom is not an error: the board's
     // own reads silently never settle and it renders "No open bounties found"
     // while the contract has open bounties. Omitting `eventName` watches every
     // event in the ABI in one poll, and since all 13 handlers did the same
-    // thing — call `onEvent` — nothing is lost.
+    // thing - call `onEvent` - nothing is lost.
     const unwatch = publicClient.watchContractEvent({
       address: adapter,
       abi: BOUNTY_ADAPTER_ABI,

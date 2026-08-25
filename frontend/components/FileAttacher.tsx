@@ -59,7 +59,7 @@ export function FileAttacher({ label = "Attach file/image", accept, multiple = t
       >
         {busy ? "Uploading…" : label}
       </button>
-      <span>or drag &amp; drop — pinned to IPFS, link inserted into description</span>
+      <span>or drag &amp; drop - pinned to IPFS, link inserted into description</span>
       <input
         ref={inputRef}
         type="file"

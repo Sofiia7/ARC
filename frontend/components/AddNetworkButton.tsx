@@ -36,7 +36,7 @@ export function AddNetworkButton() {
       await injected.request({ method: "wallet_addEthereumChain", params: [ADD_CHAIN_PARAMS] });
       setState("done");
     } catch {
-      // User declined, or the wallet already has it — either way there's
+      // User declined, or the wallet already has it - either way there's
       // nothing to recover from, and the manual values are right below.
       setState("idle");
     }
@@ -49,7 +49,7 @@ export function AddNetworkButton() {
       </button>
       {state === "unavailable" && (
         <span style={{ fontSize: 13, color: "var(--ink-mute)" }}>
-          No browser wallet detected — add it manually with the values below.
+          No browser wallet detected - add it manually with the values below.
         </span>
       )}
     </div>

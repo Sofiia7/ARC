@@ -2,7 +2,7 @@
   "name": "arcbounty-facade-api",
   "version": "0.1.0",
   "private": true,
-  "description": "Paid x402 REST facade over ArcBounty — the discovery/access layer agents pay for in USDC (Circle Agent Marketplace listing). Escrow/dispute logic is untouched: this service is non-custodial and never relays transactions.",
+  "description": "Paid x402 REST facade over ArcBounty - the discovery/access layer agents pay for in USDC (Circle Agent Marketplace listing). Escrow/dispute logic is untouched: this service is non-custodial and never relays transactions.",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {

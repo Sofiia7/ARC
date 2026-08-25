@@ -181,7 +181,7 @@ export function DisputePanel({
   // V3.3 liveness fallback: the respondent DID reply (so claimDefaultRuling no
   // longer applies), but the arbitrator never called resolveDispute within
   // ARBITRATOR_TIMEOUT (30d) of disputeRaisedAt. Anyone may trigger a neutral
-  // 50/50 split — this is the one path that used to be reachable only via the
+  // 50/50 split - this is the one path that used to be reachable only via the
   // SDK or a raw contract call, never from this UI.
   const canClaimArbitratorTimeout =
     !meta.resolved && hasResponse && arbitratorTimeoutSec !== undefined
@@ -206,7 +206,7 @@ export function DisputePanel({
     <div className="panel danger">
       <div className="panel-head">
         <span className="title">
-          {meta.resolved ? "Dispute — Resolved" : "Dispute — In Progress"}
+          {meta.resolved ? "Dispute - Resolved" : "Dispute - In Progress"}
         </span>
         {!meta.resolved && (
           <span className="meta">
@@ -243,7 +243,7 @@ export function DisputePanel({
           ) : canRespond ? (
             <>
               <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: "0 0 8px", lineHeight: 1.5 }}>
-                You are the {respondentLabel.toLowerCase()}. Make your case — text + files are pinned to IPFS.
+                You are the {respondentLabel.toLowerCase()}. Make your case - text + files are pinned to IPFS.
               </p>
               <textarea
                 ref={respRef}
@@ -281,7 +281,7 @@ export function DisputePanel({
         </div>
       </div>
 
-      {/* Ruling — once resolved */}
+      {/* Ruling - once resolved */}
       {meta.resolved && (
         <div className="sub-card">
           <div className="sub-card-head">
@@ -290,7 +290,7 @@ export function DisputePanel({
           </div>
           {meta.disputeRulingHash === "default:no-response" ? (
             <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: 0 }}>
-              Default ruling — {respondentLabel} did not respond within 48h, funds awarded to {initiatorLabel.toLowerCase()}.
+              Default ruling - {respondentLabel} did not respond within 48h, funds awarded to {initiatorLabel.toLowerCase()}.
             </p>
           ) : (
             <IPFSMarkdownClient cid={meta.disputeRulingHash} />
@@ -315,7 +315,7 @@ export function DisputePanel({
             className="textarea"
             value={rulingText}
             onChange={e => setRulingText(e.target.value)}
-            placeholder="Ruling notes — required. Reference both sides' arguments."
+            placeholder="Ruling notes - required. Reference both sides' arguments."
             style={{ minHeight: 120 }}
           />
           <div style={{ marginTop: 10 }}>
@@ -349,7 +349,7 @@ export function DisputePanel({
           {!rulingPayProvider && meta.agentId > 0n && (
             <div style={{ marginTop: 12 }}>
               <label className="form-label">
-                Reputation penalty for agent (0–100)
+                Reputation penalty for agent (0-100)
               </label>
               <input
                 type="number"
@@ -374,11 +374,11 @@ export function DisputePanel({
         </div>
       )}
 
-      {/* Default ruling — anyone after window closed */}
+      {/* Default ruling - anyone after window closed */}
       {canClaimDefault && (
         <div className="sub-card" style={{ borderColor: "rgba(255,179,106,0.32)" }}>
           <p style={{ color: "var(--amber)", fontSize: 13, margin: "0 0 10px", lineHeight: 1.5 }}>
-            48h passed with no response — anyone can apply the default ruling in favor of {initiatorLabel.toLowerCase()}.
+            48h passed with no response - anyone can apply the default ruling in favor of {initiatorLabel.toLowerCase()}.
           </p>
           <button type="button" onClick={handleDefaultRuling} className="btn btn-primary btn-big">
             Claim default ruling
@@ -386,12 +386,12 @@ export function DisputePanel({
         </div>
       )}
 
-      {/* Arbitrator timeout — anyone, 30d after a response with no ruling */}
+      {/* Arbitrator timeout - anyone, 30d after a response with no ruling */}
       {canClaimArbitratorTimeout && (
         <div className="sub-card" style={{ borderColor: "rgba(255,120,120,0.32)" }}>
           <p style={{ color: "var(--rose)", fontSize: 13, margin: "0 0 10px", lineHeight: 1.5 }}>
             Both sides submitted evidence, but the arbitrator never ruled within 30 days.
-            Anyone can trigger a neutral 50/50 split between poster and worker — no reputation penalty.
+            Anyone can trigger a neutral 50/50 split between poster and worker - no reputation penalty.
           </p>
           <button type="button" onClick={handleArbitratorTimeout} className="btn btn-primary btn-big">
             Claim arbitrator timeout (50/50 split)

@@ -1,5 +1,5 @@
 // =====================================================================
-// ArcBounty — sunrise WebGL background (mode 4: layered ridges, no disc)
+// ArcBounty - sunrise WebGL background (mode 4: layered ridges, no disc)
 // Expects <canvas id="bg"> in the document.
 // Optional: #dawnFill, #dawnKnob for the right-edge progress indicator.
 // =====================================================================
@@ -37,7 +37,7 @@
       vec2 p = (gl_FragCoord.xy - 0.5*u_res.xy)/u_res.y;
       vec2 sun = vec2((u_mouse.x-0.5)*0.18, mix(-0.42, 0.55, u_scroll));
 
-      // sky — cool blues top → mid, warm only at horizon (no purples/pinks)
+      // sky - cool blues top → mid, warm only at horizon (no purples/pinks)
       float y = clamp(p.y*1.2+0.5, 0.0, 1.0);
       vec3 top   = mix(vec3(0.012,0.022,0.065), vec3(0.05,0.16,0.38), u_scroll);
       vec3 mid   = mix(vec3(0.030,0.065,0.165), vec3(0.30,0.55,0.82), u_scroll);
@@ -45,13 +45,13 @@
       vec3 col = mix(horiz, mid, smoothstep(0.05, 0.40, y));
       col = mix(col, top, smoothstep(0.40, 0.95, y));
 
-      // warm sunrise glow only — no disc (hidden behind UI anyway)
+      // warm sunrise glow only - no disc (hidden behind UI anyway)
       vec2 d = p - sun;
       float r = length(d);
       vec3 warm = mix(vec3(0.90,0.42,0.12), vec3(1.00,0.82,0.48), u_scroll);
       col += warm * (exp(-r*3.0)*0.55 + exp(-r*1.1)*0.22);
 
-      // mountains — 4 layers
+      // mountains - 4 layers
       float mouseShift = (u_mouse.x - 0.5) * 0.15;
       float yFar  = -0.05 + 0.16*ridge(p.x + mouseShift*0.05, 13.0, 1.4);
       float yMid  = -0.18 + 0.18*ridge(p.x + mouseShift*0.10, 27.0, 2.0);

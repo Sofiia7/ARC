@@ -9,14 +9,14 @@ import { getLogsChunked } from "@/lib/chainLogs";
 import { useBountyEvents } from "@/hooks/useBountyEvents";
 
 export type ActivityItem = {
-  id: string;          // `${jobId}:${eventName}:${blockNumber}` — stable across scans
+  id: string;          // `${jobId}:${eventName}:${blockNumber}` - stable across scans
   jobId: string;
   eventName: string;
   blockNumber: number;
   read: boolean;
 };
 
-// Excludes BountyCreated (that's just "you posted it") — everything else is
+// Excludes BountyCreated (that's just "you posted it") - everything else is
 // something happening to a bounty you posted or took, which is exactly what
 // a poster/provider can't currently see without opening every row.
 const EVENT_NAMES = [
@@ -61,7 +61,7 @@ function writeStored(chainId: number, address: string, items: ActivityItem[]) {
   try {
     window.localStorage.setItem(storageKey(chainId, address), JSON.stringify(items.slice(0, 50)));
   } catch {
-    // ignore — activity history is a convenience, not source of truth
+    // ignore - activity history is a convenience, not source of truth
   }
 }
 
@@ -69,7 +69,7 @@ function writeStored(chainId: number, address: string, items: ActivityItem[]) {
  * Full-history activity feed for bounties the connected wallet posted or
  * took. Backed by Blockscout (via getLogsChunked), not a live subscription,
  * so it also catches events that happened while the wallet was disconnected
- * — a plain watchContractEvent only sees things from the moment it mounts.
+ * - a plain watchContractEvent only sees things from the moment it mounts.
  *
  * "Read" state persists per-address in localStorage; a fresh live event
  * (caught via useBountyEvents while the tab is open) also fires a toast.
@@ -140,7 +140,7 @@ export function useMyActivity() {
 
     const merged = results.flat().sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 50);
 
-    // Only toast for items that are new since the LAST scan this session —
+    // Only toast for items that are new since the LAST scan this session -
     // never on the very first (cold-load backfill would spam every past event).
     if (announceNew && itemsRef.current.length > 0) {
       const priorIds = new Set(itemsRef.current.map(i => i.id));

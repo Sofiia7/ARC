@@ -8,12 +8,12 @@ import { getActiveNetwork, type NetworkConfig } from "./networks";
 // in components, for two reasons:
 //
 //  1. The Arc copy leans hard on "USDC is the gas token, you need no second
-//     asset" — Arc's actual selling point. On Base that claim is false: USDC
+//     asset" - Arc's actual selling point. On Base that claim is false: USDC
 //     is an ordinary ERC-20 and gas is ETH. Copied over unchanged it silently
 //     breaks onboarding, because a wallet funded only with USDC cannot send
 //     the first transaction. Branching in one file makes that impossible to
 //     half-apply.
-//  2. The Base deployment ships under its own brand (BaseBounty) — see
+//  2. The Base deployment ships under its own brand (BaseBounty) - see
 //     `Brand` in lib/networks.ts.
 //
 // Branch on capability (`nativeCurrency.isUsdc`), never on the network slug:
@@ -36,9 +36,9 @@ export type NetworkCopy = {
   funding: { text: string; faucet?: Faucet };
   /** Hero pill describing how gas works on this chain. */
   gasPill: { icon: string; label: string };
-  /** /start — the "what do I fund this wallet with" explainer. */
+  /** /start - the "what do I fund this wallet with" explainer. */
   gasExplainer: { title: string; body: string };
-  /** /start — the "this is not a token launch" bullet, mainnet wording. */
+  /** /start - the "this is not a token launch" bullet, mainnet wording. */
   noTokenNote: { title: string; body: string };
   /** One-liner for metadata/OG descriptions. */
   tagline: string;
@@ -61,13 +61,13 @@ function arcCopy(network: NetworkConfig): NetworkCopy {
     gasExplainer: {
       title: "There is no separate token.",
       body:
-        "USDC is the reward and the gas token — what you earn or spend is the only asset you " +
+        "USDC is the reward and the gas token - what you earn or spend is the only asset you " +
         "need in the wallet. No approving a second token just to pay fees.",
     },
     noTokenNote: {
       title: "There is no separate token.",
       body:
-        "USDC is the reward and the gas token — what you earn or post here is real USDC, not a " +
+        "USDC is the reward and the gas token - what you earn or post here is real USDC, not a " +
         "points system or an airdrop.",
     },
     tagline: "Escrowed micro-bounties for AI agents and humans, native to Arc.",
@@ -78,7 +78,7 @@ function baseCopy(network: NetworkConfig): NetworkCopy {
   const gas = network.nativeCurrency.symbol;
   return {
     heroLede:
-      "Built for the x402 agent economy on Base. ERC-8183 escrow + ERC-8004 on-chain reputation — " +
+      "Built for the x402 agent economy on Base. ERC-8183 escrow + ERC-8004 on-chain reputation - " +
       "an agent pays for discovery over x402 and earns the bounty it finds, without leaving the chain.",
     funding: network.testnet
       ? {
@@ -92,22 +92,22 @@ function baseCopy(network: NetworkConfig): NetworkCopy {
       }
       : {
         text:
-          `you'll need USDC for the reward and a little ${gas} for gas — on Base those are two ` +
+          `you'll need USDC for the reward and a little ${gas} for gas - on Base those are two ` +
           `separate assets, unlike a USDC-gas chain.`,
       },
-    // Gas is not the story on Base — x402 is. Arc's "⛽ native USDC gas" pill
+    // Gas is not the story on Base - x402 is. Arc's "⛽ native USDC gas" pill
     // would be actively wrong here, so the slot sells the real advantage.
     gasPill: { icon: "🤖", label: "x402-native discovery" },
     gasExplainer: {
       title: "Two assets, not one.",
       body:
-        `USDC is the reward; gas is paid in ${gas}. Fund the wallet with both — a wallet holding ` +
+        `USDC is the reward; gas is paid in ${gas}. Fund the wallet with both - a wallet holding ` +
         `only USDC cannot send its first transaction, so this is the one step worth checking twice.`,
     },
     noTokenNote: {
       title: "There is no token of ours.",
       body:
-        `Rewards are real USDC and gas is real ${gas} — neither is a points system, an airdrop, ` +
+        `Rewards are real USDC and gas is real ${gas} - neither is a points system, an airdrop, ` +
         `nor anything we mint. We take a 1% protocol fee on payout and nothing else.`,
     },
     tagline: "Escrowed bounties for AI agents, x402-native on Base.",

@@ -10,7 +10,7 @@ import type { FacadeConfig } from "./config.js";
 import { formatUsdc } from "./serialize.js";
 
 /**
- * POST /v1/bounties/prepare — the facade is non-custodial and never relays:
+ * POST /v1/bounties/prepare - the facade is non-custodial and never relays:
  * it validates the request and returns UNSIGNED transactions the agent signs
  * with its own wallet. The x402 fee pays for validation/preparation, not for
  * the escrow itself.
@@ -22,7 +22,7 @@ export const prepareBountySchema = z.object({
   rewardUsdc: z.number().positive().max(1_000_000),
   /** Unix seconds, absolute. */
   deadline: z.number().int().positive(),
-  /** Pre-pinned IPFS CID — the facade does not pin content for callers. */
+  /** Pre-pinned IPFS CID - the facade does not pin content for callers. */
   descriptionCid: z.string().regex(cidPattern, "expected an IPFS CID (Qm… / bafy…, optionally ipfs://-prefixed)"),
   category: z.enum(["dev", "design", "content", "data", "other"]),
   tags: z.array(z.string().min(1).max(32)).max(10).default([]),
@@ -32,7 +32,7 @@ export const prepareBountySchema = z.object({
   requireWorkerBond: z.boolean().default(false),
   /**
    * Optional network hint. A given facade instance serves exactly one
-   * network (config.network) — if the caller passes this, it must match, or
+   * network (config.network) - if the caller passes this, it must match, or
    * the request is rejected (400) rather than silently prepared for the
    * wrong chain. Omit it to just use whatever network this instance serves.
    */
@@ -49,7 +49,7 @@ export function validatePrepare(req: PrepareBountyRequest, config: FacadeConfig)
   const nowSec = Math.floor(Date.now() / 1000);
   if (req.deadline <= nowSec + 600) return "deadline must be at least 10 minutes in the future (unix seconds)";
   if (req.requireWorkerBond && !bondCreateDeadlineOk(BigInt(req.deadline), BigInt(nowSec))) {
-    return "requireWorkerBond bounties need a deadline at least 24h out (contract MIN_BOND_BOUNTY_DURATION) plus a safety margin — use 25h or more";
+    return "requireWorkerBond bounties need a deadline at least 24h out (contract MIN_BOND_BOUNTY_DURATION) plus a safety margin - use 25h or more";
   }
   if (req.provider !== undefined && !isAddress(req.provider)) return `provider is not a valid address: ${req.provider}`;
   return null;
@@ -99,13 +99,13 @@ export function buildPrepareResponse(req: PrepareBountyRequest, config: FacadeCo
         to: config.bountyAdapterAddress,
         data: createData,
         value: "0",
-        description: `Create a ${req.category} bounty paying ${formatUsdc(reward)} USDC, deadline ${new Date(req.deadline * 1000).toISOString()}${req.requireWorkerBond ? ", worker bond required" : ""}. Emits BountyCreated(jobId, …) — read your jobId from the receipt.`,
+        description: `Create a ${req.category} bounty paying ${formatUsdc(reward)} USDC, deadline ${new Date(req.deadline * 1000).toISOString()}${req.requireWorkerBond ? ", worker bond required" : ""}. Emits BountyCreated(jobId, …) - read your jobId from the receipt.`,
       },
     ],
     notes: [
-      "The facade never sees your keys and never relays — sign and broadcast these yourself.",
+      "The facade never sees your keys and never relays - sign and broadcast these yourself.",
       config.nativeCurrency.isUsdc
-        ? `On ${config.networkName} gas is paid in USDC (the native token) — no second asset needed.`
+        ? `On ${config.networkName} gas is paid in USDC (the native token) - no second asset needed.`
         : `On ${config.networkName} gas is paid in ${config.nativeCurrency.symbol}, NOT in USDC: fund this ` +
           `wallet with ${config.nativeCurrency.symbol} for gas in addition to the USDC reward, or these ` +
           `transactions cannot be broadcast.`,

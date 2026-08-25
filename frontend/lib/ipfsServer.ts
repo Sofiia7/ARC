@@ -1,4 +1,4 @@
-// Server-only IPFS gateway race — shared by the read-cache route and the pin
+// Server-only IPFS gateway race - shared by the read-cache route and the pin
 // route (which uses it to warm the cache right after pinning, so not even
 // the FIRST viewer of freshly-posted content pays gateway latency). Both
 // call sites hit the exact same `fetch(url, { next: { revalidate } })`, so
@@ -6,10 +6,10 @@
 //
 // Binary-safe on purpose: this also serves image attachments (pinned via
 // pin-file), not just markdown text. Returning bytes + the origin's
-// content-type — instead of `.text()` — means one function and one cache
+// content-type - instead of `.text()` - means one function and one cache
 // correctly serves both, and images get the same multi-gateway race +
 // forever-cache reads/results text already had (previously <img> pointed
-// straight at ipfs.io alone, from the browser, no fallback — if that one
+// straight at ipfs.io alone, from the browser, no fallback - if that one
 // gateway hadn't yet picked up the content from Pinata's DHT announcement,
 // the image just stayed broken for every viewer except the uploader).
 
@@ -20,7 +20,7 @@ const GATEWAYS = [
   "https://nftstorage.link/ipfs/",
 ];
 const GATEWAY_TIMEOUT_MS = 8_000;
-export const IPFS_CACHE_TTL_SEC = 31_536_000; // 1 year — CIDs are content-addressed, immutable
+export const IPFS_CACHE_TTL_SEC = 31_536_000; // 1 year - CIDs are content-addressed, immutable
 
 export type IpfsFetchResult = { bytes: ArrayBuffer; contentType: string };
 

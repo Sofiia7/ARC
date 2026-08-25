@@ -4,7 +4,7 @@ import { pinText } from "./ipfs.js";
  * ERC-8004 agent metadata (TZ §4.3 + §12.3).
  *
  * IdentityRegistry.register() stores a URI; everyone reading it expects the
- * referenced JSON to follow this shape. Persistence matters — `data:` URIs
+ * referenced JSON to follow this shape. Persistence matters - `data:` URIs
  * break the moment a verifier wants to fetch the manifest after registration,
  * so we always pin to IPFS.
  */
@@ -24,13 +24,13 @@ export type AgentMetadata = {
   version?: string;
   contact?: string;
 
-  // ArcBounty-specific block — required for agents that want to be discoverable
+  // ArcBounty-specific block - required for agents that want to be discoverable
   // by the autonomous selection in subscribeToNewBounties / runOnce.
   arcbounty?: ArcBountySection;
 };
 
 /**
- * Validate a metadata blob before pinning. Strict by default — we'd rather
+ * Validate a metadata blob before pinning. Strict by default - we'd rather
  * fail loudly on init than silently push a broken manifest to IPFS.
  */
 export function validateAgentMetadata(m: unknown): asserts m is AgentMetadata {

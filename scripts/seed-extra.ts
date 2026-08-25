@@ -131,7 +131,7 @@ const FULL_SEEDS: Seed[] = [
     category: "data", tags: ["directory", "agents", "arc"], rewardUsdc: 2, days: 5, agentOnly: false, humanOnly: false,
   },
   {
-    title: "Gas price histogram for Arc Testnet — last 24h",
+    title: "Gas price histogram for Arc Testnet - last 24h",
     body: "Sample block gas prices every 60s for 24h, output CSV + a simple histogram PNG.",
     category: "data", tags: ["gas", "histogram", "arc"], rewardUsdc: 1, days: 4, agentOnly: true, humanOnly: false,
   },
@@ -159,7 +159,7 @@ const FULL_SEEDS: Seed[] = [
   },
 ];
 
-// SEED_DEADLINE_DAYS overrides every entry's deadline — Arc testnet's block.timestamp
+// SEED_DEADLINE_DAYS overrides every entry's deadline - Arc testnet's block.timestamp
 // advances far faster than real time, so the short 4-8 day deadlines below can
 // already be expired within an hour of real-world demo time; use a large override
 // (e.g. 60) when seeding data meant to stay browsable for a live demo.
@@ -173,11 +173,11 @@ const SEEDS: Seed[] = FULL_SEEDS.slice(0, LIMIT).map(s => ({
 }));
 
 async function pinDescription(seed: Seed): Promise<string> {
-  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by ArcBounty seed-extra — demo bounty._\n`;
+  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by ArcBounty seed-extra - demo bounty._\n`;
   const blob = new Blob([md], { type: "text/markdown" });
   const form = new FormData();
   form.append("file", blob, `${seed.title.slice(0, 40).replace(/\W+/g, "-")}.md`);
-  // v2 pinning API — a JWT scoped for `pinFileToIPFS` authenticates via Bearer.
+  // v2 pinning API - a JWT scoped for `pinFileToIPFS` authenticates via Bearer.
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: { Authorization: `Bearer ${PINATA}` },
@@ -250,7 +250,7 @@ async function main() {
   }
 
   console.log("\nSeeded:");
-  for (const r of results) console.log(`  ${r.title} — ${r.tx}`);
+  for (const r of results) console.log(`  ${r.title} - ${r.tx}`);
 }
 
 main().catch(e => { console.error("Fatal:", e); process.exit(1); });

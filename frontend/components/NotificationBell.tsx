@@ -63,7 +63,7 @@ export function NotificationBell() {
         >
           {items.length === 0 ? (
             <div style={{ padding: 18, fontSize: 13, color: "var(--ink-mute)", textAlign: "center" }}>
-              No activity yet — this fills in when something happens on a bounty you posted or took.
+              No activity yet - this fills in when something happens on a bounty you posted or took.
             </div>
           ) : (
             items.map(item => (
@@ -78,7 +78,7 @@ export function NotificationBell() {
                 }}
               >
                 <strong style={{ color: "var(--ink)" }}>#{item.jobId}</strong>
-                {" — "}
+                {" - "}
                 {ACTIVITY_LABELS[item.eventName] ?? item.eventName}
               </Link>
             ))

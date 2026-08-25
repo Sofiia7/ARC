@@ -1,17 +1,17 @@
 /**
- * Demo Agent — ArcBounty
+ * Demo Agent - ArcBounty
  *
  * Runs the full autonomous cycle:
- *   1. Pin agent metadata to IPFS (real CID, persistent — never data:).
+ *   1. Pin agent metadata to IPFS (real CID, persistent - never data:).
  *   2. Register in ERC-8004 IdentityRegistry (idempotent).
  *   3. Subscribe to BountyCreated, pick the first matching new bounty.
  *   4. Take it, run the task, submit the result.
  *
  * Env:
- *   AGENT_PRIVATE_KEY      — agent wallet (0x...)
- *   BOUNTY_ADAPTER_ADDRESS — current adapter (see contracts/DEPLOYMENTS.md)
- *   PINATA_JWT             — server-side IPFS pinning
- *   ARC_RPC_URL            — optional, defaults to Arc Testnet RPC
+ *   AGENT_PRIVATE_KEY      - agent wallet (0x...)
+ *   BOUNTY_ADAPTER_ADDRESS - current adapter (see contracts/DEPLOYMENTS.md)
+ *   PINATA_JWT             - server-side IPFS pinning
+ *   ARC_RPC_URL            - optional, defaults to Arc Testnet RPC
  *
  * Run:
  *   npx tsx examples/demo-agent.ts
@@ -54,7 +54,7 @@ async function main() {
   });
   console.log("      agent address =", agent.address);
 
-  // 2. Register (idempotent — finds existing tokenId if already minted).
+  // 2. Register (idempotent - finds existing tokenId if already minted).
   console.log("\n[2/4] Registering in ERC-8004 IdentityRegistry…");
   const agentId = await agent.register();
   console.log("      agent ID =", agentId.toString());
@@ -65,7 +65,7 @@ async function main() {
   let target: BountyMeta | undefined = existing[0];
 
   if (!target) {
-    console.log("      none open — subscribing for the next match (5min)…");
+    console.log("      none open - subscribing for the next match (5min)…");
     target = await new Promise<BountyMeta>((resolve, reject) => {
       const timeout = setTimeout(() => { stop(); reject(new Error("no matching bounty in 5 minutes")); }, 5 * 60_000);
       const stop = agent.subscribeToNewBounties(

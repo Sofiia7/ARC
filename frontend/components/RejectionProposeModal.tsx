@@ -79,7 +79,7 @@ export function RejectionProposeModal({ jobId, onSuccess, onClose }: Props) {
       <p className="modal-help">
         Explain why the submitted work doesn&apos;t meet the bounty. Your reason is pinned to
         IPFS so the worker can see it. The worker has <strong style={{ color: "var(--ink)" }}>48 hours</strong> to challenge.
-        If they don&apos;t — anyone can finalize the rejection and your USDC is refunded.
+        If they don&apos;t - anyone can finalize the rejection and your USDC is refunded.
       </p>
       <textarea
         ref={ref}

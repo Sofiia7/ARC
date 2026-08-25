@@ -82,7 +82,7 @@ const SEEDS: Seed[] = [
 ];
 
 async function pinDescription(seed: Seed): Promise<string> {
-  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by ArcBounty seed script — demo bounty._\n`;
+  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by ArcBounty seed script - demo bounty._\n`;
   const blob = new Blob([md], { type: "text/markdown" });
   const form = new FormData();
   form.append("file", blob, `${seed.title.slice(0, 40).replace(/\W+/g, "-")}.md`);

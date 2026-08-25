@@ -184,7 +184,7 @@ export const BOUNTY_ADAPTER_ABI = [
     outputs: [],
   },
   {
-    // V3.3 — permissionless neutral 50/50 split if the arbitrator never rules
+    // V3.3 - permissionless neutral 50/50 split if the arbitrator never rules
     // after both parties have submitted evidence (claimDefaultRuling doesn't
     // apply once a response exists). See ARBITRATOR_TIMEOUT (30d).
     name: "claimArbitratorTimeout",
@@ -195,7 +195,7 @@ export const BOUNTY_ADAPTER_ABI = [
   },
   // ── Read ──
   {
-    // Public array getter — needed to scan the full bounty set (expireStale,
+    // Public array getter - needed to scan the full bounty set (expireStale,
     // keeper-style scripts). Not paginated on-chain; callers should bound
     // their own scan via totalBounties().
     name: "allJobIds",

@@ -10,7 +10,7 @@ const FACILITATOR_DEFAULTS: Record<NetworkName, string> = {
   "arc-testnet": "https://gateway-api-testnet.circle.com",
   "arc-mainnet": "https://gateway-api.circle.com",
   // Circle's testnet Gateway. NOTE: docs/INTEGRATION_NOTES.md confirms x402
-  // settlement on Base *mainnet* and Arc Testnet — Base *Sepolia* settlement
+  // settlement on Base *mainnet* and Arc Testnet - Base *Sepolia* settlement
   // is not confirmed there (the Base Sepolia ✅ in those notes is about Agent
   // Wallets, a different product). Run this instance in free mode (no
   // SELLER_ADDRESS) until settlement is verified against the facilitator.
@@ -44,7 +44,7 @@ export type FacadeConfig = {
   caip2: string;
   port: number;
   rpcUrl: string;
-  /** USDC token address for this network — from the resolved network config. */
+  /** USDC token address for this network - from the resolved network config. */
   usdcAddress: Address;
   bountyAdapterAddress: Address;
   /** Wallet that receives x402 payments. Unset → free mode (no 402s), for local dev/CI. */
@@ -83,7 +83,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacadeConfig {
   const bountyAdapterAddress = clean("BOUNTY_ADAPTER_ADDRESS");
   if (!bountyAdapterAddress || !isAddress(bountyAdapterAddress)) {
     throw new Error(
-      "BOUNTY_ADAPTER_ADDRESS missing or invalid — see contracts/DEPLOYMENTS.md for the canonical address",
+      "BOUNTY_ADAPTER_ADDRESS missing or invalid - see contracts/DEPLOYMENTS.md for the canonical address",
     );
   }
 

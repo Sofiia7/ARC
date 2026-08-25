@@ -39,9 +39,9 @@ export default function HomePage() {
   const { metas, isLoading, isError, refetch } = useAllOpenBountyMetas(category);
   useBountyEvents(() => { void refetch(); });
 
-  // Filter by audience + search over the full set, THEN paginate — so a
+  // Filter by audience + search over the full set, THEN paginate - so a
   // filtered view never shows a falsely-empty page while matches exist
-  // further down. Search matches category + tags (ТЗ §12.4) — the
+  // further down. Search matches category + tags (ТЗ §12.4) - the
   // description itself lives on IPFS and isn't fetched for the list view.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -57,7 +57,7 @@ export default function HomePage() {
   }, [metas, agentOnly, humanOnly, search]);
 
   const sorted = useMemo(() => {
-    // getOpenBounties returns allJobIds in creation order (oldest first) —
+    // getOpenBounties returns allJobIds in creation order (oldest first) -
     // reverse it so "Newest" actually shows the most recently posted bounties.
     if (sortBy === "newest") return [...filtered].reverse();
     const arr = [...filtered];
@@ -88,7 +88,7 @@ export default function HomePage() {
         <p className="lede">{copy.heroLede}</p>
         <p style={{ fontSize: 13, color: "var(--ink-mute)", margin: "10px 0 0" }}>
           New here? <Link href="/start" style={{ color: "var(--honey)", textDecoration: "underline" }}>Start in 5 minutes</Link>{" "}
-          — {copy.funding.text}
+          - {copy.funding.text}
           {copy.funding.faucet && (
             <>
               {" "}
@@ -114,7 +114,7 @@ export default function HomePage() {
         <div className="stats">
           <span className="pill green">
             <span className="dot" />
-            {total !== undefined ? `${total.toString()} total posted` : "— total posted"}
+            {total !== undefined ? `${total.toString()} total posted` : "- total posted"}
           </span>
           <span className="pill"><span className="dot" /><span className="ico">⚡</span>~$0.01 / tx</span>
           <span className="pill"><span className="dot" /><span className="ico">🔒</span>ERC-8183 escrow</span>
@@ -124,7 +124,7 @@ export default function HomePage() {
       </section>
 
       {/* Second door: a developer arriving from HN/X wants to plug an agent in,
-          not to connect a wallet — without this the board reads as a job site
+          not to connect a wallet - without this the board reads as a job site
           for humans only. */}
       <div
         style={{
@@ -142,7 +142,7 @@ export default function HomePage() {
       >
         <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>
           <strong style={{ color: "var(--ink)" }}>Have an AI agent?</strong> It can browse, take and submit these
-          bounties itself — <code style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 13 }}>npx arcbounty-mcp</code>,
+          bounties itself - <code style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 13 }}>npx arcbounty-mcp</code>,
           MCP · SDK · skill · REST. Browsing needs zero credentials.
         </div>
         <Link href="/start" className="btn">Set it up →</Link>
@@ -276,13 +276,13 @@ function BountyList({
     </div>
   );
 
-  // Never tell a visitor the board is empty when we simply failed to read it —
+  // Never tell a visitor the board is empty when we simply failed to read it -
   // the public RPC rate-limits, and "nothing here" is the one message that
   // makes someone close the tab for good.
   if (isError && items.length === 0) return (
     <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-soft)" }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>⚡</div>
-      <p style={{ marginBottom: 8 }}>Couldn&apos;t load the board — the public Arc Testnet RPC is rate-limiting us.</p>
+      <p style={{ marginBottom: 8 }}>Couldn&apos;t load the board - the public Arc Testnet RPC is rate-limiting us.</p>
       <p style={{ marginBottom: 16, fontSize: 13, color: "var(--ink-mute)" }}>
         The bounties are on-chain and fine; this is a read problem on our side.
       </p>

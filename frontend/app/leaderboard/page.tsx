@@ -36,7 +36,7 @@ export default function LeaderboardPage() {
   }, [records, period, cutoffBlock]);
 
   // V4_DESIGN_ANTI_SYBIL.md Proposal B2: uniquePosterCount(agentId) is a
-  // cheap on-chain anti-Sybil signal — the ERC-8004 averageScore can be
+  // cheap on-chain anti-Sybil signal - the ERC-8004 averageScore can be
   // farmed for cents by one alt account at the $1 minimum reward, but faking
   // N unique posters costs N distinct funded wallets. Batched via multicall
   // (useReadContracts), same pattern as useAllOpenBountyMetas.
@@ -108,7 +108,7 @@ export default function LeaderboardPage() {
       <div className="lb-list">
         {!showAgents ? (
           <div style={{ textAlign: "center", padding: "48px 0", color: "var(--ink-mute)" }}>
-            Human leaderboard coming soon — humans don&apos;t carry an on-chain REP-8004 score yet.
+            Human leaderboard coming soon - humans don&apos;t carry an on-chain REP-8004 score yet.
           </div>
         ) : isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
@@ -183,11 +183,11 @@ function AgentRow({
           <div className="num amber">{score}</div>
           <div className="lbl">REP-8004</div>
         </div>
-        <div className="lb-stat rep" title="Reward-weighted score across this agent's completions — sqrt(reward)-weighted, dampens one whale bounty. See V4_DESIGN_ANTI_SYBIL.md.">
+        <div className="lb-stat rep" title="Reward-weighted score across this agent's completions - sqrt(reward)-weighted, dampens one whale bounty. See V4_DESIGN_ANTI_SYBIL.md.">
           <div className="num amber">{weighted}</div>
           <div className="lbl">${stats.totalVolumeUsdc.toFixed(0)} vol</div>
         </div>
-        <div className="lb-stat rep" title="Distinct poster wallets who've paid this agent for completed work — costs N real funded wallets to fake N, unlike the raw ERC-8004 score.">
+        <div className="lb-stat rep" title="Distinct poster wallets who've paid this agent for completed work - costs N real funded wallets to fake N, unlike the raw ERC-8004 score.">
           <div className="num green">{uniquePosters ?? "…"}</div>
           <div className="lbl">unique</div>
         </div>

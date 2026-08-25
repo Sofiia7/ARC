@@ -1,12 +1,12 @@
 /**
  * One-off: add a second owner to the arbitrator Safe and raise the
- * threshold to 2-of-2 (Grant Milestone 1 — real N-of-M, not just
+ * threshold to 2-of-2 (Grant Milestone 1 - real N-of-M, not just
  * infrastructure for it).
  *
  * Safety: before signing anything, this computes the SafeTx hash locally
  * via EIP-712 and cross-checks it against the Safe contract's own
  * getTransactionHash(...) view function. If they don't match, it aborts
- * before ever signing or sending — a mismatched domain/type would just
+ * before ever signing or sending - a mismatched domain/type would just
  * make execTransaction revert (GS026 invalid signature), never a wrong
  * execution, but there's no reason to find that out the hard way.
  *
@@ -76,7 +76,7 @@ async function main() {
   console.log("before: owners =", owners, " threshold =", threshold.toString());
 
   if (owners.length !== 1 || owners[0]!.toLowerCase() !== account.address.toLowerCase()) {
-    throw new Error(`unexpected Safe state — expected sole owner ${account.address}, got ${JSON.stringify(owners)}`);
+    throw new Error(`unexpected Safe state - expected sole owner ${account.address}, got ${JSON.stringify(owners)}`);
   }
 
   const data = encodeFunctionData({
@@ -115,9 +115,9 @@ async function main() {
   console.log("local  safeTxHash:", localHash);
   console.log("onchain safeTxHash:", onchainHash);
   if (localHash.toLowerCase() !== onchainHash.toLowerCase()) {
-    throw new Error("ABORT: locally computed EIP-712 hash does not match the Safe's own getTransactionHash — refusing to sign a mismatched tx");
+    throw new Error("ABORT: locally computed EIP-712 hash does not match the Safe's own getTransactionHash - refusing to sign a mismatched tx");
   }
-  console.log("hashes match — safe to sign.");
+  console.log("hashes match - safe to sign.");
 
   const signature = await account.signTypedData({ domain, types, primaryType: "SafeTx", message: txParams });
 

@@ -2,12 +2,12 @@
  * Seed the marketplace with diverse demo bounties.
  *
  * Env:
- *   ARC_NETWORK                — "arc-testnet" (default) | "arc-mainnet" (see scripts/lib/network.ts)
- *   ALLOW_MAINNET=yes          — required to run this against arc-mainnet (real USDC)
- *   PRIVATE_KEY                — poster wallet (must hold gas + USDC for rewards)
- *   ARC_TESTNET_RPC_URL        — RPC endpoint override (testnet only, optional)
- *   BOUNTY_ADAPTER_ADDRESS     — current adapter
- *   PINATA_JWT                 — for IPFS description pinning
+ *   ARC_NETWORK                - "arc-testnet" (default) | "arc-mainnet" (see scripts/lib/network.ts)
+ *   ALLOW_MAINNET=yes          - required to run this against arc-mainnet (real USDC)
+ *   PRIVATE_KEY                - poster wallet (must hold gas + USDC for rewards)
+ *   ARC_TESTNET_RPC_URL        - RPC endpoint override (testnet only, optional)
+ *   BOUNTY_ADAPTER_ADDRESS     - current adapter
+ *   PINATA_JWT                 - for IPFS description pinning
  *
  * Usage (from repo root):
  *   npx -y -p tsx -p viem@2 -p dotenv tsx scripts/seed-bounties.ts
@@ -28,7 +28,7 @@ const ADAPTER  = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
 const USDC     = (process.env.USDC_ADDRESS ?? network.contracts.USDC) as Address;
 const PINATA   = process.env.PINATA_JWT!;
 
-// Seed copy is product copy — it lands on a live public board under whichever
+// Seed copy is product copy - it lands on a live public board under whichever
 // brand this network ships as (ArcBounty on Arc, BaseBounty on Base). The few
 // entries that name the product or the ecosystem follow the network instead of
 // hardcoding Arc; everything else is chain-agnostic already.
@@ -94,9 +94,9 @@ type Seed = {
 };
 
 // The first 8 entries are intentionally ordered to cover ALL five categories
-// with a mix of open / agentOnly / humanOnly audiences — so a default
+// with a mix of open / agentOnly / humanOnly audiences - so a default
 // SEED_LIMIT=8 run already populates every filter on the frontend. The rest
-// fill out 2–4 per category and post automatically once the wallet has more
+// fill out 2-4 per category and post automatically once the wallet has more
 // USDC (raise SEED_LIMIT).
 const FULL_SEEDS: Seed[] = [
   // ── Priority 8 (balanced across categories + audiences) ──────────────────
@@ -107,7 +107,7 @@ const FULL_SEEDS: Seed[] = [
   },
   {
     title: "TypeScript snippet: pin a Buffer to Pinata v3",
-    body: "20–40 line example. Must use `network: public` and return `{ cid, size }`. MIT-licensed. Submit as a gist or markdown.",
+    body: "20-40 line example. Must use `network: public` and return `{ cid, size }`. MIT-licensed. Submit as a gist or markdown.",
     category: "dev", tags: ["typescript", "ipfs", "pinata"], rewardUsdc: 1, days: 4, agentOnly: true,
     requireWorkerBond: true, // showcase the V4 opt-in bond on a live listing
   },
@@ -171,7 +171,7 @@ const FULL_SEEDS: Seed[] = [
   },
   {
     title: "Propose 3 new bounty categories with rationale",
-    body: `Short markdown: 3 proposed categories beyond dev/design/content/data/other, each with 2–3 example bounties and why it fits ${ECOSYSTEM}'s agent economy.`,
+    body: `Short markdown: 3 proposed categories beyond dev/design/content/data/other, each with 2-3 example bounties and why it fits ${ECOSYSTEM}'s agent economy.`,
     category: "other", tags: ["product", "proposal", "community"], rewardUsdc: 1, days: 7, agentOnly: false,
   },
 ];
@@ -179,7 +179,7 @@ const FULL_SEEDS: Seed[] = [
 // Resolve which subset to post. SEED_OFFSET skips the first N entries (resume a
 // partial run), SEED_LIMIT clamps the end index, SEED_MIN_REWARD overrides
 // rewards down to a fixed minimum (useful when seed wallet is low on testnet USDC).
-// SEED_DEADLINE_DAYS overrides every entry's deadline — Arc testnet's block.timestamp
+// SEED_DEADLINE_DAYS overrides every entry's deadline - Arc testnet's block.timestamp
 // advances far faster than real time, so the short 4-14 day deadlines below can
 // already be expired within an hour of real-world demo time; use a large override
 // (e.g. 60) when seeding data meant to stay browsable for a live demo.
@@ -194,11 +194,11 @@ const SEEDS: Seed[] = FULL_SEEDS.slice(OFFSET, LIMIT).map(s => ({
 }));
 
 async function pinDescription(seed: Seed): Promise<string> {
-  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by the ${BRAND} seed script — demo bounty._\n`;
+  const md = `# ${seed.title}\n\n${seed.body}\n\n_Posted by the ${BRAND} seed script - demo bounty._\n`;
   const blob = new Blob([md], { type: "text/markdown" });
   const form = new FormData();
   form.append("file", blob, `${seed.title.slice(0, 40).replace(/\W+/g, "-")}.md`);
-  // v2 pinning API — a JWT scoped for `pinFileToIPFS` authenticates via Bearer.
+  // v2 pinning API - a JWT scoped for `pinFileToIPFS` authenticates via Bearer.
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: { Authorization: `Bearer ${PINATA}` },
@@ -229,7 +229,7 @@ async function ensureAllowance(total: bigint) {
 
 /**
  * BOUNTY_ADAPTER_ADDRESS in a long-lived `.env` points at whichever network
- * was current when it was written — almost always Arc. Pointing this script at
+ * was current when it was written - almost always Arc. Pointing this script at
  * Base while that variable still holds the Arc adapter would spray approvals
  * and createBounty calls at an address that means nothing there, so cross-check
  * the adapter against the network actually being targeted before spending
@@ -253,7 +253,7 @@ async function assertAdapterMatchesNetwork() {
   if (adapterUsdc.toLowerCase() !== USDC.toLowerCase()) {
     throw new Error(
       `Adapter ${ADAPTER} settles in ${adapterUsdc}, but this run would approve ${USDC}. ` +
-      `Wrong network/adapter pairing — refusing to continue.`,
+      `Wrong network/adapter pairing - refusing to continue.`,
     );
   }
 }
@@ -302,7 +302,7 @@ async function main() {
   }
 
   console.log("\nSeeded:");
-  for (const r of results) console.log(`  ${r.title} — ${r.tx}`);
+  for (const r of results) console.log(`  ${r.title} - ${r.tx}`);
 }
 
 main().catch(e => { console.error("Fatal:", e); process.exit(1); });

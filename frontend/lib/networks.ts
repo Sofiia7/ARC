@@ -3,11 +3,11 @@ import { isAddress, type Address } from "viem";
 // ─── Networks ────────────────────────────────────────────────────────────────
 //
 // One build = one network. The active network is chosen at BUILD time by
-// NEXT_PUBLIC_ARC_NETWORK (default "arc-testnet") — production ships as two
+// NEXT_PUBLIC_ARC_NETWORK (default "arc-testnet") - production ships as two
 // separate Vercel projects, one per network, each with its own env vars.
 // See frontend/README.md.
 //
-// This is the frontend's OWN copy of the network map — deliberately NOT the
+// This is the frontend's OWN copy of the network map - deliberately NOT the
 // `arcbounty-agent-sdk` package (0.5.0, which has the equivalent
 // `agent-sdk/src/constants.ts` map, is not published to npm yet; depending on
 // it would break every Vercel build). A separate consistency-check script
@@ -18,11 +18,11 @@ import { isAddress, type Address } from "viem";
 export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base-mainnet";
 
 /**
- * The chain's native (gas) token — mirrors `NativeCurrency` in the SDK.
+ * The chain's native (gas) token - mirrors `NativeCurrency` in the SDK.
  *
  * The one place Arc and Base genuinely diverge for users: on Arc, USDC *is*
  * the native token, so a wallet holding only USDC can transact. On Base, USDC
- * is an ordinary ERC-20 and gas is paid in ETH — someone funded only with
+ * is an ordinary ERC-20 and gas is paid in ETH - someone funded only with
  * USDC will fail at the first transaction. Every piece of copy telling a user
  * what to put in their wallet must branch on `isUsdc`.
  */
@@ -33,7 +33,7 @@ export type NativeCurrency = {
 };
 
 /**
- * Product branding for this build — mirrors `Brand` in the SDK.
+ * Product branding for this build - mirrors `Brand` in the SDK.
  *
  * The Base build ships as BaseBounty (basebounty.app), the Arc build as
  * ArcBounty (arcbounty.app): "Arc" reads as a competing chain to a Base
@@ -58,7 +58,7 @@ export type NetworkConfig = {
    *
    * True for Arc: wallets don't ship it, so onboarding has to walk through
    * the RPC/chain-id form. False for Base, which every wallet has had
-   * preloaded for years — telling a Base user how to "add Base" reads as
+   * preloaded for years - telling a Base user how to "add Base" reads as
    * though we've never met one. Frontend-only concern, so it deliberately
    * has no counterpart in the SDK's map.
    */
@@ -73,26 +73,26 @@ export type NetworkConfig = {
   };
   /**
    * Default BountyAdapter for this network. `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS`
-   * still overrides this exactly as it always has — see lib/contracts.ts.
+   * still overrides this exactly as it always has - see lib/contracts.ts.
    * Undefined on arc-testnet on purpose: that network has never had a baked-in
    * default, `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` has always been mandatory
    * there, and this keeps that behavior unchanged.
    */
   bountyAdapterAddress?: Address;
-  /** Deployment block of the adapter — lower bound for chunked event scans. */
+  /** Deployment block of the adapter - lower bound for chunked event scans. */
   adapterDeployBlock: bigint;
   /**
    * Whether the canonical Multicall3 deployment (see MULTICALL3_ADDRESS) is
    * live on this network. Verified true on Arc Testnet. Assumed true for Arc
-   * mainnet too — Multicall3 ships from the same keyless deployer transaction
-   * on nearly every EVM chain — revisit if that assumption doesn't hold once
+   * mainnet too - Multicall3 ships from the same keyless deployer transaction
+   * on nearly every EVM chain - revisit if that assumption doesn't hold once
    * Arc mainnet is live.
    */
   multicall3: boolean;
   testnet: boolean;
   /** Rough estimate for "last N days" style block math (≈1s/block on Arc, ≈2s on Base). */
   blocksPerDay: bigint;
-  /** Fallback RPC log-scan bound — see lib/chainLogs.ts. */
+  /** Fallback RPC log-scan bound - see lib/chainLogs.ts. */
   maxLookbackBlocks: bigint;
 };
 
@@ -104,12 +104,12 @@ export const MULTICALL3_ADDRESS: Address = "0xcA11bde05977b3631167028862bE2a1739
  *
  * Two mainnets are deliberately absent, for different reasons:
  *
- * - **Arc mainnet** — Circle has not published its parameters yet (chain id,
+ * - **Arc mainnet** - Circle has not published its parameters yet (chain id,
  *   RPC, contract addresses). Use `getActiveNetwork()` /
  *   `resolveNetwork("arc-mainnet")`, which builds the config from
  *   `NEXT_PUBLIC_ARC_MAINNET_*` environment variables and throws a
  *   descriptive error while any of them are missing.
- * - **Base mainnet (8453)** — live since 2026-08-14 (BaseBounty), static entry
+ * - **Base mainnet (8453)** - live since 2026-08-14 (BaseBounty), static entry
  *   below with the real deployed addresses.
  *
  * Never hardcode guessed values here.
@@ -122,9 +122,9 @@ export const NETWORKS = {
     explorerUrl: "https://testnet.arcscan.app",
     explorerApiUrl: "https://testnet.arcscan.app/api",
     explorerName: "ArcScan",
-    // Wallets do not ship Arc — onboarding must walk through adding it.
+    // Wallets do not ship Arc - onboarding must walk through adding it.
     needsWalletSetup: true,
-    // Arc's native gas token IS USDC — that is the whole point of the chain.
+    // Arc's native gas token IS USDC - that is the whole point of the chain.
     nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
     brand: { name: "ArcBounty", domain: "arcbounty.app" },
     contracts: {
@@ -153,9 +153,9 @@ export const NETWORKS = {
     nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
     brand: { name: "BaseBounty", domain: "basebounty.app" },
     contracts: {
-      // Our own copy of Arc's escrow variant — no canonical instance on Base.
+      // Our own copy of Arc's escrow variant - no canonical instance on Base.
       AGENTIC_COMMERCE:    "0xbe6e78207140d21d5FcF5595Ad396e482f1Cd384",
-      // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
+      // Canonical ERC-8004 registries deployed by the 8004 team - NOT ours.
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
@@ -186,9 +186,9 @@ export const NETWORKS = {
     nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
     brand: { name: "BaseBounty", domain: "basebounty.app" },
     contracts: {
-      // Our own copy of Arc's escrow variant — no canonical instance on Base.
+      // Our own copy of Arc's escrow variant - no canonical instance on Base.
       AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
-      // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
+      // Canonical ERC-8004 registries deployed by the 8004 team - NOT ours.
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
@@ -281,9 +281,9 @@ export function resolveNetwork(name: NetworkName): NetworkConfig {
   const missing = MAINNET_REQUIRED_VARS.filter(key => readEnv(key) === undefined);
   if (missing.length > 0) {
     throw new Error(
-      `[arcbounty] resolveNetwork("arc-mainnet"): Arc mainnet is not configured — missing environment ` +
+      `[arcbounty] resolveNetwork("arc-mainnet"): Arc mainnet is not configured - missing environment ` +
       `variable(s): ${missing.join(", ")}. Circle publishes the official chain parameters and contract ` +
-      `addresses at ${MAINNET_DOCS_URL} (source of truth) — never guess them. Set the variables once ` +
+      `addresses at ${MAINNET_DOCS_URL} (source of truth) - never guess them. Set the variables once ` +
       `published, or build with NEXT_PUBLIC_ARC_NETWORK=arc-testnet until then.`,
     );
   }
@@ -322,7 +322,7 @@ export function resolveNetwork(name: NetworkName): NetworkConfig {
     },
     bountyAdapterAddress: bountyAdapter as Address,
     adapterDeployBlock: parseBigIntStrict("NEXT_PUBLIC_ARC_MAINNET_ADAPTER_DEPLOY_BLOCK", readEnv("NEXT_PUBLIC_ARC_MAINNET_ADAPTER_DEPLOY_BLOCK")!),
-    // Assumed true — see NetworkConfig.multicall3 doc comment.
+    // Assumed true - see NetworkConfig.multicall3 doc comment.
     multicall3: true,
     testnet: false,
     blocksPerDay: parseBigIntStrict("NEXT_PUBLIC_ARC_MAINNET_BLOCKS_PER_DAY", readEnv("NEXT_PUBLIC_ARC_MAINNET_BLOCKS_PER_DAY")!, 1n),
@@ -330,7 +330,7 @@ export function resolveNetwork(name: NetworkName): NetworkConfig {
   };
 }
 
-/** Which network this build targets — `NEXT_PUBLIC_ARC_NETWORK`, default `"arc-testnet"`. */
+/** Which network this build targets - `NEXT_PUBLIC_ARC_NETWORK`, default `"arc-testnet"`. */
 export function getActiveNetworkName(): NetworkName {
   const raw = process.env.NEXT_PUBLIC_ARC_NETWORK;
   if (!raw || raw === "arc-testnet") return "arc-testnet";
@@ -338,13 +338,13 @@ export function getActiveNetworkName(): NetworkName {
   if (raw === "base-sepolia") return "base-sepolia";
   if (raw === "base-mainnet") return "base-mainnet";
   throw new Error(
-    `[arcbounty] NEXT_PUBLIC_ARC_NETWORK="${raw}" is not a valid network — ` +
+    `[arcbounty] NEXT_PUBLIC_ARC_NETWORK="${raw}" is not a valid network - ` +
     `expected "arc-testnet", "arc-mainnet", "base-sepolia" or "base-mainnet".`,
   );
 }
 
 /**
- * Product name and domain for this build — see {@link Brand}.
+ * Product name and domain for this build - see {@link Brand}.
  *
  * Use this anywhere a product name is rendered (titles, metadata, copy)
  * instead of writing "ArcBounty" inline: the Base build ships as BaseBounty.
@@ -359,13 +359,13 @@ export function getBrand(): Brand {
  *
  * Guard every "USDC is the gas token / you need no second asset" claim with
  * this. On Base the opposite is true and the user needs ETH *as well as*
- * USDC — copy that silently carries Arc's model over breaks onboarding.
+ * USDC - copy that silently carries Arc's model over breaks onboarding.
  */
 export function isGasPaidInUsdc(): boolean {
   return getActiveNetwork().nativeCurrency.isUsdc;
 }
 
-/** Resolved config for the active build's network — see {@link getActiveNetworkName}. */
+/** Resolved config for the active build's network - see {@link getActiveNetworkName}. */
 export function getActiveNetwork(): NetworkConfig {
   return resolveNetwork(getActiveNetworkName());
 }

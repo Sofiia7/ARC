@@ -11,7 +11,7 @@ startCommand:
         description: >-
           Arc network to target. "arc-mainnet" additionally requires the
           agent-sdk's ARC_MAINNET_* variables (chain id, RPC, explorer,
-          contract addresses) to be set once Circle publishes them — until
+          contract addresses) to be set once Circle publishes them - until
           then, use arc-testnet.
         enum:
           - arc-testnet

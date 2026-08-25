@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 /**
  * Loads the SDK through its CJS entry on purpose. The ESM build
  * (dist/index.mjs) does a named import from `@circle-fin/developer-controlled-wallets`
- * (a CJS package) that Node's cjs-module-lexer can't statically see — on a
+ * (a CJS package) that Node's cjs-module-lexer can't statically see - on a
  * real Node ESM runtime (Vercel) that's a SyntaxError at import time. The CJS
  * build require()s the same package and is immune. Local tsx masked this by
  * doing its own interop. Proper fix tracked for arcbounty-agent-sdk 0.4.4;
@@ -16,7 +16,7 @@ export const {
   BOUNTY_ADAPTER_ABI,
   ERC20_ABI,
   // Deprecated 0.4.x aliases (still wired to NETWORKS["arc-testnet"] in the
-  // SDK) — kept here for anything that still wants a testnet-only constant.
+  // SDK) - kept here for anything that still wants a testnet-only constant.
   // New network-selectable code should go through NETWORKS / resolveNetwork.
   CONTRACTS,
   ARC_TESTNET_CHAIN_ID,

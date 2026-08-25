@@ -10,7 +10,7 @@ const network = getActiveNetwork();
 //
 // NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS keeps working as the adapter override
 // exactly as today, on either network. If it's unset, we fall back to the
-// active network's own default (arc-mainnet always has one — see
+// active network's own default (arc-mainnet always has one - see
 // lib/networks.ts's required NEXT_PUBLIC_ARC_MAINNET_BOUNTY_ADAPTER; arc-testnet
 // never has one, so it stays exactly as mandatory as it always was).
 function requireAdapterAddress(): Address {
@@ -39,7 +39,7 @@ export const CONTRACTS = {
 } as const;
 
 // Deployment block of the adapter on the active network. Anchor for chunked
-// event scans — see lib/chainLogs.ts. A redeploy only moves the true deploy
+// event scans - see lib/chainLogs.ts. A redeploy only moves the true deploy
 // block later, so leaving this at the earliest-known deployment stays correct
 // (scans a few extra empty chunks at worst).
 export const BOUNTY_ADAPTER_DEPLOY_BLOCK = network.adapterDeployBlock;
@@ -264,7 +264,7 @@ export const BOUNTY_ADAPTER_ABI = [
     inputs: [], outputs: [{ name: "", type: "uint256" }],
   },
   {
-    // V4 anti-Sybil signal — see V4_DESIGN_ANTI_SYBIL.md. Public mapping
+    // V4 anti-Sybil signal - see V4_DESIGN_ANTI_SYBIL.md. Public mapping
     // getter: count of distinct posters who've paid out a completed bounty
     // to this agent. Costs N real funded wallets to fake N, unlike the raw
     // ERC-8004 average score.

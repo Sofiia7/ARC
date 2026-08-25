@@ -3,20 +3,20 @@
  *
  * Unlike demo-lifecycle.ts (same wallet on both sides), this runs the real
  * two-party flow the grant application cites as evidence:
- *   worker  = AGENT_PRIVATE_KEY — registers in ERC-8004 (reuses its agentId
+ *   worker  = AGENT_PRIVATE_KEY - registers in ERC-8004 (reuses its agentId
  *             if one exists), takes bounties as an agent (agentId > 0),
  *             posts the V4 worker bond where required, submits work
- *   poster  = PRIVATE_KEY       — approves and rates, which also increments
+ *   poster  = PRIVATE_KEY       - approves and rates, which also increments
  *             uniquePosterCount(agentId) (V4 anti-Sybil signal)
  *
  * Targets two of the standard seed listings by title so a re-seeded board
  * works without hardcoded jobIds:
- *   1. "TypeScript snippet: pin a Buffer to Pinata v3"  (agentOnly + bond —
+ *   1. "TypeScript snippet: pin a Buffer to Pinata v3"  (agentOnly + bond -
  *      exercises the full V4 bond cycle: post → refund at submit)
  *   2. "viem script: watch BountyCreated and print new bounties"
  *
  * Env: same as seed-bounties.ts (PRIVATE_KEY, BOUNTY_ADAPTER_ADDRESS,
- * PINATA_JWT, plus ARC_NETWORK / ALLOW_MAINNET / ARC_TESTNET_RPC_URL — see
+ * PINATA_JWT, plus ARC_NETWORK / ALLOW_MAINNET / ARC_TESTNET_RPC_URL - see
  * scripts/lib/network.ts) plus AGENT_PRIVATE_KEY.
  *
  * Usage (from repo root):
@@ -28,7 +28,7 @@ import type { Address } from "viem";
 import { requireNetworkForMoneyMove, type NetworkName } from "./lib/network.js";
 
 const network   = requireNetworkForMoneyMove();
-// Derived, not re-parsed from ARC_NETWORK — requireNetworkForMoneyMove()
+// Derived, not re-parsed from ARC_NETWORK - requireNetworkForMoneyMove()
 // already validated it; `testnet` is the resolved config's own source of truth.
 const networkName: NetworkName = network.testnet ? "arc-testnet" : "arc-mainnet";
 const RPC       = network.rpcUrl;
@@ -41,14 +41,14 @@ if (!POSTER_PK || !WORKER_PK || !ADAPTER) {
   process.exit(1);
 }
 if (!process.env.PINATA_JWT && !(process.env.PINATA_API_KEY && process.env.PINATA_SECRET)) {
-  console.error("Set PINATA_JWT (or PINATA_API_KEY + PINATA_SECRET) — results are pinned to IPFS.");
+  console.error("Set PINATA_JWT (or PINATA_API_KEY + PINATA_SECRET) - results are pinned to IPFS.");
   process.exit(1);
 }
 
 // ─── The actual deliverables ─────────────────────────────────────────────────
 // Real work, not lorem ipsum: each submission below genuinely satisfies its
 // bounty's acceptance criteria, so the poster's approval (and the reputation
-// write) is backed by a reviewable artifact — the property the grant
+// write) is backed by a reviewable artifact - the property the grant
 // application claims for every ArcBounty payout.
 
 const PINATA_V3_SNIPPET = `# Pin a Buffer to Pinata v3 (TypeScript)
@@ -166,7 +166,7 @@ async function main() {
       return null;
     })();
     if (!meta) {
-      console.warn(`SKIP — no open bounty titled "${target.title}"`);
+      console.warn(`SKIP - no open bounty titled "${target.title}"`);
       continue;
     }
 

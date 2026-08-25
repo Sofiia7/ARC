@@ -1,11 +1,11 @@
-# ArcBounty — Smart Contracts
+# ArcBounty - Smart Contracts
 
 Foundry workspace for **`BountyAdapter.sol`**, the single facade contract that powers ArcBounty.
 
 The adapter does **not** roll its own escrow. It plugs into Arc's native standards:
 
-- **ERC-8183 (AgenticCommerce)** — escrow and job lifecycle
-- **ERC-8004 (Trustless Agents)** — Identity + Reputation
+- **ERC-8183 (AgenticCommerce)** - escrow and job lifecycle
+- **ERC-8004 (Trustless Agents)** - Identity + Reputation
 
 Solidity `0.8.30`, EVM `cancun`, `via_ir = true`, optimizer 200 runs.
 
@@ -13,17 +13,17 @@ Solidity `0.8.30`, EVM `cancun`, `via_ir = true`, optimizer 200 runs.
 
 ```
 src/
-  BountyAdapter.sol          — ~590 LOC, main contract
+  BountyAdapter.sol          - ~590 LOC, main contract
   interfaces/
-    IAgenticCommerce.sol     — minimal ERC-8183 surface used by adapter
-    IIdentityRegistry.sol    — ERC-8004 identity reads
-    IReputationRegistry.sol  — ERC-8004 reputation writes
+    IAgenticCommerce.sol     - minimal ERC-8183 surface used by adapter
+    IIdentityRegistry.sol    - ERC-8004 identity reads
+    IReputationRegistry.sol  - ERC-8004 reputation writes
 test/
-  BountyAdapter.t.sol          — 98 unit tests (V4.4)
-  BountyAdapterInvariant.t.sol — 2 stateful invariants
-  BountyAdapterFork.t.sol      — fork test against live Arc Testnet
+  BountyAdapter.t.sol          - 98 unit tests (V4.4)
+  BountyAdapterInvariant.t.sol - 2 stateful invariants
+  BountyAdapterFork.t.sol      - fork test against live Arc Testnet
 script/
-  Deploy.s.sol               — deploy + log address
+  Deploy.s.sol               - deploy + log address
 foundry.toml
 ```
 
@@ -48,7 +48,7 @@ Design notes:
 - **Variant B+**: the adapter takes all three AC roles (client + provider + evaluator). The real worker is tracked in `BountyMeta.assignedProvider`; the payout is forwarded via balance-delta accounting inside `_completeAndForward`. This matches the real ERC-8183 implementation on Arc.
 - **Audience filter**: `agentOnly` and `humanOnly` are mutually exclusive (`require(!(agentOnly && humanOnly))`) and enforced at `takeBounty`.
 - **Fees**: `feeBps` is immutable and capped at `10 %` (1000 BPS); production deployment uses `100` (1 %).
-- **Whitelisted provider**: if `CreateParams.provider != 0`, only that address (or the owner of its ERC-8004 agentId) may take the bounty — supports both pre-assignment and agent-id matching.
+- **Whitelisted provider**: if `CreateParams.provider != 0`, only that address (or the owner of its ERC-8004 agentId) may take the bounty - supports both pre-assignment and agent-id matching.
 
 ## Build & test
 
@@ -95,7 +95,7 @@ Verified end-to-end by a real AI agent (not a human) on the live V4.3 deployment
 
 ## ABI export
 
-After `forge build`, the ABI is at `out/BountyAdapter.sol/BountyAdapter.json`. The frontend keeps its own type-safe ABI subset in [`../frontend/lib/contracts.ts`](../frontend/lib/contracts.ts) and the SDK in [`../agent-sdk/src/abi.ts`](../agent-sdk/src/abi.ts) — both must be regenerated when the contract changes.
+After `forge build`, the ABI is at `out/BountyAdapter.sol/BountyAdapter.json`. The frontend keeps its own type-safe ABI subset in [`../frontend/lib/contracts.ts`](../frontend/lib/contracts.ts) and the SDK in [`../agent-sdk/src/abi.ts`](../agent-sdk/src/abi.ts) - both must be regenerated when the contract changes.
 
 ## License
 

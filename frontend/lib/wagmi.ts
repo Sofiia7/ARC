@@ -11,14 +11,14 @@ const network = getActiveNetwork();
 // base-sepolia, NEXT_PUBLIC_BASE_MAINNET_RPC_URL for base-mainnet,
 // NEXT_PUBLIC_ARC_MAINNET_RPC_URL for arc-mainnet), so take the
 // resolved value as-is. Re-applying the Arc-specific NEXT_PUBLIC_RPC_URL here
-// for every `testnet` network pointed the Base build at Arc's RPC — CSP then
+// for every `testnet` network pointed the Base build at Arc's RPC - CSP then
 // blocked it and the board could not read the chain at all.
 const rpcUrl = network.rpcUrl;
 
 export const activeChain = defineChain({
   id: network.chainId,
   name: network.name,
-  // Arc's native gas token IS USDC (6 decimals) — that's the whole point of
+  // Arc's native gas token IS USDC (6 decimals) - that's the whole point of
   // that network; Base pays gas in ETH (18). Must match agent-sdk's chain
   // definition exactly, or wallets render balances off by 10^12.
   nativeCurrency: {
@@ -34,7 +34,7 @@ export const activeChain = defineChain({
   },
   // Multicall3 at the canonical cross-chain address. Without this entry viem
   // has no way to aggregate reads, so every `useReadContracts` degrades into
-  // one eth_call per bounty — the public RPC answers ~1 in 6 of those with
+  // one eth_call per bounty - the public RPC answers ~1 in 6 of those with
   // HTTP 429, the metas come back empty and the board renders "No open
   // bounties found" while bounties are open on-chain. See
   // NetworkConfig.multicall3 in lib/networks.ts for the mainnet caveat.
@@ -61,10 +61,10 @@ export const config = createConfig({
   connectors: [
     // Passkey-based smart account (account abstraction). Gives the
     // sponsored-transaction / SCA UX called for in the spec (§4.4) without a
-    // browser extension — sign in with a passkey, pay gas in USDC.
+    // browser extension - sign in with a passkey, pay gas in USDC.
     porto(),
     injected(),
-    // Only register WalletConnect when a real project ID is configured — a
+    // Only register WalletConnect when a real project ID is configured - a
     // placeholder ID produces a connector that renders but can never pair,
     // which is worse than not offering the option at all.
     ...(process.env.NEXT_PUBLIC_WC_PROJECT_ID

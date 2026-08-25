@@ -30,7 +30,7 @@ const SCHEMA: Schema = {
 };
 
 // Through our own cached, multi-gateway-raced endpoint instead of pointing
-// straight at one public gateway from the browser — see lib/ipfsServer.ts.
+// straight at one public gateway from the browser - see lib/ipfsServer.ts.
 // A single hardcoded gateway (previously ipfs.io) means an image the poster
 // can see (their own upload, likely already warm from posting) can still be
 // a broken icon for the taker if that one gateway hasn't yet picked the

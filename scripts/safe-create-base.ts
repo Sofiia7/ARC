@@ -1,12 +1,12 @@
 /**
- * Create the mainnet arbitrator Safe on Base — the same SafeL2 v1.4.1
+ * Create the mainnet arbitrator Safe on Base - the same SafeL2 v1.4.1
  * configuration Arc runs (singleton 0x29fcB4…C762, CompatibilityFallbackHandler
  * 0xfd0732…Ec99, both verified live on Base at chainId 8453), deployed through
  * the canonical SafeProxyFactory rather than app.safe.global. The resulting
  * Safe is an ordinary canonical Safe: it shows up in the Safe web app and can
  * be signed from MetaMask exactly like the Arc one.
  *
- * Owners are deliberately NOT hardcoded — PRE_MAINNET_RUNBOOK.md §9 says the
+ * Owners are deliberately NOT hardcoded - PRE_MAINNET_RUNBOOK.md §9 says the
  * mainnet signer set is a decision, not a carry-over from testnet.
  *
  * Safety: refuses to run unless the RPC really is Base mainnet, the three
@@ -15,11 +15,11 @@
  * address the Safe will land on; DRY_RUN=1 stops there without broadcasting.
  *
  * Env (root .env):
- *   BASE_MAINNET_DEPLOYER_KEY — pays gas only; NOT automatically an owner
- *   SAFE_OWNERS               — comma-separated owner addresses
- *   SAFE_THRESHOLD            — signatures required (default 2)
- *   SAFE_SALT                 — saltNonce, default 0 (bump only on collision)
- *   BASE_MAINNET_RPC_URL      — optional RPC override
+ *   BASE_MAINNET_DEPLOYER_KEY - pays gas only; NOT automatically an owner
+ *   SAFE_OWNERS               - comma-separated owner addresses
+ *   SAFE_THRESHOLD            - signatures required (default 2)
+ *   SAFE_SALT                 - saltNonce, default 0 (bump only on collision)
+ *   BASE_MAINNET_RPC_URL      - optional RPC override
  *
  * Usage: cd scripts && DRY_RUN=1 npx tsx safe-create-base.ts
  */
@@ -35,7 +35,7 @@ const RPC = process.env.BASE_MAINNET_RPC_URL ?? "https://mainnet.base.org";
 const PK = process.env.BASE_MAINNET_DEPLOYER_KEY as `0x${string}` | undefined;
 const DRY_RUN = process.env.DRY_RUN === "1";
 
-// Canonical Safe v1.4.1 deployments — identical addresses on Arc and Base.
+// Canonical Safe v1.4.1 deployments - identical addresses on Arc and Base.
 const PROXY_FACTORY = "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67" as Address;
 const SAFE_L2_SINGLETON = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762" as Address;
 const FALLBACK_HANDLER = "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99" as Address;
@@ -81,7 +81,7 @@ function parseOwners(raw: string | undefined): Address[] {
   });
   if (owners.length === 0) throw new Error("SAFE_OWNERS is empty");
   if (new Set(owners.map(o => o.toLowerCase())).size !== owners.length) {
-    throw new Error("SAFE_OWNERS contains duplicates — Safe.setup reverts on a repeated owner");
+    throw new Error("SAFE_OWNERS contains duplicates - Safe.setup reverts on a repeated owner");
   }
   if (owners.some(o => o === ZERO)) throw new Error("SAFE_OWNERS contains the zero address");
   return owners;
@@ -121,7 +121,7 @@ async function main() {
   console.log("threshold:  %d of %d", Number(threshold), owners.length);
   console.log("saltNonce:  %s", saltNonce.toString());
   if (!owners.some(o => o.toLowerCase() === account.address.toLowerCase())) {
-    console.log("note:       the deployer is NOT an owner — it only pays gas.");
+    console.log("note:       the deployer is NOT an owner - it only pays gas.");
   }
 
   const initializer = encodeFunctionData({
@@ -143,7 +143,7 @@ async function main() {
     const gasPrice = await pub.getGasPrice();
     console.log("estimated gas: %s  (~%s ETH at %s gwei)",
       gas.toString(), (Number(gas * gasPrice) / 1e18).toFixed(8), (Number(gasPrice) / 1e9).toFixed(4));
-    console.log("DRY_RUN=1 — nothing broadcast.");
+    console.log("DRY_RUN=1 - nothing broadcast.");
     return;
   }
 

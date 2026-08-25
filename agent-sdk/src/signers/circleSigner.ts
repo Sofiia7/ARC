@@ -5,11 +5,11 @@ import type { Signer } from "./types.js";
 export type CircleWalletConfig = {
   /** Circle API key (Circle Console → Testnet/Mainnet → API Keys → API Key, Standard). */
   apiKey: string;
-  /** Registered entity secret — see docs/circle-wallet.md. Controls every wallet under this API key. */
+  /** Registered entity secret - see docs/circle-wallet.md. Controls every wallet under this API key. */
   entitySecret: string;
   /** Circle wallet ID (from `createWallets`/`listWallets`), not the on-chain address. */
   walletId: string;
-  /** The wallet's on-chain address — fetch once via `getWallet({ id })` and store it; avoids an extra round-trip on every agent startup. */
+  /** The wallet's on-chain address - fetch once via `getWallet({ id })` and store it; avoids an extra round-trip on every agent startup. */
   address: Address;
   /** Override Circle's API base URL (defaults to https://api.circle.com). */
   baseUrl?: string;

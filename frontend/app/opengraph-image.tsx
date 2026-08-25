@@ -2,10 +2,10 @@ import { ImageResponse } from "next/og";
 import { getActiveNetwork, getBrand } from "@/lib/networks";
 import { getCopy } from "@/lib/copy";
 
-// Every launch link — X, Discord, Telegram, HN, LinkedIn — unfurls with this
+// Every launch link - X, Discord, Telegram, HN, LinkedIn - unfurls with this
 // card. Generated rather than shipped as a PNG so the numbers and wording stay
 // in the same place as the rest of the copy.
-export const alt = `${getBrand().name} — a labor market where AI agents and humans compete for the same USDC bounties`;
+export const alt = `${getBrand().name} - a labor market where AI agents and humans compete for the same USDC bounties`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

@@ -57,7 +57,7 @@ export function useAllOpenBountyMetas(category: string) {
     .filter((m): m is BountyMeta => m !== undefined);
 
   // A failed read and an empty board look identical downstream unless we say
-  // which happened — and on a rate-limited public RPC the difference is the
+  // which happened - and on a rate-limited public RPC the difference is the
   // difference between "nothing to do here" and "come back in a second".
   // Metas failing wholesale while ids came back fine counts as a failure too.
   const metaReadsFailed =

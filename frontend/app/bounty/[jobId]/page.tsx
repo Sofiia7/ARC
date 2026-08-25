@@ -22,7 +22,7 @@ import { useTx } from "@/hooks/useTx";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const KNOWN_CATS = new Set(["dev", "design", "content", "data", "other"]);
 
-// Mirrors BountyAdapter.sol's WORKER_BOND_BPS / MIN_WORKER_BOND constants —
+// Mirrors BountyAdapter.sol's WORKER_BOND_BPS / MIN_WORKER_BOND constants -
 // used only to show/approve the exact bond amount client-side; the contract
 // itself is the source of truth and computes this independently on-chain.
 const WORKER_BOND_BPS = 1500n; // 15%
@@ -70,7 +70,7 @@ export default function BountyPage() {
     }
   }, [myAgentId, agentIdInput]);
 
-  // A non-numeric route (e.g. /bounty/abc) must not throw — parse safely and
+  // A non-numeric route (e.g. /bounty/abc) must not throw - parse safely and
   // render a not-found state. Hooks still run (rules of hooks) with a harmless
   // placeholder id; the guard below short-circuits the real render.
   const validJobId = /^\d+$/.test(jobId ?? "");
@@ -128,7 +128,7 @@ export default function BountyPage() {
         },
         { pending: "Approving worker bond…", success: "Bond approved", error: "Bond approval failed" }
       );
-      if (!approveHash) return; // rejected/failed — don't proceed to takeBounty
+      if (!approveHash) return; // rejected/failed - don't proceed to takeBounty
     }
 
     await send(
@@ -144,7 +144,7 @@ export default function BountyPage() {
   }
 
   async function handleApprove() {
-    // Contract accepts 0–100; the poster's rating feeds the worker's ERC-8004
+    // Contract accepts 0-100; the poster's rating feeds the worker's ERC-8004
     // reputation, so it must be theirs to choose, not a hardcoded constant.
     const score = Math.max(0, Math.min(100, Number(approveScore) || 0));
     await send(
@@ -305,14 +305,14 @@ export default function BountyPage() {
         </section>
       )}
 
-      {/* Dispute panel — unchanged component */}
+      {/* Dispute panel - unchanged component */}
       {inDispute && (
         <div style={{ marginTop: 22 }}>
           <DisputePanel meta={meta} address={address} refetch={refetch} />
         </div>
       )}
 
-      {/* Pending rejection panel — unchanged component */}
+      {/* Pending rejection panel - unchanged component */}
       {pendingRejection && (
         <div style={{ marginTop: 22 }}>
           <PendingRejectionPanel meta={meta} address={address} refetch={refetch} />
@@ -345,7 +345,7 @@ export default function BountyPage() {
                     <label className="form-label" htmlFor="take-agent-id">
                       ERC-8004 Agent ID
                       <span className="hint">
-                        {agentIdAuto ? "auto-filled from your wallet" : "required — this is an Agent-only bounty"}
+                        {agentIdAuto ? "auto-filled from your wallet" : "required - this is an Agent-only bounty"}
                       </span>
                     </label>
                     <input
@@ -354,7 +354,7 @@ export default function BountyPage() {
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      placeholder="e.g. 42 — the numeric ID of an agent you own"
+                      placeholder="e.g. 42 - the numeric ID of an agent you own"
                       value={agentIdInput}
                       onChange={e => { setAgentIdInput(e.target.value.replace(/\D/g, "")); setAgentIdAuto(false); }}
                     />
@@ -378,7 +378,7 @@ export default function BountyPage() {
                 {bondWindowTight && (
                   <p style={{ fontSize: 12, color: "#FFC9BC", margin: "0 2px 8px", lineHeight: 1.5 }}>
                     ⚠ Under 12 hours left to the deadline. If you can&apos;t finish and submit in time,
-                    your bond will be forfeited — take this only if you&apos;re sure.
+                    your bond will be forfeited - take this only if you&apos;re sure.
                   </p>
                 )}
                 <button
@@ -405,7 +405,7 @@ export default function BountyPage() {
                 color: "var(--ink-soft)",
               }}
             >
-              This bounty is whitelisted to {shortAddress(meta.whitelistedProvider)} — only that wallet can take it.
+              This bounty is whitelisted to {shortAddress(meta.whitelistedProvider)} - only that wallet can take it.
             </div>
           )}
 
@@ -420,7 +420,7 @@ export default function BountyPage() {
               <div className="form-row" style={{ maxWidth: 260 }}>
                 <label className="form-label" htmlFor="approve-score">
                   Worker rating
-                  <span className="hint">0–100, recorded on-chain (ERC-8004)</span>
+                  <span className="hint">0-100, recorded on-chain (ERC-8004)</span>
                 </label>
                 <input
                   id="approve-score"
@@ -467,7 +467,7 @@ export default function BountyPage() {
               </button>
               <p style={{ fontSize: 12, color: "var(--ink-mute)", margin: 0, lineHeight: 1.5 }}>
                 Use this if you think the poster will reject your work unfairly, or hasn&apos;t responded.
-                Opening a dispute blocks unilateral approve/reject — an arbitrator decides instead.
+                Opening a dispute blocks unilateral approve/reject - an arbitrator decides instead.
               </p>
             </>
           )}
@@ -491,7 +491,7 @@ export default function BountyPage() {
             if (!ready) return null;
             return (
               <button onClick={handleAutoApprove} className="btn" title="Anyone can trigger this after 14 days from submission">
-                Auto-approve (poster ghosted — pay provider)
+                Auto-approve (poster ghosted - pay provider)
               </button>
             );
           })()}

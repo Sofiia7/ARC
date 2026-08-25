@@ -8,14 +8,14 @@ export const runtime = "nodejs";
 
 const MAX_TEXT_BYTES = 1 * 1024 * 1024; // 1 MB
 // Wallet-scoped: generous enough for a real user. Wallet creation is free, so
-// this alone doesn't bound a determined attacker — the IP-only bucket below
+// this alone doesn't bound a determined attacker - the IP-only bucket below
 // is what actually caps "spin up N wallets from one machine" abuse.
 const WALLET_RATE = { capacity: 10, refillPerSecond: 10 / 60 }; // 10 / min per wallet
 // IP-only: independent of wallet identity, catches many-wallets-one-IP abuse
 // that a wallet-only bucket can't see (a fresh EOA always starts with a full
 // wallet bucket).
 const IP_RATE = { capacity: 20, refillPerSecond: 20 / 60 }; // 20 / min per IP, any wallet
-// Daily volume cap per wallet — bounds sustained abuse even from a client
+// Daily volume cap per wallet - bounds sustained abuse even from a client
 // that paces requests just under the per-minute limits.
 const DAILY_BYTES_PER_WALLET = 20 * 1024 * 1024; // 20 MB / day
 const DAILY_RATE = { capacity: DAILY_BYTES_PER_WALLET, refillPerSecond: DAILY_BYTES_PER_WALLET / 86_400 };
@@ -34,10 +34,10 @@ export async function POST(req: NextRequest) {
 
   // IP check FIRST, before signature verification: verifyWalletAuth() falls
   // back to an on-chain eth_call for ERC-1271 smart-account addresses (e.g.
-  // Porto passkey wallets) even when the signature is garbage — so an
+  // Porto passkey wallets) even when the signature is garbage - so an
   // unthrottled flood of bogus-signature requests could still burn RPC quota
   // if this ran after auth. This bucket alone isn't the abuse bound (see
-  // WALLET_RATE below, checked post-auth) — it's just cheap enough to gate
+  // WALLET_RATE below, checked post-auth) - it's just cheap enough to gate
   // the expensive path first.
   const ipRl = await consumeAsync(`pin:ip:${ip}`, IP_RATE);
   if (!ipRl.ok) {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
   const wallet = auth.address.toLowerCase();
 
-  // Wallet-scoped, checked after auth succeeds — see WALLET_RATE above for
+  // Wallet-scoped, checked after auth succeeds - see WALLET_RATE above for
   // why this alone isn't sufficient (wallet creation is free).
   const walletRl = await consumeAsync(`pin:wallet:${wallet}`, WALLET_RATE);
   if (!walletRl.ok) {
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   const form = new FormData();
   form.append("file", blob, "content.md");
 
-  // v2 pinning API — JWT scoped for `pinFileToIPFS` authenticates via Bearer.
+  // v2 pinning API - JWT scoped for `pinFileToIPFS` authenticates via Bearer.
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: { Authorization: `Bearer ${jwt}` },
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
 
   // Warm the read cache now, while the poster is already waiting on this
   // request, so the FIRST person to view this bounty never pays gateway
-  // latency either — not just the second one. Best-effort: Pinata's own
+  // latency either - not just the second one. Best-effort: Pinata's own
   // gateway (first in the race) usually serves what it just stored
   // immediately, but if every gateway is slow this just no-ops and the
   // normal /api/ipfs/read race handles it on first view instead.

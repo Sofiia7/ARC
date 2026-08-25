@@ -7,12 +7,12 @@ import { fetchIpfsServerCached } from "@/lib/ipfsServer";
 export const runtime = "nodejs";
 
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
-// Wallet-scoped: see pin/route.ts for why this alone isn't sufficient — wallet
+// Wallet-scoped: see pin/route.ts for why this alone isn't sufficient - wallet
 // creation is free, so a determined attacker isn't bounded by this bucket.
 const WALLET_RATE = { capacity: 5, refillPerSecond: 5 / 60 }; // 5 uploads / min per wallet
 // IP-only: independent dimension that catches many-wallets-one-IP abuse.
 const IP_RATE = { capacity: 15, refillPerSecond: 15 / 60 }; // 15 uploads / min per IP, any wallet
-// Daily volume cap per wallet — bounds sustained abuse paced under the
+// Daily volume cap per wallet - bounds sustained abuse paced under the
 // per-minute limits (25 MB files x a handful/day would otherwise be legal).
 const DAILY_BYTES_PER_WALLET = 100 * 1024 * 1024; // 100 MB / day
 const DAILY_RATE = { capacity: DAILY_BYTES_PER_WALLET, refillPerSecond: DAILY_BYTES_PER_WALLET / 86_400 };
@@ -42,7 +42,7 @@ function isAllowedMime(mime: string): boolean {
 // Client-supplied Content-Type is trivially spoofable (it's just a form-field
 // value), so isAllowedMime() alone is advisory. This checks the actual first
 // bytes against well-known executable/script signatures regardless of the
-// declared MIME type — a coarse denylist, not a full file-type sniffer.
+// declared MIME type - a coarse denylist, not a full file-type sniffer.
 function looksExecutable(bytes: Uint8Array): boolean {
   if (bytes.length >= 2 && bytes[0] === 0x4d && bytes[1] === 0x5a) return true; // MZ (PE/DOS)
   if (bytes.length >= 4 && bytes[0] === 0x7f && bytes[1] === 0x45 && bytes[2] === 0x4c && bytes[3] === 0x46) return true; // \x7fELF
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   const ip = clientKey(req);
 
-  // IP check FIRST, before signature verification — see pin/route.ts for why
+  // IP check FIRST, before signature verification - see pin/route.ts for why
   // (verifyWalletAuth can trigger an on-chain eth_call even for a garbage
   // signature, so it shouldn't be the first unthrottled thing a caller hits).
   const ipRl = await consumeAsync(`pin-file:ip:${ip}`, IP_RATE);
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
   const headBuf = new Uint8Array(await file.slice(0, 8).arrayBuffer());
   if (looksExecutable(headBuf)) {
-    return NextResponse.json({ error: "file content looks like an executable — rejected" }, { status: 415 });
+    return NextResponse.json({ error: "file content looks like an executable - rejected" }, { status: 415 });
   }
 
   const name = (file as File).name || "upload.bin";
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   const form = new FormData();
   form.append("file", file, name);
 
-  // v2 pinning API — JWT scoped for `pinFileToIPFS` authenticates via Bearer.
+  // v2 pinning API - JWT scoped for `pinFileToIPFS` authenticates via Bearer.
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: { Authorization: `Bearer ${jwt}` },

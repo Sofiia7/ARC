@@ -64,7 +64,7 @@ export default function PostPage() {
   // Bond bounties need ≥ 24h to the deadline ON-CHAIN AT MINING TIME
   // (MIN_BOND_BOUNTY_DURATION). A 1-day deadline computed at click time
   // clears the floor by zero seconds and is guaranteed to revert a few
-  // seconds later — after the user already paid for the approve tx. A 2-day
+  // seconds later - after the user already paid for the approve tx. A 2-day
   // UI floor keeps an honest margin.
   const minDays = form.requireWorkerBond ? 2 : 1;
   function toggleWorkerBond() {
@@ -268,7 +268,7 @@ export default function PostPage() {
             <div className="body">
               <div className="name">Require worker bond</div>
               <div className="desc">
-                Worker posts max($0.50, 15% of reward) to take this bounty — refunded in full when
+                Worker posts max($0.50, 15% of reward) to take this bounty - refunded in full when
                 they submit, forfeited to you if they vanish without submitting. Requires a
                 deadline of at least 2 days.
               </div>

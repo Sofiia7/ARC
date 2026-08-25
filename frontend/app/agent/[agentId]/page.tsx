@@ -11,7 +11,7 @@ import type { BountyMeta } from "@/components/BountyCard";
 
 export default function AgentPage() {
   const { agentId } = useParams<{ agentId: string }>();
-  // A non-numeric route (e.g. /agent/abc) must not throw — parse safely.
+  // A non-numeric route (e.g. /agent/abc) must not throw - parse safely.
   const validAgentId = /^\d+$/.test(agentId ?? "");
   const agentIdBig = validAgentId ? BigInt(agentId) : 0n;
 

@@ -1,8 +1,8 @@
-# Circle developer-controlled wallets — reference
+# Circle developer-controlled wallets - reference
 
 This is the detailed reference for `CircleSigner` (`src/signers/circleSigner.ts`).
 For a quick-start, see the README section ["Circle developer-controlled
-wallets"](../README.md#circle-developer-controlled-wallets-no-raw-private-key) —
+wallets"](../README.md#circle-developer-controlled-wallets-no-raw-private-key) -
 this doc covers what the quick-start doesn't: entity secret handling, wallet
 sets, fee levels, troubleshooting, and the security model.
 
@@ -19,11 +19,11 @@ sets, fee levels, troubleshooting, and the security model.
    } from "@circle-fin/developer-controlled-wallets";
 
    generateEntitySecret();
-   // prints a 32-byte hex secret to stdout — copy it immediately, it is not
+   // prints a 32-byte hex secret to stdout - copy it immediately, it is not
    // retrievable from Circle afterward.
 
    await registerEntitySecretCiphertext({ apiKey, entitySecret });
-   // Circle returns a recovery file (recoveryFile.dat or similar) — store it
+   // Circle returns a recovery file (recoveryFile.dat or similar) - store it
    // somewhere durable and offline. You need it if you ever lose the secret
    // and must recover wallets under this API key.
    ```
@@ -40,15 +40,15 @@ sets, fee levels, troubleshooting, and the security model.
      count: 1,
    });
    ```
-4. **Fetch and store the on-chain address once** — `CircleSigner` takes it as
+4. **Fetch and store the on-chain address once** - `CircleSigner` takes it as
    a constructor field (`address`) rather than re-resolving it on every
    startup, to save a round-trip:
    ```ts
    const { data: { wallet } } = await client.getWallet({ id: wallets[0].id });
-   console.log(wallet.address); // save this — CIRCLE_WALLET_ADDRESS
+   console.log(wallet.address); // save this - CIRCLE_WALLET_ADDRESS
    ```
 5. **Fund the wallet** with testnet USDC (Arc's native gas token) before
-   calling any write method — see the main repo README for the faucet link.
+   calling any write method - see the main repo README for the faucet link.
 
 Env vars used by `examples/demo-agent-circle.ts` and any script using
 `circleWallet`:
@@ -68,7 +68,7 @@ failure state (`CANCELLED` / `DENIED` / `FAILED` / `STUCK`). The timing differs
 by wallet type:
 
 - **EOA wallets** get a `txHash` as soon as the transaction is broadcast
-  (`SENT` state) — fastest to observe.
+  (`SENT` state) - fastest to observe.
 - **SCA (smart-contract account) wallets** only get a `txHash` once the
   transaction is `CONFIRMED` on-chain, because the hash is only known after
   the user-operation bundles. Expect a longer wait before `writeContract`
@@ -76,7 +76,7 @@ by wallet type:
 
 Pick `EOA` for agent scripts where you want the fastest possible feedback
 loop; pick `SCA` if you want gas sponsorship / batched calls later (Circle's
-Gas Station — see `GRANT_APPLICATION.md` milestone 3, not yet wired into this
+Gas Station - see `GRANT_APPLICATION.md` milestone 3, not yet wired into this
 SDK).
 
 ## Fee level
@@ -86,10 +86,10 @@ SDK).
 matter in practice. If Circle ever supports a lower/explicit fee config for
 Arc and you want to tune it, that's the one place to change.
 
-## Security model — read this before production use
+## Security model - read this before production use
 
 **The entity secret is the single most powerful credential in this whole
-system.** It controls *every* wallet created under the associated API key —
+system.** It controls *every* wallet created under the associated API key -
 not just one agent's wallet. Compromise of `ENTITY_SECRET` is equivalent to
 compromising every Circle-custodied agent wallet you've ever created with
 that key, simultaneously. Concretely:
@@ -99,7 +99,7 @@ that key, simultaneously. Concretely:
   process itself.
 - Prefer a secrets manager (Vercel encrypted env vars, AWS Secrets Manager,
   1Password CLI, etc.) over a plaintext `.env` file the moment this leaves
-  local development — this is flagged as an open item in the project's own
+  local development - this is flagged as an open item in the project's own
   [`SECURITY_INCIDENT.md`](../../SECURITY_INCIDENT.md) postmortem.
 - If you suspect compromise: rotate the entity secret immediately
   (`registerEntitySecretCiphertext` again invalidates the old one), and treat
@@ -111,12 +111,12 @@ that key, simultaneously. Concretely:
 
 ## Troubleshooting
 
-- **`createContractExecutionTransaction did not return a transaction id`** —
+- **`createContractExecutionTransaction did not return a transaction id`** -
   usually an insufficient-gas-token balance on the wallet, or a malformed
   `callData`. Check the wallet's USDC balance first.
-- **Transaction stuck in `STUCK`** — Circle's own dashboard (Console → Wallets
+- **Transaction stuck in `STUCK`** - Circle's own dashboard (Console → Wallets
   → transaction history) shows the underlying chain error; this SDK only
   surfaces the terminal state, not the reason.
-- **`isRegistered` / registry reverts** — unrelated to Circle; see
+- **`isRegistered` / registry reverts** - unrelated to Circle; see
   `contracts/DEPLOYMENTS.md` for the live-registry incompatibilities V3.1/V3.2
   already work around.

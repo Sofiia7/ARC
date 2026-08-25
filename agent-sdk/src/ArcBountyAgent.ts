@@ -48,7 +48,7 @@ import type {
 /** Used when `protect()` is called without an `onEvent` callback, so
  * actionable events are never fully silent even with zero configuration. */
 function defaultOnEvent(event: string, meta: BountyMeta): void {
-  console.warn(`[ArcBountyAgent] ${event} — bounty #${meta.jobId.toString()}`);
+  console.warn(`[ArcBountyAgent] ${event} - bounty #${meta.jobId.toString()}`);
 }
 
 export class ArcBountyAgent {
@@ -65,7 +65,7 @@ export class ArcBountyAgent {
 
   constructor(config: ArcBountyAgentConfig) {
     // Everything network-shaped (chain id, RPC, contract addresses) comes
-    // from the RESOLVED network. Explicit config overrides still win — an
+    // from the RESOLVED network. Explicit config overrides still win - an
     // rpcUrl override changes only the transport URL, never the chain id
     // (pre-0.5 the constructor kept the testnet chain id even when rpcUrl
     // pointed elsewhere).
@@ -84,7 +84,7 @@ export class ArcBountyAgent {
       : new ViemSigner(config.privateKey as `0x${string}`, this.chain, rpcUrl);
     this.metadataURI = config.metadataURI ?? "";
     // Adapter precedence: explicit config > BOUNTY_ADAPTER_ADDRESS env
-    // (testnet only — a stale testnet env var must never leak onto mainnet)
+    // (testnet only - a stale testnet env var must never leak onto mainnet)
     // > the resolved network's canonical adapter (for mainnet that is
     // ARC_MAINNET_BOUNTY_ADAPTER, via resolveNetwork).
     const envAdapter = network.testnet
@@ -93,7 +93,7 @@ export class ArcBountyAgent {
     const rawAdapter = config.bountyAdapterAddress ?? envAdapter ?? network.defaultBountyAdapter;
     if (!rawAdapter) {
       throw new Error(
-        `ArcBountyAgent: no BountyAdapter address for network "${network.name}" — pass ` +
+        `ArcBountyAgent: no BountyAdapter address for network "${network.name}" - pass ` +
         "bountyAdapterAddress in the constructor" +
         (network.testnet
           ? " or set BOUNTY_ADAPTER_ADDRESS. See agent-sdk/.env.example. Source of truth: contracts/DEPLOYMENTS.md."
@@ -116,7 +116,7 @@ export class ArcBountyAgent {
 
   /**
    * @param metadataURI Overrides the constructor's `metadataURI` for this call
-   *   only — callers that pin metadata just before registering (the MCP
+   *   only - callers that pin metadata just before registering (the MCP
    *   server's `register_agent` tool does exactly this) need the freshly
    *   pinned CID on-chain, not whatever (often empty) value the agent was
    *   constructed with.
@@ -135,7 +135,7 @@ export class ArcBountyAgent {
       args: [metadataURI ?? this.metadataURI],
     });
 
-    // Decode the agentId straight from the registration receipt — authoritative
+    // Decode the agentId straight from the registration receipt - authoritative
     // and avoids a wide getLogs scan that public RPCs reject on long chains.
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
     const agentId = agentIdFromReceiptLogs(receipt.logs, this.network.contracts.IDENTITY_REGISTRY, this.signer.address);
@@ -231,13 +231,13 @@ export class ArcBountyAgent {
       // bounties with less than MIN_BOND_BOUNTY_DURATION (24h) to deadline.
       // Fail fast here with a clearer message than the on-chain revert. The
       // safety buffer keeps a deadline that clears the floor only at signing
-      // time from reverting on-chain a few seconds later — after the USDC
+      // time from reverting on-chain a few seconds later - after the USDC
       // approve (tx 1 of 2) already went through.
       const nowSec = BigInt(Math.floor(Date.now() / 1000));
       if (!bondCreateDeadlineOk(deadline, nowSec)) {
         throw new Error(
           "requireWorkerBond bounties need a deadline at least 24h out (MIN_BOND_BOUNTY_DURATION) " +
-          "plus a safety margin — use 25h or more from now",
+          "plus a safety margin - use 25h or more from now",
         );
       }
     }
@@ -288,7 +288,7 @@ export class ArcBountyAgent {
   async takeBounty(jobId: bigint, opts: { skipBondTakeWindowGuard?: boolean } = {}): Promise<TxResult> {
     const agentId = this._agentId ?? 0n;
     // V4: a requireWorkerBond bounty pulls the bond from the worker via
-    // transferFrom inside takeBounty — without a USDC allowance the take
+    // transferFrom inside takeBounty - without a USDC allowance the take
     // reverts. Read the live bond parameters rather than hardcoding them so
     // the SDK stays correct if a future deployment tunes them.
     const meta = await this.getBounty(jobId);
@@ -301,7 +301,7 @@ export class ArcBountyAgent {
       const nowSec = BigInt(Math.floor(Date.now() / 1000));
       if (!opts.skipBondTakeWindowGuard && !bondTakeWindowOk(meta.deadline, nowSec)) {
         throw new Error(
-          `takeBounty(${jobId}): bond bounty has under 12h to its deadline (MIN_BOND_TAKE_WINDOW) — ` +
+          `takeBounty(${jobId}): bond bounty has under 12h to its deadline (MIN_BOND_TAKE_WINDOW) - ` +
           "taking it risks forfeiting your bond. Pass { skipBondTakeWindowGuard: true } to override.",
         );
       }
@@ -400,13 +400,13 @@ export class ArcBountyAgent {
 
   // ─── Dispute flow (worker-side) ─────────────────────────────────────────────
 
-  /** Worker challenges a pending rejection — flips bounty into dispute with worker as initiator. */
+  /** Worker challenges a pending rejection - flips bounty into dispute with worker as initiator. */
   async challengeRejection(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
     const cid = await this._resolveEvidenceCid(evidence);
     return this._writeAdapter("challengeRejection", [jobId, cid]);
   }
 
-  /** Open a dispute (either party — after submission, before resolution). */
+  /** Open a dispute (either party - after submission, before resolution). */
   async disputeBounty(jobId: bigint, evidence: DisputeEvidenceOptions): Promise<TxResult> {
     const cid = await this._resolveEvidenceCid(evidence);
     return this._writeAdapter("disputeBounty", [jobId, cid]);
@@ -426,7 +426,7 @@ export class ArcBountyAgent {
    * `limit` candidates to expire.
    *
    * NOTE: `getOpenBounties` (used pre-V3.3) can NEVER return a candidate for
-   * this — it excludes any bounty whose deadline has already passed by
+   * this - it excludes any bounty whose deadline has already passed by
    * definition (`_isOpenMatch` checks `block.timestamp <= deadline`). This
    * scan walks `allJobIds` directly instead, mirroring the keeper cron route
    * (`frontend/app/api/cron/keeper/route.ts`).
@@ -451,7 +451,7 @@ export class ArcBountyAgent {
 
       const meta = await this.getBounty(jobId);
       if (meta.resolved) continue;
-      if (meta.submittedResultHash.length > 0) continue; // has a submission — expireBounty rejects this
+      if (meta.submittedResultHash.length > 0) continue; // has a submission - expireBounty rejects this
       if (category && meta.category !== category) continue;
       if (meta.deadline >= now) continue;
 
@@ -459,7 +459,7 @@ export class ArcBountyAgent {
         await this._writeAdapter("expireBounty", [jobId]);
         expired.push(jobId);
       } catch {
-        // already expired/resolved by someone else — skip
+        // already expired/resolved by someone else - skip
       }
     }
     return expired;
@@ -486,7 +486,7 @@ export class ArcBountyAgent {
 
   /**
    * V4 anti-Sybil signal: count of distinct posters who've actually paid out
-   * a completed bounty to this agent. Costs N real funded wallets to fake N —
+   * a completed bounty to this agent. Costs N real funded wallets to fake N -
    * unlike the raw ERC-8004 average score, which one alt account can inflate
    * for a few cents. See V4_DESIGN_ANTI_SYBIL.md.
    */
@@ -530,7 +530,7 @@ export class ArcBountyAgent {
 
   /**
    * Watch `BountyCreated` events and invoke `onMatch` for each new bounty that
-   * passes the filter. Returns an `unwatch()` function — call it to stop.
+   * passes the filter. Returns an `unwatch()` function - call it to stop.
    *
    * Idempotency: each jobId is delivered to `onMatch` at most once per process
    * lifetime, even if the chain emits a duplicate event (re-org, RPC retry).
@@ -582,14 +582,14 @@ export class ArcBountyAgent {
    *
    *  - **Pending rejection, not yet challenged** → calls `onRejection` (if
    *    provided) for evidence and calls `challengeRejection`. Without a
-   *    callback, a rejection is only logged, never auto-challenged — silently
+   *    callback, a rejection is only logged, never auto-challenged - silently
    *    auto-disputing every rejection would be its own failure mode.
    *  - **Dispute raised by the other party, not yet responded** → calls
    *    `onDisputeAgainstMe` for evidence and calls `respondToDispute`. Same
    *    caveat: no callback means log-only.
    *  - **Dispute resolved-by-response but arbitrator never ruled (30d)** →
    *    calls `claimArbitratorTimeout` automatically (permissionless, no
-   *    evidence needed — this just unsticks the agent's own frozen funds).
+   *    evidence needed - this just unsticks the agent's own frozen funds).
    *  - **Submitted, approval window elapsed (14d), poster silent** → calls
    *    `autoApprove` automatically.
    *
@@ -627,7 +627,7 @@ export class ArcBountyAgent {
    * `getMyBounties()`) for anything needing attention: a dispute raised
    * against it with no response yet, a pending rejection not yet challenged,
    * or funds it can now unstick permissionlessly (auto-approve / arbitrator
-   * timeout). No transactions, no callbacks, no side effects — safe to call
+   * timeout). No transactions, no callbacks, no side effects - safe to call
    * from anywhere, including once per turn from an MCP tool. This is what
    * lets an agent that only runs on-demand (no background `protect()` loop)
    * still find out about a dispute instead of it passing silently.
@@ -659,7 +659,7 @@ export class ArcBountyAgent {
       if (meta.rejectedAt > 0n && !meta.inDispute && now <= meta.rejectedAt + rejectionWindow) {
         actions.push({
           kind: "rejection_pending", jobId: meta.jobId, meta,
-          message: `Bounty #${meta.jobId}: poster rejected your submission — challenge it within the window or it finalizes against you.`,
+          message: `Bounty #${meta.jobId}: poster rejected your submission - challenge it within the window or it finalizes against you.`,
         });
         continue;
       }
@@ -673,7 +673,7 @@ export class ArcBountyAgent {
       ) {
         actions.push({
           kind: "dispute_needs_response", jobId: meta.jobId, meta,
-          message: `Bounty #${meta.jobId}: a dispute was opened against you — respond before the window closes or the other side wins by default.`,
+          message: `Bounty #${meta.jobId}: a dispute was opened against you - respond before the window closes or the other side wins by default.`,
         });
         continue;
       }
@@ -682,7 +682,7 @@ export class ArcBountyAgent {
       if (meta.inDispute && meta.disputeResponseHash.length > 0 && now > meta.disputeRaisedAt + arbitratorTimeout) {
         actions.push({
           kind: "arbitrator_timeout_claimable", jobId: meta.jobId, meta,
-          message: `Bounty #${meta.jobId}: arbitrator never ruled — you can claim a default resolution now (claimArbitratorTimeout).`,
+          message: `Bounty #${meta.jobId}: arbitrator never ruled - you can claim a default resolution now (claimArbitratorTimeout).`,
         });
         continue;
       }
@@ -691,7 +691,7 @@ export class ArcBountyAgent {
       if (meta.submittedAt > 0n && meta.rejectedAt === 0n && !meta.inDispute && now > meta.submittedAt + approvalTimeout) {
         actions.push({
           kind: "auto_approve_claimable", jobId: meta.jobId, meta,
-          message: `Bounty #${meta.jobId}: poster went silent past the approval window — you can claim payout now (autoApprove).`,
+          message: `Bounty #${meta.jobId}: poster went silent past the approval window - you can claim payout now (autoApprove).`,
         });
       }
     }
@@ -793,11 +793,11 @@ export class ArcBountyAgent {
   /**
    * Best-effort idempotency check: scan a bounded recent window for a
    * Transfer(0x0 → self) on the registry. Arc's public RPC caps eth_getLogs to
-   * a 10,000-block range per call (confirmed empirically — a single wider
+   * a 10,000-block range per call (confirmed empirically - a single wider
    * request errors outright), so we page backward in 10k chunks up to a total
    * lookback ceiling instead of issuing one oversized request. A chunk/network
    * error aborts the whole scan and falls back to "register again", which is
-   * acceptable — worst case we mint a redundant identity, not lose data.
+   * acceptable - worst case we mint a redundant identity, not lose data.
    */
   private async _findExistingAgentId(): Promise<bigint | null> {
     const CHUNK = 10_000n; // Arc RPC's actual eth_getLogs range cap.

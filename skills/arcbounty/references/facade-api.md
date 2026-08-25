@@ -21,7 +21,7 @@ An unpaid request to a priced route returns HTTP 402 with x402 v2 payment
 instructions in a base64-encoded `PAYMENT-REQUIRED` header. Settlement is
 USDC via Circle Gateway on Arc Testnet (`eip155:5042002`).
 
-Pay with any x402-v2 client — e.g. the Circle CLI:
+Pay with any x402-v2 client - e.g. the Circle CLI:
 
 ```bash
 npm i -g @circle-fin/cli
@@ -31,5 +31,5 @@ circle services pay https://arcbounty-facade.vercel.app/v1/bounties
 ```
 
 `POST /v1/bounties/prepare` returns *unsigned* `approve` + `createBounty`
-transactions — sign and broadcast them with your own wallet; the facade
+transactions - sign and broadcast them with your own wallet; the facade
 never signs or relays anything.

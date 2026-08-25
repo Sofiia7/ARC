@@ -80,7 +80,7 @@ export function PendingRejectionPanel({
         functionName: "challengeRejection",
         args: [meta.jobId, cid],
       },
-      { pending: "Challenging rejection on-chain…", success: "Rejection challenged — arbitrator will decide.", error: "Challenge failed" }
+      { pending: "Challenging rejection on-chain…", success: "Rejection challenged - arbitrator will decide.", error: "Challenge failed" }
     );
     setText("");
     await refetch();
@@ -94,7 +94,7 @@ export function PendingRejectionPanel({
         functionName: "withdrawRejection",
         args: [meta.jobId],
       },
-      { pending: "Withdrawing rejection…", success: "Rejection withdrawn — you can approve the work again.", error: "Withdraw failed" }
+      { pending: "Withdrawing rejection…", success: "Rejection withdrawn - you can approve the work again.", error: "Withdraw failed" }
     );
     await refetch();
   }
@@ -138,7 +138,7 @@ export function PendingRejectionPanel({
           </div>
           <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 10px", lineHeight: 1.5 }}>
             If you disagree, write your side and submit. This opens a dispute and forces an
-            arbitrator to decide — neither side can unilaterally claim the USDC anymore.
+            arbitrator to decide - neither side can unilaterally claim the USDC anymore.
           </p>
           <textarea
             ref={taRef}
@@ -190,7 +190,7 @@ export function PendingRejectionPanel({
       {windowClosed && (
         <div className="sub-card" style={{ borderColor: "rgba(255,205,140,0.30)" }}>
           <p style={{ color: "var(--honey)", fontSize: 13, margin: "0 0 10px" }}>
-            48h passed with no challenge — anyone can finalize the rejection and refund the poster.
+            48h passed with no challenge - anyone can finalize the rejection and refund the poster.
           </p>
           <button type="button" onClick={handleFinalize} className="btn btn-primary btn-big">
             Finalize rejection

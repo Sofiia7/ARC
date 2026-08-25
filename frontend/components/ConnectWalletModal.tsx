@@ -11,11 +11,11 @@ type Props = {
 
 function copyFor(connector: Connector): { title: string; hint: string } {
   if (connector.id === "xyz.ithaca.porto" || connector.name.toLowerCase().includes("porto")) {
-    // "gas paid in USDC" is an Arc property, not a Porto one — on Base gas is
+    // "gas paid in USDC" is an Arc property, not a Porto one - on Base gas is
     // ETH, so stating it unconditionally would be a lie on that build.
     return {
       title: "Sign in with passkey",
-      hint: isGasPaidInUsdc() ? "No extension needed — gas paid in USDC" : "No extension needed",
+      hint: isGasPaidInUsdc() ? "No extension needed - gas paid in USDC" : "No extension needed",
     };
   }
   if (connector.id === "walletConnect") {
@@ -28,7 +28,7 @@ function copyFor(connector: Connector): { title: string; hint: string } {
   return { title: connector.name, hint: "" };
 }
 
-// Passkey first (no-install path), then browser extension, then QR — matches
+// Passkey first (no-install path), then browser extension, then QR - matches
 // the order they were previously offered as separate navbar buttons.
 function sortOrder(connector: Connector): number {
   if (connector.id === "xyz.ithaca.porto") return 0;
@@ -44,7 +44,7 @@ export function ConnectWalletModal({ onClose }: Props) {
   // as "Browser wallet") is a fallback for wallets that don't support
   // EIP-6963. When a real wallet (e.g. Rabby) has announced itself via
   // EIP-6963, it's a separate connector targeting the same window.ethereum
-  // slot — showing both is just the same wallet listed twice.
+  // slot - showing both is just the same wallet listed twice.
   const hasNamedInjected = connectors.some(c => c.type === "injected" && c.id !== "injected");
   const options = connectors
     .filter(c => !(hasNamedInjected && c.type === "injected" && c.id === "injected"))
@@ -59,7 +59,7 @@ export function ConnectWalletModal({ onClose }: Props) {
           const isInjected = connector.type === "injected";
           toast.error(
             isInjected
-              ? "No browser wallet found — install MetaMask, or use Passkey / WalletConnect instead."
+              ? "No browser wallet found - install MetaMask, or use Passkey / WalletConnect instead."
               : err.message || "Couldn't connect wallet.",
           );
         },
@@ -69,7 +69,7 @@ export function ConnectWalletModal({ onClose }: Props) {
 
   return (
     <Modal title="Connect a wallet" onClose={onClose}>
-      <p className="modal-help">Pick how you&apos;d like to connect — you only need one.</p>
+      <p className="modal-help">Pick how you&apos;d like to connect - you only need one.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {options.map(connector => {
           const { title, hint } = copyFor(connector);

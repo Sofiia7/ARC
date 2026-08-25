@@ -18,7 +18,7 @@ export function reportEvent(
     message,
     ...extra,
   };
-  // Structured single-line log — picked up by Vercel log drains.
+  // Structured single-line log - picked up by Vercel log drains.
   const line = JSON.stringify(event);
   if (severity === "error") console.error(line);
   else if (severity === "warning") console.warn(line);

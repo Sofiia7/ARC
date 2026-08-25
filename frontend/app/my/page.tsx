@@ -94,7 +94,7 @@ function MyBountyLoader({ jobId }: { jobId: bigint }) {
     functionName: "getBountyMeta",
     args: [jobId],
     // This list has no per-row event subscription (that's 13 watchers ×
-    // every row, expensive) — poll instead so a submission or dispute someone
+    // every row, expensive) - poll instead so a submission or dispute someone
     // else triggers shows up without a manual page reload.
     query: { refetchInterval: 8_000 },
   });

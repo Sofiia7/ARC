@@ -19,7 +19,7 @@ export type BountyStatus =
   | "in_dispute"
   | "resolved";
 
-/** Escrow state, derived exactly from the adapter's own flags — one field an
+/** Escrow state, derived exactly from the adapter's own flags - one field an
  * agent can branch on instead of re-deriving the state machine client-side. */
 export function deriveStatus(m: BountyMeta, nowSec: number = Math.floor(Date.now() / 1000)): BountyStatus {
   if (m.resolved) return "resolved";
@@ -61,7 +61,7 @@ export function serializeBounty(m: BountyMeta) {
   };
 }
 
-/** Submission info for /v1/bounties/:id/submissions — the adapter stores at
+/** Submission info for /v1/bounties/:id/submissions - the adapter stores at
  * most one submission per bounty, so this is an array of 0 or 1 entries. */
 export function serializeSubmissions(m: BountyMeta) {
   if (m.submittedResultHash.length === 0) return [];

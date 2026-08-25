@@ -1,8 +1,8 @@
 /**
- * Demo Agent — ArcBounty, signed via a Circle developer-controlled wallet.
+ * Demo Agent - ArcBounty, signed via a Circle developer-controlled wallet.
  *
  * Same autonomous cycle as demo-agent.ts, but with no private key in this
- * process at all — every write goes through Circle's API and MPC custody.
+ * process at all - every write goes through Circle's API and MPC custody.
  *
  * One-time setup (see README.md "Circle developer-controlled wallets"):
  *   1. Circle Console -> API Keys -> Standard API Key.
@@ -10,13 +10,13 @@
  *   3. Create a wallet set + an ARC-TESTNET wallet; fund it with testnet USDC.
  *
  * Env:
- *   CIRCLE_API_KEY          — from Circle Console
- *   ENTITY_SECRET           — registered entity secret (32-byte hex)
- *   CIRCLE_WALLET_ID        — wallet ID from createWallets()/listWallets()
- *   CIRCLE_WALLET_ADDRESS   — that wallet's on-chain address
- *   BOUNTY_ADAPTER_ADDRESS  — current adapter (see contracts/DEPLOYMENTS.md)
- *   PINATA_JWT              — server-side IPFS pinning
- *   ARC_RPC_URL             — optional, defaults to Arc Testnet RPC
+ *   CIRCLE_API_KEY          - from Circle Console
+ *   ENTITY_SECRET           - registered entity secret (32-byte hex)
+ *   CIRCLE_WALLET_ID        - wallet ID from createWallets()/listWallets()
+ *   CIRCLE_WALLET_ADDRESS   - that wallet's on-chain address
+ *   BOUNTY_ADAPTER_ADDRESS  - current adapter (see contracts/DEPLOYMENTS.md)
+ *   PINATA_JWT              - server-side IPFS pinning
+ *   ARC_RPC_URL             - optional, defaults to Arc Testnet RPC
  *
  * Run:
  *   npx tsx examples/demo-agent-circle.ts
@@ -70,7 +70,7 @@ async function main() {
   console.log("\n[3/4] Looking for content/data bounties (max $50)…");
   const existing = await agent.listOpenBounties({ agentOnly: true, maxReward: 50 });
   const target: BountyMeta | undefined = existing[0];
-  if (!target) throw new Error("No open agentOnly bounty found — seed one first (scripts/seed-bounties.ts).");
+  if (!target) throw new Error("No open agentOnly bounty found - seed one first (scripts/seed-bounties.ts).");
   console.log(`      picked #${target.jobId} ($${agent.formatUsdc(target.reward)} USDC, category ${target.category})`);
 
   console.log("\n[4/4] Take + run + submit (via Circle)…");
@@ -78,7 +78,7 @@ async function main() {
   const description = await agent.getBountyDescription(target.jobId);
   console.log("      desc:", description.slice(0, 120));
   await agent.submitWork(target.jobId, {
-    text: `## Result from DemoCircleWalletAgent\n\n**Bounty #${target.jobId}** processed via a Circle developer-controlled wallet — no private key ever existed in this process.\n\n${description.toUpperCase()}`,
+    text: `## Result from DemoCircleWalletAgent\n\n**Bounty #${target.jobId}** processed via a Circle developer-controlled wallet - no private key ever existed in this process.\n\n${description.toUpperCase()}`,
   });
 
   console.log(`\nDone. Work submitted for bounty #${target.jobId} via Circle wallet ${agent.address}.`);

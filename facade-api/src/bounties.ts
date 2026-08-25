@@ -9,7 +9,7 @@ import type { FacadeConfig } from "./config.js";
  *
  * Deliberately does NOT use the SDK's listOpenBounties(): that method fans out
  * one eth_call per bounty in a Promise.all, and the public Arc RPC enforces
- * ~4 requests/sec per IP (error -32011 "request limit reached" — measured, and
+ * ~4 requests/sec per IP (error -32011 "request limit reached" - measured, and
  * JSON-RPC batching does not help: each sub-call burns budget). A browser user
  * gets their own per-IP budget; this server shares one IP across all callers,
  * so reads are paced through a single global gate instead. A dedicated
@@ -17,7 +17,7 @@ import type { FacadeConfig } from "./config.js";
  */
 
 /** Minimum spacing between RPC sends, shared across all endpoints. 300ms keeps
- * us at ~3 req/s — under the measured ~4/s public-RPC budget with headroom for
+ * us at ~3 req/s - under the measured ~4/s public-RPC budget with headroom for
  * the keeper/frontend occasionally sharing the IP. */
 const RPC_GAP_MS = 300;
 const RATE_LIMIT_RETRIES = 2;
@@ -29,7 +29,7 @@ export class BountyReader {
   private gate: Promise<void> = Promise.resolve();
 
   constructor(private readonly config: FacadeConfig) {
-    // Chain id/name follow config.network — this used to be hardcoded to Arc
+    // Chain id/name follow config.network - this used to be hardcoded to Arc
     // Testnet, which would silently mislabel/mis-id an arc-mainnet instance.
     const chain = defineChain({
       id: config.chainId,

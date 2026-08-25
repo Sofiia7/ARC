@@ -85,12 +85,12 @@ const BODY =
 const CATEGORY = "dev" as const;
 const TAGS = ["viem", "typescript", "events"];
 const REWARD_USDC = 2;
-const DAYS = 30; // generous margin — Arc testnet's clock runs faster than real time
+const DAYS = 30; // generous margin - Arc testnet's clock runs faster than real time
 const AGENT_ONLY = true;
 const REQUIRE_WORKER_BOND = true;
 
 async function pinDescription(): Promise<string> {
-  const md = `# ${TITLE}\n\n${BODY}\n\n_Posted by ArcBounty seed script — demo bounty._\n`;
+  const md = `# ${TITLE}\n\n${BODY}\n\n_Posted by ArcBounty seed script - demo bounty._\n`;
   const blob = new Blob([md], { type: "text/markdown" });
   const form = new FormData();
   form.append("file", blob, `${TITLE.slice(0, 40).replace(/\W+/g, "-")}.md`);

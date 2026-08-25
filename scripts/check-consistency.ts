@@ -4,7 +4,7 @@
  * Sprint 0 guard rail: catches the recurring footguns that bit us before.
  *   1. Per network documented in contracts/DEPLOYMENTS.md, the canonical
  *      (current, non-superseded) BountyAdapter address must match across
- *      docs, env examples, and code — and any address that ISN'T a
+ *      docs, env examples, and code - and any address that ISN'T a
  *      documented network's canonical adapter or a documented protocol/infra
  *      address (registries, fee recipient, arbitrator, ...) is flagged as
  *      stray (catches stale/superseded adapter references).
@@ -14,7 +14,7 @@
  *      working tree.
  *   4. frontend/lib/networks.ts's arc-testnet entry must exactly match
  *      agent-sdk/src/constants.ts's NETWORKS["arc-testnet"] entry, field by
- *      field — the two are deliberately separate files (frontend can't
+ *      field - the two are deliberately separate files (frontend can't
  *      depend on the unpublished SDK) and have no other guard against
  *      silently drifting apart.
  *
@@ -45,7 +45,7 @@ const ZERO_ADDRESS = "0x" + "0".repeat(40);
 
 // ─── 1a. Parse contracts/DEPLOYMENTS.md into per-network sections ─────────────
 //
-// A "network section" is any `## <Name> (chain id `<digits>`)` H2 heading —
+// A "network section" is any `## <Name> (chain id `<digits>`)` H2 heading -
 // this is deliberately generic so a future `## Arc Mainnet (chain id ...)`
 // section is picked up automatically; H2 headings that don't match this
 // shape (e.g. "## Updating this file after a redeploy") are skipped. Each
@@ -61,7 +61,7 @@ type NetworkSection = {
   canonicalAdapter: string | null;
   canonicalError: string | null;
   /** Protocol/infra addresses (registries, fee recipient, arbitrator, ...)
-   *  legitimately referenced for this network — everything in the section's
+   *  legitimately referenced for this network - everything in the section's
    *  table rows EXCEPT the per-version `| Address | ... |` rows (those are
    *  adapter addresses, handled via canonicalAdapter so superseded ones stay
    *  correctly un-allowlisted). Lowercased. */
@@ -108,7 +108,7 @@ function extractKnownAddresses(body: string): Set<string> {
   const rowRe = /^\|([^|\n]+)\|(.*)\|[ \t]*$/gm;
   for (const m of body.matchAll(rowRe)) {
     const field = m[1]!.trim();
-    if (field === "Address") continue; // per-version adapter address row — not a generic "known" address
+    if (field === "Address") continue; // per-version adapter address row - not a generic "known" address
     const rest = m[2]!;
     for (const addrMatch of rest.matchAll(/`(0x[a-fA-F0-9]{40})`/g)) {
       out.add(addrMatch[1]!.toLowerCase());
@@ -154,14 +154,14 @@ if (sections.length === 0) {
 
 // The two networks this repo actually targets (agent-sdk's NetworkName) MUST
 // have a resolvable canonical adapter once documented; other sections (e.g.
-// Base Sepolia — an explicit rehearsal, "NOT the frontend target") are
+// Base Sepolia - an explicit rehearsal, "NOT the frontend target") are
 // best-effort and don't hard-fail the gate if they lack one.
 const REQUIRED_CANONICAL_NETWORKS = new Set(["arc-testnet", "arc-mainnet"]);
 
 // Addresses that are legitimately reusable across docs but aren't sourced
 // from a DEPLOYMENTS.md network section (protocol-level / roadmap concepts
 // mentioned elsewhere, e.g. ARCHITECTURE.md's ERC-8004 ValidationRegistry
-// note) — kept tiny and explicit on purpose; prefer documenting a new
+// note) - kept tiny and explicit on purpose; prefer documenting a new
 // address in DEPLOYMENTS.md over growing this list.
 const SUPPLEMENTARY_KNOWN_ADDRESSES = new Set([
   "0x8004cb1bf31daf7788923b405b754f57aceb4272", // ValidationRegistry (ARCHITECTURE.md roadmap mention; not yet a live integration)
@@ -223,7 +223,7 @@ const DECLARED_FNS = new Set(
 );
 
 const MENTIONED_FN_CANDIDATES = [
-  "autoApprove",      // Sprint 0 — must not be advertised until implemented
+  "autoApprove",      // Sprint 0 - must not be advertised until implemented
   "getBountiesByCategory",
   "getMyBounties",
   "getAgentBounties",
@@ -262,27 +262,27 @@ function walk(dir: string, depth = 0): string[] {
 const envFiles = walk(ROOT);
 if (envFiles.length) {
   for (const f of envFiles) {
-    errors.push(`[env]  real .env file present in tree: ${relative(ROOT, f)} — must not be committed; ensure .gitignore covers it`);
+    errors.push(`[env]  real .env file present in tree: ${relative(ROOT, f)} - must not be committed; ensure .gitignore covers it`);
   }
 }
 
 // ─── 4. frontend/lib/networks.ts <-> agent-sdk/src/constants.ts drift guard ───
 //
 // The frontend deliberately keeps its OWN copy of the network map (it can't
-// depend on the unpublished arcbounty-agent-sdk package — see that file's
-// own header comment) — nothing else stops the two from silently drifting
-// apart. Regex-based, not AST-based: both files are hand-written and small —
+// depend on the unpublished arcbounty-agent-sdk package - see that file's
+// own header comment) - nothing else stops the two from silently drifting
+// apart. Regex-based, not AST-based: both files are hand-written and small -
 // an AST parser would be more robust to unrelated file reshuffling but is
 // unavailable here (no TypeScript compiler API / ts-morph dependency in this
 // workspace). If a field's regex ever stops matching, this fails loudly
-// (exit 2) rather than silently skipping the comparison — a broken regex
+// (exit 2) rather than silently skipping the comparison - a broken regex
 // must never look like a clean pass.
 //
 // The regexes are applied to a SINGLE network's `"<slug>": { ... }` block,
 // extracted by brace matching, not to the whole file. Matching file-wide
 // (which this did while `arc-testnet` was the only static entry) silently
 // starts comparing the wrong network the moment a second entry is added or
-// the entries are reordered — the same first-match-wins trap DEPLOYMENTS.md
+// the entries are reordered - the same first-match-wins trap DEPLOYMENTS.md
 // already had.
 
 type CrossCheckField = {
@@ -304,11 +304,11 @@ const CROSS_CHECK_FIELDS: CrossCheckField[] = [
   { label: "contracts.IDENTITY_REGISTRY", re: /IDENTITY_REGISTRY:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
   { label: "contracts.REPUTATION_REGISTRY", re: /REPUTATION_REGISTRY:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
   { label: "contracts.USDC", re: /USDC:\s*"(0x[a-fA-F0-9]{40})"/, normalize: toLower },
-  // Deliberately NOT comparing the canonical/default adapter address here —
+  // Deliberately NOT comparing the canonical/default adapter address here -
   // frontend/lib/networks.ts documents that divergence as intentional
   // (arc-testnet has never had a baked-in default there).
   { label: "adapterDeployBlock", re: /adapterDeployBlock:\s*([\d_]+)n?/, normalize: toDecimal },
-  // Arc pays gas in USDC, Base in ETH — copy branches on this, so a drift
+  // Arc pays gas in USDC, Base in ETH - copy branches on this, so a drift
   // here silently tells users to fund the wrong asset.
   { label: "nativeCurrency.symbol", re: /nativeCurrency:\s*\{\s*symbol:\s*"([^"]+)"/ },
   { label: "nativeCurrency.isUsdc", re: /isUsdc:\s*(true|false)/ },
@@ -324,7 +324,7 @@ const CROSS_CHECK_FIELDS: CrossCheckField[] = [
 function extractNetworkBlock(text: string, slug: string, fileLabel: string): string {
   const start = text.indexOf(`"${slug}": {`);
   if (start === -1) {
-    fail(`[cross-check] Could not find the "${slug}" entry in ${fileLabel} — either the network was ` +
+    fail(`[cross-check] Could not find the "${slug}" entry in ${fileLabel} - either the network was ` +
       `removed or the map's shape changed; update scripts/check-consistency.ts.`);
   }
   let depth = 0;
@@ -338,7 +338,7 @@ function extractNetworkBlock(text: string, slug: string, fileLabel: string): str
 function extractCrossCheckField(block: string, field: CrossCheckField, fileLabel: string): string {
   const m = block.match(field.re);
   if (!m) {
-    fail(`[cross-check] Could not find "${field.label}" in ${fileLabel} — the drift-check regex ` +
+    fail(`[cross-check] Could not find "${field.label}" in ${fileLabel} - the drift-check regex ` +
       `(scripts/check-consistency.ts) needs updating to match the file's current shape.`);
   }
   const raw = m[1]!;
@@ -375,7 +375,7 @@ if (!existsSync(SDK_CONSTANTS_PATH) || !existsSync(FRONTEND_NETWORKS_PATH)) {
 // ─── Report ───────────────────────────────────────────────────────────────────
 if (errors.length === 0) {
   const summary = [...canonicalByNetwork.entries()].map(([slug, addr]) => `${slug}=${addr}`).join(", ");
-  console.log(`OK — canonical adapters: ${summary}`);
+  console.log(`OK - canonical adapters: ${summary}`);
   process.exit(0);
 }
 console.error(`check-consistency: ${errors.length} issue(s)`);

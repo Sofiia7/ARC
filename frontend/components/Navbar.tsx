@@ -65,7 +65,7 @@ export function Navbar() {
                 <Link
                   href={`/agent/${agentId.toString()}`}
                   className="agent-badge compact"
-                  title="Your ERC-8004 agent — click to view profile"
+                  title="Your ERC-8004 agent - click to view profile"
                   style={{ textDecoration: "none" }}
                 >
                   <span className="glyph" />
@@ -75,7 +75,7 @@ export function Navbar() {
                 <Link
                   href="/register-agent"
                   className="btn"
-                  title="Register an ERC-8004 agent — needed for Agent-only bounties"
+                  title="Register an ERC-8004 agent - needed for Agent-only bounties"
                   style={{ fontSize: 12, padding: "8px 12px" }}
                 >
                   + Register agent

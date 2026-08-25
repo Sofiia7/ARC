@@ -15,25 +15,25 @@ import {
 
 // ─── Agent instance ────────────────────────────────────────────────────────
 //
-// Read-only tools always work (no signer needed — listOpenBounties/getBounty
+// Read-only tools always work (no signer needed - listOpenBounties/getBounty
 // are public view calls). Write tools (take/submit/register/...) only
 // register if a signer is configured, via the same env-var conventions the
 // SDK itself and its examples already use:
 //
-//   ARC_NETWORK               — "arc-testnet" (default) or "arc-mainnet".
+//   ARC_NETWORK               - "arc-testnet" (default) or "arc-mainnet".
 //                                Mainnet additionally requires the SDK's
-//                                ARC_MAINNET_* variables (see .env.example) —
+//                                ARC_MAINNET_* variables (see .env.example) -
 //                                resolveNetwork() throws a descriptive error
 //                                listing anything missing.
-//   AGENT_PRIVATE_KEY        — raw EOA private key, OR:
+//   AGENT_PRIVATE_KEY        - raw EOA private key, OR:
 //   CIRCLE_API_KEY / ENTITY_SECRET / CIRCLE_WALLET_ID / CIRCLE_WALLET_ADDRESS
-//                             — Circle developer-controlled wallet (no key
-//                               in this process at all — see
+//                             - Circle developer-controlled wallet (no key
+//                               in this process at all - see
 //                               agent-sdk/docs/circle-wallet.md)
-//   BOUNTY_ADAPTER_ADDRESS    — required either way; see contracts/DEPLOYMENTS.md
-//   ARC_RPC_URL (optional)    — overrides the RPC endpoint for whichever
+//   BOUNTY_ADAPTER_ADDRESS    - required either way; see contracts/DEPLOYMENTS.md
+//   ARC_RPC_URL (optional)    - overrides the RPC endpoint for whichever
 //                               network ARC_NETWORK resolves to (unchanged
-//                               from pre-network-selection behavior — this is
+//                               from pre-network-selection behavior - this is
 //                               a transport-only override, so on arc-mainnet
 //                               it still talks to the mainnet chain id, just
 //                               through this URL instead of ARC_MAINNET_RPC_URL).
@@ -47,7 +47,7 @@ function readNetwork(): NetworkName | null {
   if (!raw) return "arc-testnet";
   if ((KNOWN_NETWORKS as readonly string[]).includes(raw)) return raw as NetworkName;
   console.error(
-    `[arcbounty-mcp] Invalid ARC_NETWORK="${raw}" — expected one of: ${KNOWN_NETWORKS.join(", ")}. ` +
+    `[arcbounty-mcp] Invalid ARC_NETWORK="${raw}" - expected one of: ${KNOWN_NETWORKS.join(", ")}. ` +
     "Server will not start.",
   );
   return null;
@@ -60,7 +60,7 @@ function buildAgent(): ArcBountyAgent | null {
   const bountyAdapterAddress = process.env["BOUNTY_ADAPTER_ADDRESS"] as `0x${string}` | undefined;
   if (!bountyAdapterAddress) {
     console.error(
-      "[arcbounty-mcp] BOUNTY_ADAPTER_ADDRESS not set — server will not start. " +
+      "[arcbounty-mcp] BOUNTY_ADAPTER_ADDRESS not set - server will not start. " +
       "See contracts/DEPLOYMENTS.md for the canonical address.",
     );
     return null;
@@ -85,16 +85,16 @@ function buildAgent(): ArcBountyAgent | null {
     return new ArcBountyAgent({ network, privateKey, bountyAdapterAddress, rpcUrl });
   }
 
-  // No signer configured — read-only mode. Still useful: browsing bounties
+  // No signer configured - read-only mode. Still useful: browsing bounties
   // needs no credentials at all.
   console.error(
     "[arcbounty-mcp] No signer configured (AGENT_PRIVATE_KEY or CIRCLE_API_KEY+ENTITY_SECRET+" +
-    "CIRCLE_WALLET_ID+CIRCLE_WALLET_ADDRESS) — starting in READ-ONLY mode. " +
+    "CIRCLE_WALLET_ID+CIRCLE_WALLET_ADDRESS) - starting in READ-ONLY mode. " +
     "take_bounty/submit_work/register_agent/etc. will not be registered.",
   );
   // ArcBountyAgent's constructor requires a signer; view-only calls (listOpenBounties,
   // getBounty, getReputation) don't actually need one, so we use a throwaway
-  // burner key purely to satisfy the constructor — it is never used to sign
+  // burner key purely to satisfy the constructor - it is never used to sign
   // anything because no write tools are registered in this mode.
   const burner = "0x0000000000000000000000000000000000000000000000000000000000000001" as `0x${string}`;
   return new ArcBountyAgent({ network, privateKey: burner, bountyAdapterAddress, rpcUrl });
@@ -104,7 +104,7 @@ let agent: ArcBountyAgent | null;
 try {
   agent = buildAgent();
 } catch (err) {
-  // Thrown by the SDK constructor itself — most commonly resolveNetwork()
+  // Thrown by the SDK constructor itself - most commonly resolveNetwork()
   // rejecting ARC_NETWORK=arc-mainnet because the ARC_MAINNET_* variables
   // aren't set yet (Circle hasn't published mainnet parameters). The SDK's
   // error message already lists exactly what's missing.
@@ -157,7 +157,7 @@ function errorResult(err: unknown) {
 
 // Read the version off package.json instead of repeating it here: registries
 // label their listings with whatever the server reports at `initialize`, so a
-// stale literal shows up publicly as a version that doesn't exist on npm —
+// stale literal shows up publicly as a version that doesn't exist on npm -
 // Glama's first release went out as 0.1.0 while npm was already on 0.1.1.
 const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
 
@@ -245,7 +245,7 @@ if (hasSigner) {
     {
       description:
         "Register this server's configured wallet as an ERC-8004 agent on Arc, pinning the given metadata to " +
-        "IPFS first. Idempotent — if this wallet already has an agentId, returns the existing one without a new " +
+        "IPFS first. Idempotent - if this wallet already has an agentId, returns the existing one without a new " +
         "on-chain transaction.",
       inputSchema: z.object({
         name: z.string(),
@@ -321,7 +321,7 @@ if (hasSigner) {
         "Check this wallet's own bounties for anything needing attention RIGHT NOW: a dispute opened against " +
         "it with no response yet, a rejection not yet challenged, or funds it can claim permissionlessly " +
         "(auto-approve after the poster went silent, or a default arbitrator ruling after a timeout). Read-only " +
-        "— reports, never acts. This server has no background watchdog: if this bounty board matters to you, " +
+        "- reports, never acts. This server has no background watchdog: if this bounty board matters to you, " +
         "call this at the start of every session (or on a timer) so a dispute doesn't quietly expire while " +
         "you weren't looking. An empty list means nothing needs you right now.",
     },
@@ -346,9 +346,9 @@ if (hasSigner) {
     "take_bounty",
     {
       description:
-        "Claim an open bounty as this server's configured wallet. On-chain and atomic — fails if someone else " +
+        "Claim an open bounty as this server's configured wallet. On-chain and atomic - fails if someone else " +
         "already took it. Do this only after reviewing the bounty with get_bounty. If the bounty has " +
-        "requireWorkerBond, a refundable USDC bond (workerBondUsdc) is approved and pulled automatically — " +
+        "requireWorkerBond, a refundable USDC bond (workerBondUsdc) is approved and pulled automatically - " +
         "it is returned in full at submit_work, so only take bonded bounties you intend to finish.",
       inputSchema: z.object({ jobId: z.string() }),
     },
@@ -367,7 +367,7 @@ if (hasSigner) {
     {
       description:
         "Submit completed work for a bounty this wallet has taken. The text is pinned to IPFS automatically. " +
-        "This starts the poster's review window — the poster can approve, reject (with a 48h challenge window), " +
+        "This starts the poster's review window - the poster can approve, reject (with a 48h challenge window), " +
         "or the payout becomes claimable permissionlessly after 14 days if the poster never responds.",
       inputSchema: z.object({
         jobId: z.string(),
@@ -409,16 +409,16 @@ if (hasSigner) {
 // respondToDispute/resolveDispute/claimDefaultRuling/claimArbitratorTimeout/
 // cancelBounty. Those are poster- or arbitrator-side judgment calls (rejecting
 // real work, ruling on evidence) that shouldn't be one blind tool call away
-// from an arbitrary MCP client — they belong in the full SDK or the dashboard
+// from an arbitrary MCP client - they belong in the full SDK or the dashboard
 // until there's a concrete case for exposing them here too.
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // console.error, never console.log — stdout is the JSON-RPC transport
+  // console.error, never console.log - stdout is the JSON-RPC transport
   // itself, and anything printed there corrupts the stream from the host's
   // perspective.
-  console.error(`[arcbounty-mcp] running on stdio${hasSigner ? "" : " (read-only mode — no signer configured)"}`);
+  console.error(`[arcbounty-mcp] running on stdio${hasSigner ? "" : " (read-only mode - no signer configured)"}`);
 }
 
 main().catch(err => {

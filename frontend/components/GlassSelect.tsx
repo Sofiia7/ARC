@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * Glass dropdown that matches the design system. Behaves like a native
- * <select> for our purposes — controlled value + onChange callback.
+ * <select> for our purposes - controlled value + onChange callback.
  *
  * Closes on outside click and Escape.
  */

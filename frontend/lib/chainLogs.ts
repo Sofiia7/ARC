@@ -10,7 +10,7 @@ import { getActiveNetwork } from "./networks";
 // ─── Full-history event scans without an indexer ─────────────────────────────
 //
 // The Arc public RPC rejects eth_getLogs over a >10,000-block range outright
-// (HTTP 413, error -32614) — and Arc Testnet's clock runs fast enough that the
+// (HTTP 413, error -32614) - and Arc Testnet's clock runs fast enough that the
 // chain grew ~250k blocks in the adapter's first day. A chunked RPC scan of
 // the full history is therefore 25+ requests per event type on day one and
 // grows daily: workable as a fallback, hopeless as the primary path.
@@ -18,13 +18,13 @@ import { getActiveNetwork } from "./networks";
 // Primary path instead: ArcScan's Blockscout API (etherscan-compatible
 // `module=logs&action=getLogs`), which serves an address+topic0 filter over
 // the full range in ONE request and sends `Access-Control-Allow-Origin: *`.
-// Caveat: it returns at most ~1,000 records per call — far beyond testnet
+// Caveat: it returns at most ~1,000 records per call - far beyond testnet
 // scale; by the time that limit matters the indexer (grant milestone 6)
 // replaces this file entirely.
 //
 // Fallback path (Blockscout down): chunked RPC scan, bounded to the most
 // recent MAX_LOOKBACK blocks so a degraded mode can't hammer the RPC for
-// minutes. The bound means the fallback may under-count old events — it
+// minutes. The bound means the fallback may under-count old events - it
 // logs a console.warn so the degradation is visible, not silent.
 
 const network = getActiveNetwork();
@@ -39,7 +39,7 @@ export type ScannedLog = { args: unknown; blockNumber?: bigint };
 // Once the explorer API has refused us, it will refuse every subsequent call
 // for the same reason (unsupported chain, no key, CORS). Retrying it per scan
 // only buys a wasted round-trip and a console error before the same fallback
-// runs — so remember the refusal for the rest of the session.
+// runs - so remember the refusal for the rest of the session.
 let explorerUnavailable = false;
 
 export async function getLogsChunked(
@@ -75,7 +75,7 @@ async function blockscoutLogs(
 ): Promise<ScannedLog[]> {
   const [topic0] = encodeEventTopics({ abi: [event], eventName: event.name } as never);
   // Arc's ArcScan API takes no query string of its own, but Etherscan V2 is a
-  // single multichain endpoint keyed by `?chainid=…` — appending another `?`
+  // single multichain endpoint keyed by `?chainid=…` - appending another `?`
   // produced a URL the API rejects outright ("Missing or unsupported chainid").
   const sep = BLOCKSCOUT_API.includes("?") ? "&" : "?";
   const url =
@@ -85,7 +85,7 @@ async function blockscoutLogs(
   const res = await fetch(url);
   if (!res.ok) throw new Error(`blockscout ${res.status}`);
   const json = await res.json() as { result?: unknown };
-  // "No records found" still returns result: [] — only a non-array is an error.
+  // "No records found" still returns result: [] - only a non-array is an error.
   if (!Array.isArray(json.result)) throw new Error("blockscout: unexpected response shape");
 
   return (json.result as BlockscoutLog[]).map(raw => {

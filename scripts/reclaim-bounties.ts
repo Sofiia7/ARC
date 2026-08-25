@@ -12,7 +12,7 @@
  * Env (same as seed-bounties.ts): PRIVATE_KEY, plus ARC_NETWORK /
  * ALLOW_MAINNET / ARC_TESTNET_RPC_URL (see scripts/lib/network.ts).
  * Old adapter list: see contracts/DEPLOYMENTS.md "Historical / abandoned"
- * (Arc Testnet only — there is no mainnet history yet).
+ * (Arc Testnet only - there is no mainnet history yet).
  *
  * Usage (from repo root):
  *   cd scripts && npx tsx reclaim-bounties.ts            # dry run (default)
@@ -101,7 +101,7 @@ const wallet = createWalletClient({ account, chain: arc, transport: http(RPC) })
 const pub = createPublicClient({ chain: arc, transport: http(RPC) });
 
 async function main() {
-  console.log(`Poster: ${account.address}${DO_SEND ? "" : "  (dry run — set RECLAIM=1 to send)"}`);
+  console.log(`Poster: ${account.address}${DO_SEND ? "" : "  (dry run - set RECLAIM=1 to send)"}`);
   const now = BigInt(Math.floor(Date.now() / 1000));
   let reclaimed = 0n;
 
@@ -112,7 +112,7 @@ async function main() {
         address, abi: ABI, functionName: "getMyPostedBounties", args: [account.address],
       });
     } catch {
-      console.log(`\n${label} ${address}: no index / unreachable — skipped`);
+      console.log(`\n${label} ${address}: no index / unreachable - skipped`);
       continue;
     }
     console.log(`\n${label} ${address}: ${jobIds.length} bounties posted by us`);
@@ -128,10 +128,10 @@ async function main() {
       else if (m.submittedResultHash.length === 0 && now > m.deadline) action = "expireBounty";
 
       if (!action) {
-        console.log(`  #${jobId} — active (taken/submitted/disputed), leaving alone`);
+        console.log(`  #${jobId} - active (taken/submitted/disputed), leaving alone`);
         continue;
       }
-      console.log(`  #${jobId} — ${action}, refund ${Number(m.reward) / 1e6} USDC`);
+      console.log(`  #${jobId} - ${action}, refund ${Number(m.reward) / 1e6} USDC`);
       reclaimed += m.reward;
       if (DO_SEND) {
         try {

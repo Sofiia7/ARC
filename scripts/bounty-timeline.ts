@@ -3,7 +3,7 @@
  *
  * MIT License. Run: npx tsx bounty-timeline.ts
  * Env: ARC_NETWORK (optional, default arc-testnet), ARC_RPC_URL (optional
- * override — see scripts/lib/network.ts), BOUNTY_ADAPTER_ADDRESS (required),
+ * override - see scripts/lib/network.ts), BOUNTY_ADAPTER_ADDRESS (required),
  * JOB_ID (required)
  */
 

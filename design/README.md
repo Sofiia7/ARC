@@ -1,6 +1,6 @@
-# ArcBounty — design export
+# ArcBounty - design export
 
-Static HTML/CSS/JS reference for the new sunrise + glass UI. Not a Next.js port — vanilla markup intended for a developer to re-implement against the existing app code (wagmi hooks, contract ABI, `DisputePanel`, etc.).
+Static HTML/CSS/JS reference for the new sunrise + glass UI. Not a Next.js port - vanilla markup intended for a developer to re-implement against the existing app code (wagmi hooks, contract ABI, `DisputePanel`, etc.).
 
 ## Files
 
@@ -9,20 +9,20 @@ Browse.html          # Hero + filters + category grid + bounty list
 My Tasks.html        # Posted By Me / Assigned To Me, segmented tabs + list
 Leaderboard.html     # Period + kind filters, ranked rows w/ avatar + REP-8004
 Post Bounty.html     # Form: markdown desc, IPFS drop, category/tags/reward/deadline
-Bounty Detail.html   # /bounty/[jobId] — breadcrumb, header, description, action
+Bounty Detail.html   # /bounty/[jobId] - breadcrumb, header, description, action
 
 arcbounty-shared.css # All styles. Single source of truth.
 arcbounty-bg.js      # WebGL sunrise background. Drop-in, mounts to <canvas id="bg">.
 ```
 
-Open any `*.html` file directly in a browser — they cross-link via relative paths.
+Open any `*.html` file directly in a browser - they cross-link via relative paths.
 
 ## Design system (Tailwind-portable)
 
 ### Color tokens
 
 ```js
-// tailwind.config.ts — extend theme.colors
+// tailwind.config.ts - extend theme.colors
 {
   // sky (background shader colors; bake into <BackgroundShader> uniforms)
   'sky-deep':  '#050913',
@@ -41,13 +41,13 @@ Open any `*.html` file directly in a browser — they cross-link via relative pa
   coral: '#FF8A52',
 
   // state
-  'state-open':      '#46d391',   // green — Open / success
-  'state-submitted': '#FFD66A',   // yellow — Submitted / review
-  'state-review':    '#66D8D0',   // cyan  — In Review
+  'state-open':      '#46d391',   // green - Open / success
+  'state-submitted': '#FFD66A',   // yellow - Submitted / review
+  'state-review':    '#66D8D0',   // cyan  - In Review
   'state-paid':      '#6cd9a8',
   'state-expired':   '#93A2B8',
 
-  // tag categories (NO purples/pinks — those were removed)
+  // tag categories (NO purples/pinks - those were removed)
   'tag-content': '#46d391',   // green
   'tag-dev':     '#7AB8FF',   // blue
   'tag-design':  '#FF9477',   // warm coral (replaces old purple)
@@ -59,7 +59,7 @@ Open any `*.html` file directly in a browser — they cross-link via relative pa
 ### Type
 
 - UI font: **Inter** (300/400/500/600/700/800)
-- Mono: **JetBrains Mono** (400/500) — used for: wallet pill, IPFS hashes, ranks, stats labels, `code`-like UI text, the small DAWN sidebar label
+- Mono: **JetBrains Mono** (400/500) - used for: wallet pill, IPFS hashes, ranks, stats labels, `code`-like UI text, the small DAWN sidebar label
 
 ### Glass recipe
 
@@ -85,9 +85,9 @@ Tailwind translation:
             rounded-2xl"></div>
 ```
 
-A custom Tailwind utility class `.glass-card` is recommended — define once in `globals.css` via `@layer components`.
+A custom Tailwind utility class `.glass-card` is recommended - define once in `globals.css` via `@layer components`.
 
-### Primary CTA — warm amber glass
+### Primary CTA - warm amber glass
 
 ```css
 background: linear-gradient(180deg, rgba(255,196,128,0.28), rgba(255,138,82,0.18));
@@ -143,8 +143,8 @@ Then in `app/layout.tsx`:
 ```
 
 The shader reads:
-- `mouse position` — gentle horizontal parallax on mountain ridges
-- `scroll position` — drives `u_scroll` 0→1, which raises the sun and warms the palette from pre-dawn to golden hour
+- `mouse position` - gentle horizontal parallax on mountain ridges
+- `scroll position` - drives `u_scroll` 0→1, which raises the sun and warms the palette from pre-dawn to golden hour
 
 The visible sun disc was intentionally removed (hidden behind UI anyway). Only the warm horizon glow remains.
 
@@ -152,10 +152,10 @@ The visible sun disc was intentionally removed (hidden behind UI anyway). Only t
 
 | Existing route        | Reference HTML        | Notes                                                                                                      |
 |-----------------------|-----------------------|------------------------------------------------------------------------------------------------------------|
-| `/` (Browse)          | `Browse.html`         | Hero copy is the marketing text — keep your real copy. Bounty list comes from existing data hook.          |
+| `/` (Browse)          | `Browse.html`         | Hero copy is the marketing text - keep your real copy. Bounty list comes from existing data hook.          |
 | `/my`                 | `My Tasks.html`       | Two tabs; data sources are your existing "posted by me" / "assigned to me" queries.                        |
-| `/leaderboard`        | `Leaderboard.html`    | Row data is mocked here — replace with real `useReadContract` for REP-8004 + earned totals.               |
-| `/post`               | `Post Bounty.html`    | Form fields match existing schema. Submit handler should call existing `useTx` for the bounty contract. **Category uses a custom glass dropdown (`.select-wrap`) — see HTML/JS. Number inputs hide native +/− spinners via CSS.** |
+| `/leaderboard`        | `Leaderboard.html`    | Row data is mocked here - replace with real `useReadContract` for REP-8004 + earned totals.               |
+| `/post`               | `Post Bounty.html`    | Form fields match existing schema. Submit handler should call existing `useTx` for the bounty contract. **Category uses a custom glass dropdown (`.select-wrap`) - see HTML/JS. Number inputs hide native +/− spinners via CSS.** |
 | `/bounty/[jobId]`     | `Bounty Detail.html`  | Breadcrumb, header (tags + price), description card, action bar. `Cancel Bounty` uses `.btn-danger` (warm-aligned, not jarring red). For non-owner views swap in `Take Bounty` / `Submit Work` / `DisputePanel` etc. |
 
 ## Tag/status pill quick reference
@@ -180,13 +180,13 @@ The visible sun disc was intentionally removed (hidden behind UI anyway). Only t
 <span class="status expired">Expired</span>
 ```
 
-Each has a colored bullet via `::before` — see `arcbounty-shared.css`.
+Each has a colored bullet via `::before` - see `arcbounty-shared.css`.
 
 ## What's intentionally NOT here
 
-- No JS framework, no router, no hooks — porter wires those.
-- No contract calls — all bounty/leaderboard data is mocked inline at the bottom of each HTML.
-- No auth state — wallet pill shows hardcoded `0xdf5C…a2c6`.
+- No JS framework, no router, no hooks - porter wires those.
+- No contract calls - all bounty/leaderboard data is mocked inline at the bottom of each HTML.
+- No auth state - wallet pill shows hardcoded `0xdf5C…a2c6`.
 - No purples or pinks anywhere (per design decision). Keep this constraint when adding new states or tags.
 
 ## Quick sanity checks after porting
@@ -195,4 +195,4 @@ Each has a colored bullet via `::before` — see `arcbounty-shared.css`.
 2. Glass surfaces actually blur the background canvas (verify `backdrop-filter` isn't being stripped by some parent `overflow: hidden` + transform combo).
 3. Scrolling raises the sun (`u_scroll` updates). If scroll height ≈ viewport, shader has a fallback to mid-morning so the bg isn't black.
 4. Active nav tab matches current route.
-5. CTA button still has the warm amber gradient — not the generic glass.
+5. CTA button still has the warm amber gradient - not the generic glass.

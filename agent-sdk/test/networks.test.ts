@@ -24,7 +24,7 @@ const FAKE_ADAPTER = "0x00000000000000000000000000000000000000a5";
 
 const MAINNET_REQUIRED_VARS = Object.keys(FAKE_MAINNET_ENV);
 
-// Deterministic, well-known dev key — never used on a real network.
+// Deterministic, well-known dev key - never used on a real network.
 const DUMMY_KEY = "0x0000000000000000000000000000000000000000000000000000000000000001" as const;
 
 /** Reach into the agent's private viem client to assert the actual chain wiring. */
@@ -33,7 +33,7 @@ function clientOf(agent: ArcBountyAgent): { chain: { id: number }; transport: { 
     .publicClient;
 }
 
-describe("resolveNetwork — arc-testnet", () => {
+describe("resolveNetwork - arc-testnet", () => {
   it("returns the static testnet entry unchanged", () => {
     const net = resolveNetwork("arc-testnet", {});
     expect(net.chainId).toBe(5_042_002);
@@ -62,7 +62,7 @@ describe("resolveNetwork — arc-testnet", () => {
     expect(NETWORKS["arc-testnet"].rpcUrl).toBe("https://rpc.testnet.arc.network");
   });
 
-  it("returns a copy — mutating the result never touches NETWORKS", () => {
+  it("returns a copy - mutating the result never touches NETWORKS", () => {
     const net = resolveNetwork("arc-testnet", {});
     net.rpcUrl = "http://mutated.invalid";
     net.contracts.USDC = "0x00000000000000000000000000000000000000ff";
@@ -71,7 +71,7 @@ describe("resolveNetwork — arc-testnet", () => {
   });
 });
 
-describe("resolveNetwork — base-sepolia", () => {
+describe("resolveNetwork - base-sepolia", () => {
   it("returns the static Base Sepolia entry", () => {
     const net = resolveNetwork("base-sepolia", {});
     expect(net.chainId).toBe(84_532);
@@ -98,7 +98,7 @@ describe("resolveNetwork — base-sepolia", () => {
       .toEqual({ name: "ArcBounty", domain: "arcbounty.app" });
   });
 
-  it("pays gas in ETH, not USDC — the one thing that differs from Arc", () => {
+  it("pays gas in ETH, not USDC - the one thing that differs from Arc", () => {
     expect(resolveNetwork("base-sepolia", {}).nativeCurrency)
       .toEqual({ symbol: "ETH", decimals: 18, isUsdc: false });
     // Arc's native token IS USDC; anything prompting a user to fund a wallet
@@ -119,7 +119,7 @@ describe("resolveNetwork — base-sepolia", () => {
     expect(net.rpcUrl).toBe("https://sepolia.base.org");
   });
 
-  it("returns a copy — mutating the result never touches NETWORKS", () => {
+  it("returns a copy - mutating the result never touches NETWORKS", () => {
     const net = resolveNetwork("base-sepolia", {});
     net.contracts.USDC = "0x00000000000000000000000000000000000000ff";
     net.nativeCurrency.symbol = "MUTATED";
@@ -130,7 +130,7 @@ describe("resolveNetwork — base-sepolia", () => {
   });
 });
 
-describe("resolveNetwork — base-mainnet", () => {
+describe("resolveNetwork - base-mainnet", () => {
   it("returns the static Base mainnet entry", () => {
     const net = resolveNetwork("base-mainnet", {});
     expect(net.chainId).toBe(8_453);
@@ -185,7 +185,7 @@ describe("resolveNetwork — base-mainnet", () => {
     expect(net.rpcUrl).toBe("https://mainnet.base.org");
   });
 
-  it("returns a copy — mutating the result never touches NETWORKS", () => {
+  it("returns a copy - mutating the result never touches NETWORKS", () => {
     const net = resolveNetwork("base-mainnet", {});
     net.contracts.USDC = "0x00000000000000000000000000000000000000ff";
     net.brand.name = "MUTATED";
@@ -194,7 +194,7 @@ describe("resolveNetwork — base-mainnet", () => {
   });
 });
 
-describe("resolveNetwork — arc-mainnet", () => {
+describe("resolveNetwork - arc-mainnet", () => {
   it("throws one error naming every missing variable and the docs source of truth", () => {
     let error: Error | null = null;
     try {
@@ -273,7 +273,7 @@ describe("resolveNetwork — arc-mainnet", () => {
   });
 });
 
-describe("ArcBountyAgent constructor — network wiring", () => {
+describe("ArcBountyAgent constructor - network wiring", () => {
   beforeEach(() => {
     // Isolate from whatever the host shell has configured.
     vi.stubEnv("BOUNTY_ADAPTER_ADDRESS", undefined);

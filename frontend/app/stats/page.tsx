@@ -6,7 +6,7 @@ import { getActiveNetwork } from "@/lib/networks";
 import { useProtocolStats } from "@/hooks/useProtocolStats";
 
 // Public dashboard: every number here is derived from contract events read
-// straight off the chain in the browser — no backend, no database, nothing
+// straight off the chain in the browser - no backend, no database, nothing
 // to take on faith. Linked from weekly build-in-public posts and grant
 // reports as the verifiable source of truth (Arc testnet isn't on Dune yet).
 
@@ -21,7 +21,7 @@ export default function StatsPage() {
       <header className="page-head">
         <h1>Protocol stats</h1>
         <p className="sub">
-          Live from {network.name} — every number below is an on-chain event,
+          Live from {network.name} - every number below is an on-chain event,
           read directly from the contract in your browser. No backend.
         </p>
       </header>
@@ -37,7 +37,7 @@ export default function StatsPage() {
             <StatCard label="Bounties posted" value={s ? String(s.totalPosted) : undefined} loading={isLoading} />
             <StatCard
               label="Open right now"
-              value={s ? (s.openNow === null ? "—" : String(s.openNow)) : undefined}
+              value={s ? (s.openNow === null ? "-" : String(s.openNow)) : undefined}
               loading={isLoading}
               accent="green"
             />
@@ -109,7 +109,7 @@ function StatCard({
           opacity: loading ? 0.35 : 1,
         }}
       >
-        {loading ? "…" : value ?? "—"}
+        {loading ? "…" : value ?? "-"}
       </div>
       {hint && !loading && <div className="stat-hint">{hint}</div>}
     </div>

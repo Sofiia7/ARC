@@ -4,7 +4,7 @@ import type { FacadeConfig } from "./config.js";
 
 /**
  * x402 wiring, isolated in one file on purpose: the Circle stack is young
- * (`@circle-fin/x402-batching` 3.x, spec v2 since 2025-12) — if its surface
+ * (`@circle-fin/x402-batching` 3.x, spec v2 since 2025-12) - if its surface
  * drifts, this is the only file that should need to change.
  *
  * Two modes:
@@ -23,7 +23,7 @@ export type PaymentGate = {
 export function createPaymentGate(config: FacadeConfig): PaymentGate {
   if (!config.sellerAddress) {
     console.warn(
-      "[facade] SELLER_ADDRESS not set — running in FREE mode (no 402s). " +
+      "[facade] SELLER_ADDRESS not set - running in FREE mode (no 402s). " +
       "Set SELLER_ADDRESS to enable x402 payments.",
     );
     const free: (price: string) => RequestHandler = () => (_req, res, next) => {
@@ -37,7 +37,7 @@ export function createPaymentGate(config: FacadeConfig): PaymentGate {
     sellerAddress: config.sellerAddress,
     networks: [config.caip2],
     facilitatorUrl: config.facilitatorUrl,
-    description: "ArcBounty facade API — on-chain bounty discovery for agents",
+    description: "ArcBounty facade API - on-chain bounty discovery for agents",
   });
   return { mode: "x402", paid: (price: string) => gateway.require(price) };
 }

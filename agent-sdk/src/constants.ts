@@ -9,7 +9,7 @@ export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base
  *
  * This is the one place Arc and Base genuinely diverge for callers: on Arc,
  * USDC *is* the native token, so a wallet holding only USDC can transact. On
- * Base, USDC is an ordinary ERC-20 and gas is paid in ETH — an agent or human
+ * Base, USDC is an ordinary ERC-20 and gas is paid in ETH - an agent or human
  * funded only with USDC will fail at the first transaction. Anything that
  * tells a user what to fund their wallet with must branch on `isUsdc` rather
  * than assume Arc's model.
@@ -25,7 +25,7 @@ export type NativeCurrency = {
  * Product branding for this network's deployment.
  *
  * The Base deployment ships under its own name (BaseBounty / basebounty.app),
- * separate from the Arc one (ArcBounty / arcbounty.app) — "Arc" reads as a
+ * separate from the Arc one (ArcBounty / arcbounty.app) - "Arc" reads as a
  * competing chain to a Base audience. This is one codebase and one npm
  * package serving both; only the user-facing name differs, so anything that
  * renders a product name must read it from here rather than hardcode one.
@@ -56,7 +56,7 @@ export type NetworkConfig = {
   /** Canonical BountyAdapter for this network (see contracts/DEPLOYMENTS.md).
    * Explicit `bountyAdapterAddress` / `BOUNTY_ADAPTER_ADDRESS` still win. */
   defaultBountyAdapter?: Address;
-  /** Block the canonical adapter was deployed at — lower bound for log scans. */
+  /** Block the canonical adapter was deployed at - lower bound for log scans. */
   adapterDeployBlock?: number;
   testnet: boolean;
   /** Rough estimate for "last N days" style block math (≈1s/block on Arc, ≈2s on Base). */
@@ -68,18 +68,18 @@ export type NetworkConfig = {
  *
  * Two mainnets are deliberately absent, for different reasons:
  *
- * - **Arc mainnet** — Circle has not published its parameters yet (chain id,
+ * - **Arc mainnet** - Circle has not published its parameters yet (chain id,
  *   RPC, contract addresses; source of truth:
  *   https://docs.arc.io/arc/references/contract-addresses). Use
  *   `resolveNetwork("arc-mainnet")`, which builds the config from
  *   `ARC_MAINNET_*` environment variables and fails with a descriptive error
  *   while they are missing.
- * - **Base mainnet (8453)** — every *external* address is already known and
+ * - **Base mainnet (8453)** - every *external* address is already known and
  *   verified (see `docs/INTEGRATION_NOTES.md`), but our own `AgenticCommerce`
  *   escrow and `BountyAdapter` are not deployed there yet. It gets a static
  *   entry in the same commit as the deploy, with the real addresses.
  *
- * Never hardcode guessed values here — an entry exists only once every
+ * Never hardcode guessed values here - an entry exists only once every
  * address in it has been confirmed on-chain.
  */
 export const NETWORKS = {
@@ -91,7 +91,7 @@ export const NETWORKS = {
     explorerUrl: "https://testnet.arcscan.app",
     explorerApiUrl: "https://testnet.arcscan.app/api",
     explorerName: "ArcScan",
-    // Arc's native gas token IS USDC — that is the whole point of the chain.
+    // Arc's native gas token IS USDC - that is the whole point of the chain.
     nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
     brand: { name: "ArcBounty", domain: "arcbounty.app" },
     contracts: {
@@ -119,10 +119,10 @@ export const NETWORKS = {
     nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
     brand: { name: "BaseBounty", domain: "basebounty.app" },
     contracts: {
-      // Our own copy of Arc's escrow variant (contracts/src/base/) — no
+      // Our own copy of Arc's escrow variant (contracts/src/base/) - no
       // canonical AgenticCommerce instance exists on Base.
       AGENTIC_COMMERCE:    "0xbe6e78207140d21d5FcF5595Ad396e482f1Cd384",
-      // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
+      // Canonical ERC-8004 registries deployed by the 8004 team - NOT ours.
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
@@ -147,10 +147,10 @@ export const NETWORKS = {
     nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
     brand: { name: "BaseBounty", domain: "basebounty.app" },
     contracts: {
-      // Our own copy of Arc's escrow variant (contracts/src/base/) — no
+      // Our own copy of Arc's escrow variant (contracts/src/base/) - no
       // canonical AgenticCommerce instance exists on Base.
       AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
-      // Canonical ERC-8004 registries deployed by the 8004 team — NOT ours.
+      // Canonical ERC-8004 registries deployed by the 8004 team - NOT ours.
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
@@ -211,7 +211,7 @@ function parseIntStrict(name: string, value: string, min = 1): number {
  * - `"arc-testnet"` → the static {@link NETWORKS} entry. `ARC_RPC_URL` (if
  *   set) overrides `rpcUrl`, matching pre-0.5 behavior.
  * - `"base-sepolia"` → the static {@link NETWORKS} entry. `BASE_SEPOLIA_RPC_URL`
- *   (if set) overrides `rpcUrl` — the public `sepolia.base.org` node is rate
+ *   (if set) overrides `rpcUrl` - the public `sepolia.base.org` node is rate
  *   limited, so a dedicated RPC is expected in CI and e2e runs.
  * - `"base-mainnet"` → the static {@link NETWORKS} entry (BaseBounty, live
  *   since 2026-08-14). `BASE_MAINNET_RPC_URL` (if set) overrides `rpcUrl`;
@@ -222,7 +222,7 @@ function parseIntStrict(name: string, value: string, min = 1): number {
  *   every required variable is set this throws a single error listing all
  *   missing ones. Source of truth once published: ${MAINNET_DOCS_URL}.
  *
- * @param env Environment map to read from (defaults to `process.env`) —
+ * @param env Environment map to read from (defaults to `process.env`) -
  *   injectable for tests and non-Node runtimes.
  */
 export function resolveNetwork(name: NetworkName, env: Env = process.env): NetworkConfig {
@@ -249,9 +249,9 @@ export function resolveNetwork(name: NetworkName, env: Env = process.env): Netwo
     const missing = MAINNET_REQUIRED_VARS.filter(key => readEnv(env, key) === undefined);
     if (missing.length > 0) {
       throw new Error(
-        `resolveNetwork("arc-mainnet"): Arc mainnet is not configured — missing environment ` +
+        `resolveNetwork("arc-mainnet"): Arc mainnet is not configured - missing environment ` +
         `variable(s): ${missing.join(", ")}. Circle publishes the official chain parameters and ` +
-        `contract addresses at ${MAINNET_DOCS_URL} (source of truth) — never guess them. ` +
+        `contract addresses at ${MAINNET_DOCS_URL} (source of truth) - never guess them. ` +
         `Set the variables once published, or use network "arc-testnet" until then.`,
       );
     }
@@ -322,12 +322,12 @@ export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Addr
 
 // Mirrors BountyAdapter's bond-deadline constants (V4.1 creation floor, V4.2
 // take window). The contract is the source of truth on-chain; these exist so
-// the SDK can fail fast client-side with a clearer error — the take-window
+// the SDK can fail fast client-side with a clearer error - the take-window
 // guard also protects agents talking to pre-V4.2 deployments, which don't
 // enforce it on-chain yet.
 export const MIN_BOND_BOUNTY_DURATION_SEC = 24n * 3600n;
 export const MIN_BOND_TAKE_WINDOW_SEC = 12n * 3600n;
-// Client clocks lag block.timestamp (mining delay, skew — Arc testnet has
+// Client clocks lag block.timestamp (mining delay, skew - Arc testnet has
 // been observed running ahead of wall time). Deadline checks done "exactly
 // at the floor" client-side would pass here and revert on-chain seconds
 // later, after the poster already paid for the approve tx.

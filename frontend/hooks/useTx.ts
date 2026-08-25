@@ -25,7 +25,7 @@ export function useTx() {
     labels: { pending?: string; success?: string; error?: string } = {}
   ): Promise<`0x${string}` | null> {
     // Catch the no-wallet case before wagmi throws its opaque
-    // ConnectorNotConnectedError — the user needs a next step, not "Failed".
+    // ConnectorNotConnectedError - the user needs a next step, not "Failed".
     if (!isConnected) {
       toast.error("Connect your wallet first (top right) to do this.");
       return null;

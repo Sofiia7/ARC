@@ -4,7 +4,7 @@ import { activeChain } from "./wagmi";
 // ─── Lightweight wallet-signature auth for the IPFS pin routes ────────────────
 //
 // M5 hardening: /api/ipfs/pin and /pin-file were open to any anonymous caller
-// with only an in-memory per-IP rate limit — trivially abusable to burn the
+// with only an in-memory per-IP rate limit - trivially abusable to burn the
 // Pinata quota or pin arbitrary (including illegal) content under our
 // account. Requiring a wallet signature raises the cost of abuse from "any
 // HTTP client" to "must control a private key or SCA wallet", and gives us an
@@ -14,11 +14,11 @@ import { activeChain } from "./wagmi";
 // no session). A signed, timestamped message with a short validity window is
 // sufficient here: the goal is raising the cost of bulk abuse, not building a
 // login system. A stolen signature is only replayable within the window and
-// only lets someone pin content as if they were that address — it can't move
+// only lets someone pin content as if they were that address - it can't move
 // funds or impersonate the address anywhere else.
 //
 // verifyMessage (viem) is used instead of a bare ecrecover so ERC-1271 smart
-// accounts (Porto passkey-SCA) verify correctly too — it falls back to an
+// accounts (Porto passkey-SCA) verify correctly too - it falls back to an
 // on-chain eth_call for contract wallets, plain ecrecover for EOAs.
 
 const MESSAGE_WINDOW_SEC = 5 * 60; // signature must be within 5 minutes of now
@@ -51,7 +51,7 @@ export async function verifyWalletAuth(req: Request): Promise<WalletAuthResult> 
   }
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - timestamp) > MESSAGE_WINDOW_SEC) {
-    return { ok: false, status: 401, error: "signed message expired — resign and retry" };
+    return { ok: false, status: 401, error: "signed message expired - resign and retry" };
   }
 
   const message = pinAuthMessage(address, timestamp);

@@ -20,22 +20,22 @@ function safeEqual(a: string, b: string): boolean {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Keeper cron — drives the contract's permissionless liveness paths so no human
+// Keeper cron - drives the contract's permissionless liveness paths so no human
 // has to babysit the board:
-//   • expireBounty(jobId)  — past deadline, no submission  → refund poster
-//   • autoApprove(jobId)   — submitted, APPROVAL_TIMEOUT elapsed, poster ghosted → pay worker
+//   • expireBounty(jobId)  - past deadline, no submission  → refund poster
+//   • autoApprove(jobId)   - submitted, APPROVAL_TIMEOUT elapsed, poster ghosted → pay worker
 //
 // INERT BY DEFAULT. Activates only when KEEPER_PRIVATE_KEY is set. Wire it up in
 // Vercel Cron (e.g. every 6h) and protect with CRON_SECRET. Until then this
 // route is a safe no-op (503).
 //
 // Env:
-//   KEEPER_PRIVATE_KEY   — funded wallet (ARC for gas). Send a low-value key.
-//   CRON_SECRET          — Vercel sets `Authorization: Bearer <CRON_SECRET>`.
-//   Chain + RPC come from the shared `activeChain` (lib/wagmi.ts) — whichever
+//   KEEPER_PRIVATE_KEY   - funded wallet (ARC for gas). Send a low-value key.
+//   CRON_SECRET          - Vercel sets `Authorization: Bearer <CRON_SECRET>`.
+//   Chain + RPC come from the shared `activeChain` (lib/wagmi.ts) - whichever
 //   network this build was compiled for (NEXT_PUBLIC_ARC_NETWORK).
 // Query:
-//   ?dryRun=1            — list candidates without sending transactions.
+//   ?dryRun=1            - list candidates without sending transactions.
 
 // `allJobIds(uint256)` is a public array getter on the adapter but isn't in the
 // shared ABI (the UI never enumerates the full set). The keeper does, so add it

@@ -11,7 +11,7 @@ type ArcBountyAgentConfigBase = {
    * Which network to operate on. Defaults to `"arc-testnet"`.
    *
    * `"arc-mainnet"` requires the `ARC_MAINNET_*` environment variables
-   * (see `resolveNetwork`) — the constructor throws a descriptive error
+   * (see `resolveNetwork`) - the constructor throws a descriptive error
    * listing anything missing. `"base-sepolia"` and `"base-mainnet"` are
    * statically configured.
    *
@@ -101,11 +101,11 @@ export type CreateBountyOptions = {
   deadline: number | Date;
   /** Pre-pinned IPFS CID for the description (ipfs://... or bafy...) */
   descriptionCid?: string;
-  /** Or raw markdown — will be pinned for you */
+  /** Or raw markdown - will be pinned for you */
   descriptionText?: string;
   category: "dev" | "design" | "content" | "data" | "other";
   tags?: string[];
-  /** Optional whitelisted provider — only this address may take */
+  /** Optional whitelisted provider - only this address may take */
   provider?: Address;
   agentOnly?: boolean;
   humanOnly?: boolean;
@@ -114,16 +114,16 @@ export type CreateBountyOptions = {
 };
 
 export type SubmitWorkOptions = {
-  /** Raw text/markdown result — will be pinned to IPFS */
+  /** Raw text/markdown result - will be pinned to IPFS */
   text?: string;
-  /** Pre-computed IPFS CID (ipfs://...) — skips pinning */
+  /** Pre-computed IPFS CID (ipfs://...) - skips pinning */
   cid?: string;
 };
 
 export type DisputeEvidenceOptions = {
-  /** Raw evidence text — will be pinned to IPFS */
+  /** Raw evidence text - will be pinned to IPFS */
   text?: string;
-  /** Pre-computed IPFS CID — skips pinning */
+  /** Pre-computed IPFS CID - skips pinning */
   cid?: string;
 };
 
@@ -143,12 +143,12 @@ export type TxResult = {
 export type PendingActionKind =
   | "rejection_pending"           // poster rejected; still within the challenge window, not yet challenged
   | "dispute_needs_response"      // other party opened a dispute; this agent hasn't responded yet
-  | "arbitrator_timeout_claimable" // both sides responded but the arbitrator never ruled — claimable now
-  | "auto_approve_claimable";     // poster went silent past the approval window — claimable now
+  | "arbitrator_timeout_claimable" // both sides responded but the arbitrator never ruled - claimable now
+  | "auto_approve_claimable";     // poster went silent past the approval window - claimable now
 
 /**
  * One thing on this agent's own bounties that needs attention or is already
- * actionable. Returned by `getPendingActions()` — a read-only scan, no
+ * actionable. Returned by `getPendingActions()` - a read-only scan, no
  * transactions, no callbacks required. Built so an agent that only runs
  * on-demand (an MCP tool call, a single script invocation) can still find
  * out about a dispute or rejection without a background watchdog.

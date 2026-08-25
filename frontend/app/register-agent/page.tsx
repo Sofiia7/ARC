@@ -9,7 +9,7 @@ import { CONTRACTS, IDENTITY_REGISTRY_ABI } from "@/lib/contracts";
 import { appendAgentIdToCache } from "@/hooks/useMyAgentId";
 import { pinText } from "@/lib/ipfs";
 
-// Bounded historical scan — a `fromBlock: 0n` getLogs is rejected by public RPCs.
+// Bounded historical scan - a `fromBlock: 0n` getLogs is rejected by public RPCs.
 const LOOKBACK_BLOCKS = 500_000n;
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -155,7 +155,7 @@ export default function RegisterAgentPage() {
         <h1>Register your agent</h1>
         <p className="sub">
           Mint an ERC-8004 IdentityRegistry NFT so you can take Agent-only bounties.
-          The token lives in your wallet — its <code style={{
+          The token lives in your wallet - its <code style={{
             background: "rgba(255,255,255,0.06)", padding: "2px 6px",
             borderRadius: 4, fontFamily: 'var(--font-jetbrains-mono), monospace', fontSize: 12,
           }}>tokenId</code> is your agentId.
@@ -188,7 +188,7 @@ export default function RegisterAgentPage() {
           </div>
           <p style={{ color: "var(--ink-soft)", margin: 0, lineHeight: 1.55 }}>
             You are now <strong style={{ color: "var(--ink)" }}>Agent #{newAgentId.toString()}</strong>.
-            Use this ID when taking Agent-only bounties. The token has been minted to your wallet —
+            Use this ID when taking Agent-only bounties. The token has been minted to your wallet -
             you can transfer it if you ever need to.
           </p>
           <div style={{ display: "flex", gap: 10 }}>
@@ -259,7 +259,7 @@ export default function RegisterAgentPage() {
             We pin a small JSON manifest with these fields to IPFS, then call
             {" "}<code style={{ color: "var(--ink-soft)" }}>IdentityRegistry.register(metadataURI)</code>{" "}
             on Arc. You pay one tx of gas (~$0.01). After it lands, your wallet
-            owns an ERC-721 NFT — the tokenId is your agentId.
+            owns an ERC-721 NFT - the tokenId is your agentId.
           </div>
 
           {error && (

@@ -10,7 +10,7 @@ import { getLogsChunked } from "@/lib/chainLogs";
 // fetch-all-events approach as useCompletedBounties (leaderboard): fine at
 // testnet scale, replaced by an indexer in Sprint 4 / grant milestone 6.
 // Arc testnet isn't indexed by Dune (mainnet launches summer 2026), so this
-// page IS the public dashboard until then — it's linked from grant reports
+// page IS the public dashboard until then - it's linked from grant reports
 // and weekly build-in-public posts, hence "every number is an event."
 
 export type ProtocolStats = {
@@ -29,7 +29,7 @@ export type ProtocolStats = {
 function evt(name: string): AbiEvent {
   const found = BOUNTY_ADAPTER_ABI.find(e => e.type === "event" && e.name === name);
   // Loud failure beats a silent `!`: a missing ABI entry once cost hours of
-  // debugging here — the undefined slipped through the non-null assertion and
+  // debugging here - the undefined slipped through the non-null assertion and
   // surfaced as an unrelated-looking TypeError deep inside the fetch path.
   if (!found) throw new Error(`[useProtocolStats] event ${name} missing from BOUNTY_ADAPTER_ABI`);
   return found as unknown as AbiEvent;
@@ -49,12 +49,12 @@ export function useProtocolStats() {
       const from = BOUNTY_ADAPTER_DEPLOY_BLOCK;
 
       // Full-history scans via Blockscout (one request per event type), with
-      // a bounded chunked-RPC fallback — see lib/chainLogs.ts for why the
+      // a bounded chunked-RPC fallback - see lib/chainLogs.ts for why the
       // naive full-range eth_getLogs is impossible on the Arc RPC.
       //
       // The "open right now" count is the only live RPC read; the public RPC
-      // rate-limits aggressively (429), so treat it as best-effort — a busy
-      // RPC must degrade one card to "—", not blank the whole page.
+      // rate-limits aggressively (429), so treat it as best-effort - a busy
+      // RPC must degrade one card to "-", not blank the whole page.
       const [createdLogs, takenLogs, completedLogs, feeLogs] = await Promise.all([
         getLogsChunked(publicClient, { address, event: evt("BountyCreated") }, from),
         getLogsChunked(publicClient, { address, event: evt("BountyTaken") }, from),
@@ -69,7 +69,7 @@ export function useProtocolStats() {
         }) as readonly bigint[];
         openNow = openIds.length;
       } catch {
-        // rate-limited RPC — leave null, the card renders "—"
+        // rate-limited RPC - leave null, the card renders "-"
       }
 
       const rewardByJobId = new Map<string, bigint>();

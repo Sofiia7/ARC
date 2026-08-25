@@ -379,7 +379,7 @@ function shouldBehaveLikeERC721() {
 
       describe('via safeMint', function () {
         // regular minting is tested in ERC721Mintable.test.js and others
-        it('calls onERC721Received — with data', async function () {
+        it('calls onERC721Received - with data', async function () {
           const receiver = await ethers.deployContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
 
           await expect(await this.token.$_safeMint(receiver, tokenId, ethers.Typed.bytes(data)))
@@ -387,7 +387,7 @@ function shouldBehaveLikeERC721() {
             .withArgs(anyValue, ethers.ZeroAddress, tokenId, data, anyValue);
         });
 
-        it('calls onERC721Received — without data', async function () {
+        it('calls onERC721Received - without data', async function () {
           const receiver = await ethers.deployContract('ERC721ReceiverMock', [RECEIVER_MAGIC_VALUE, RevertType.None]);
 
           await expect(await this.token.$_safeMint(receiver, tokenId))

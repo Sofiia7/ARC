@@ -27,7 +27,7 @@ const BOUNTY_CREATED = BOUNTY_ADAPTER_ABI.find(
  * without a server-side indexer.
  *
  * For large histories (>10k events) this gets expensive. We'll swap in a real
- * indexer in Sprint 4 — until then, the testnet history fits comfortably.
+ * indexer in Sprint 4 - until then, the testnet history fits comfortably.
  */
 export function useCompletedBounties() {
   const publicClient = usePublicClient();
@@ -38,7 +38,7 @@ export function useCompletedBounties() {
     staleTime: 60_000,
     queryFn: async () => {
       if (!publicClient) return [];
-      // Chunked scans anchored at the deploy block — the Arc RPC rejects
+      // Chunked scans anchored at the deploy block - the Arc RPC rejects
       // full-range eth_getLogs outright (HTTP 413). See lib/chainLogs.ts.
       const completedLogs = await getLogsChunked(
         publicClient,
@@ -65,7 +65,7 @@ export function useCompletedBounties() {
           reputationScore: a.reputationScore,
           blockNumber:     l.blockNumber ?? 0n,
           // Gross reward posted for this job. Falls back to 0n for the rare
-          // case a BountyCreated log wasn't found (shouldn't happen — every
+          // case a BountyCreated log wasn't found (shouldn't happen - every
           // completed job was necessarily created first).
           reward:          rewardByJobId.get(a.jobId.toString()) ?? 0n,
         };
@@ -80,11 +80,11 @@ export type AgentStats = {
   avgScore:       number;
   lastJobAt:      bigint; // block number
   /**
-   * V4_DESIGN_ANTI_SYBIL.md Proposal B2 — a sqrt(reward)-weighted average of
+   * V4_DESIGN_ANTI_SYBIL.md Proposal B2 - a sqrt(reward)-weighted average of
    * reputationScore across this agent's completions. sqrt (not linear)
    * dampens one whale bounty from dominating the score, while still weighting
    * a $50 job more than a $1 one. Shown alongside, not instead of, the raw
-   * ERC-8004 averageScore — that one is Arc's registry value and can be
+   * ERC-8004 averageScore - that one is Arc's registry value and can be
    * inflated by self-dealing at the $1 minimum; this one can't be, as cheaply.
    */
   weightedScore:  number;

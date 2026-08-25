@@ -21,7 +21,7 @@ export function ipfsUrl(uriOrCid: string, gatewayIndex = 0): string {
 // Goes through our own /api/ipfs/read/[cid] instead of racing public gateways
 // straight from the browser. That route does the same 4-gateway race, but
 // server-side, backed by a ~forever cache (CIDs are content-addressed, so the
-// bytes for a given CID never change) — the gateway race only actually runs
+// bytes for a given CID never change) - the gateway race only actually runs
 // for the first visitor ever to load a given CID; everyone after gets it
 // from cache. Racing from the browser meant EVERY visitor, EVERY time, paid
 // several seconds of public-gateway latency for content that never changes.

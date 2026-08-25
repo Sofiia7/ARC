@@ -37,8 +37,8 @@ function writeCache(chainId: number, address: string, ids: bigint[]) {
  * Navbar badge updates instantly after registration without waiting for an RPC
  * re-scan. Must be called with the chainId the registration happened on.
  *
- * (Previously the register page wrote a different, singular key —
- * `arcbounty:agentId:<addr>` — which this hook never read, so the badge only
+ * (Previously the register page wrote a different, singular key -
+ * `arcbounty:agentId:<addr>` - which this hook never read, so the badge only
  * updated after a full getLogs scan, which could silently fail on RPC limits.)
  */
 export function appendAgentIdToCache(chainId: number, address: string, id: bigint): void {
@@ -54,9 +54,9 @@ const LOOKBACK_BLOCKS = 500_000n;
 /**
  * Returns every ERC-8004 agent currently owned by `address` on the active chain.
  *
- *  • `agentIds` — full list (most-recent last). `undefined` while loading.
- *  • `agentId`  — primary (most-recent mint). Kept for the existing single-agent UI.
- *  • `refresh()` — force re-scan.
+ *  • `agentIds` - full list (most-recent last). `undefined` while loading.
+ *  • `agentId`  - primary (most-recent mint). Kept for the existing single-agent UI.
+ *  • `refresh()` - force re-scan.
  *
  * Cache is keyed by chainId AND address, so switching networks doesn't show
  * stale data from another chain.

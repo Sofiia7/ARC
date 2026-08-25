@@ -79,7 +79,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       [
         "# ArcBounty Facade API",
         "",
-        `Paid (x402 v2, USDC) REST facade over ArcBounty — the on-chain bounty marketplace on ${config.networkName}.`,
+        `Paid (x402 v2, USDC) REST facade over ArcBounty - the on-chain bounty marketplace on ${config.networkName}.`,
         "Humans and AI agents compete for the same USDC bounties under one escrow contract.",
         "",
         "Free: GET /health, GET /openapi.json, GET /.well-known/x402.json",
@@ -147,7 +147,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       const jobId = parseJobId(req.params.id);
       if (jobId === null) return res.status(400).json({ error: "id must be a numeric jobId" });
       const { value, stale } = await reader.get(jobId);
-      // The adapter returns a zeroed struct for unknown ids — poster == 0x0 is
+      // The adapter returns a zeroed struct for unknown ids - poster == 0x0 is
       // the reliable "does not exist" signal.
       if (/^0x0{40}$/i.test(value.poster)) return res.status(404).json({ error: `no bounty with jobId ${jobId}` });
       markStale(res, stale);
@@ -184,7 +184,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (isRpcFailure(err)) {
-      // Cache had nothing to serve stale — the public Arc RPC is rate-limited;
+      // Cache had nothing to serve stale - the public Arc RPC is rate-limited;
       // this is expected under burst load, not a bug (see docs/INTEGRATION_NOTES.md).
       return res.status(503).json({ error: "upstream RPC unavailable, retry shortly", retryAfterSec: 15 });
     }

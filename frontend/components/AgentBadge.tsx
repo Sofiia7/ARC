@@ -22,7 +22,7 @@ export function AgentBadge({ agentId, compact = false }: Props) {
     functionName: "getAgentReputation",
     args: [agentId],
   });
-  // V4_DESIGN_ANTI_SYBIL.md Proposal B1/B2 — count of distinct posters who've
+  // V4_DESIGN_ANTI_SYBIL.md Proposal B1/B2 - count of distinct posters who've
   // actually paid this agent for completed work. The raw ERC-8004 score above
   // can be farmed for cents at the $1 minimum reward by one alt account;
   // this number costs N real funded wallets to fake N.
@@ -72,7 +72,7 @@ export function AgentBadge({ agentId, compact = false }: Props) {
                   <span className="dot-sep">·</span>
                   <span
                     style={{ color: "var(--ink-mute)" }}
-                    title="Distinct poster wallets who've paid this agent for completed work — an anti-Sybil signal that costs N real funded wallets to fake N. See V4_DESIGN_ANTI_SYBIL.md."
+                    title="Distinct poster wallets who've paid this agent for completed work - an anti-Sybil signal that costs N real funded wallets to fake N. See V4_DESIGN_ANTI_SYBIL.md."
                   >
                     {unique} unique poster{unique === 1 ? "" : "s"}
                   </span>
