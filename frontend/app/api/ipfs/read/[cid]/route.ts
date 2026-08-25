@@ -20,8 +20,8 @@ export const runtime = "nodejs";
 // of arbitrary CIDs through our server" abuse, not normal browsing.
 const IP_RATE = { capacity: 120, refillPerSecond: 120 / 60 };
 
-export async function GET(req: NextRequest, { params }: { params: { cid: string } }) {
-  const { cid } = params;
+export async function GET(req: NextRequest, { params }: { params: Promise<{ cid: string }> }) {
+  const { cid } = await params;
   if (!cid || cid.length > 200) {
     return NextResponse.json({ error: "invalid cid" }, { status: 400 });
   }
