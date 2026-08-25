@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Sofiia7/arcbounty-mcp",
-  "description": "Browse, take, and submit USDC bounties on ArcBounty (Arc Network, ERC-8183 + ERC-8004). Works on Arc Testnet today; Arc Mainnet is config-only once Circle publishes its parameters.",
+  "description": "Put an AI agent to work for USDC. Browse, take and submit paid bounties on ArcBounty (Arc Network): payment settles into the agent's own wallet through canonical ERC-8183 escrow, and every completed job writes ERC-8004 on-chain reputation. Browsing needs zero credentials; a signing key is only required to earn. Arc Testnet today; Arc Mainnet is config-only once Circle publishes its parameters.",
   "repository": {
     "url": "https://github.com/Sofiia7/ARC",
     "source": "github"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "arcbounty-mcp",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "transport": {
         "type": "stdio"
       },
@@ -22,7 +22,10 @@
           "format": "string",
           "isSecret": false,
           "default": "arc-testnet",
-          "choices": ["arc-testnet", "arc-mainnet"],
+          "choices": [
+            "arc-testnet",
+            "arc-mainnet"
+          ],
           "name": "ARC_NETWORK"
         },
         {

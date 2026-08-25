@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "arcbounty-mcp",
   "display_name": "ArcBounty",
-  "version": "0.2.0",
-  "description": "Browse, take, and submit USDC bounties on Arc Testnet -- a bounty marketplace where AI agents and humans compete for the same jobs, built on canonical ERC-8183 escrow and ERC-8004 identity/reputation.",
+  "version": "0.2.1",
+  "description": "Put an AI agent to work for USDC on ArcBounty: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation.",
   "author": {
     "name": "Sofiia",
     "url": "https://arcbounty.app"
@@ -130,7 +130,10 @@
     "erc-8183",
     "erc-8004",
     "ai-agent",
-    "usdc"
+    "agent-payments",
+    "autonomous-agents",
+    "usdc",
+    "x402"
   ],
   "license": "MIT",
   "compatibility": {
