@@ -66,6 +66,31 @@ const earned = new Map<string, Set<Task>>();
 
 const ZERO_HASH = `0x${"0".repeat(64)}`;
 
+/**
+ * What the participant reads inside Zealy when a claim is rejected. Zealy shows
+ * this string verbatim, so each one names the missing action and where to go do
+ * it - a bare "not eligible" turns into a support message instead of a visit.
+ */
+const PASS_MESSAGE = "Verified on-chain. Nice work.";
+
+const NOT_YET: Record<Task, string> = {
+  took_bounty:
+    "This wallet has not taken a bounty yet. Pick an open one at arcbounty.app, take it, then claim again.",
+  submitted_work:
+    "No submitted work found for this wallet. Take a bounty at arcbounty.app, submit your result, then claim again.",
+  submitted_for_other:
+    "No submitted work found on a bounty posted by someone else. Bounties you posted yourself do not count - take one from another poster at arcbounty.app, submit your result, then claim again.",
+  completed_bounty:
+    "No bounty of yours has been approved and paid out yet. This one waits on the poster, so claim again once the payout lands.",
+  posted_bounty:
+    "No bounty posted from this wallet yet. Get free testnet USDC from Circle's faucet (pick Arc Testnet), post one at arcbounty.app/post, then claim again.",
+};
+
+function notYetMessage(task: string | undefined): string {
+  if (task && task in NOT_YET) return NOT_YET[task as Task];
+  return "No ArcBounty activity found for this wallet yet. Post or take a bounty at arcbounty.app, then claim again.";
+}
+
 function corsHeaders(): Record<string, string> {
   return {
     // Galxe runs a real OPTIONS preflight before it will save a campaign, and
@@ -81,6 +106,26 @@ function corsHeaders(): Record<string, string> {
 
 function json(body: unknown, status = 200): NextResponse {
   return NextResponse.json(body, { status, headers: corsHeaders() });
+}
+
+/**
+ * Zealy encodes the verdict in the status code, not in the body: 200 means the
+ * user completed the action, 400 means they did not, and it validates that an
+ * endpoint returns nothing else. Answering a Zealy claim the Galxe way - 200
+ * with a `result` field - would pass every participant who never touched the
+ * board, because Zealy would only ever see the 200.
+ *
+ * Detected from the payload rather than configured, so the same URL works in
+ * both places: `accounts` and `requestId` are Zealy's signature and Galxe
+ * sends neither. `?format=zealy` forces it if that ever stops being true.
+ */
+function isZealy(body: Record<string, unknown>, url: URL): boolean {
+  if (url.searchParams.get("format") === "zealy") return true;
+  return body["accounts"] !== undefined || body["requestId"] !== undefined;
+}
+
+function zealyReply(passed: boolean, message: string): NextResponse {
+  return NextResponse.json({ message }, { status: passed ? 200 : 400, headers: corsHeaders() });
 }
 
 export async function OPTIONS(): Promise<NextResponse> {
@@ -162,27 +207,41 @@ async function verify(address: Address) {
 async function handle(req: NextRequest, bodyRaw: unknown): Promise<NextResponse> {
   const body = (bodyRaw ?? {}) as Record<string, unknown>;
   const url = new URL(req.url);
+  const zealy = isZealy(body, url);
+
+  /** In Zealy mode every answer has to be a 200 or a 400 carrying `message`;
+   * its endpoint tester rejects anything else outright. Everywhere else the
+   * full status object is more useful. */
+  const fail = (message: string, status = 400): NextResponse =>
+    zealy ? zealyReply(false, message) : json({ error: message, tasks: TASKS }, status);
 
   const address = parseAddress(
     url.searchParams.get("address") ??
       url.searchParams.get("wallet") ??
       body["address"] ??
       body["wallet"] ??
+      // Zealy's actual shape, from zealy.io/docs/tasks/api: the wallet arrives
+      // nested under `accounts`, never at the top level.
+      (body["accounts"] as Record<string, unknown> | undefined)?.["wallet"] ??
       (body["user"] as Record<string, unknown> | undefined)?.["wallet"],
   );
   if (!address) {
-    return json({ error: "supply an EVM address as ?address= or {\"address\": \"0x...\"}", tasks: TASKS }, 400);
+    return fail(
+      zealy
+        ? "Connect a wallet to your Zealy account first - this quest is verified against on-chain activity."
+        : "supply an EVM address as ?address= or {\"address\": \"0x...\"}",
+    );
   }
 
   const taskRaw = url.searchParams.get("task") ?? body["task"];
   const task = typeof taskRaw === "string" ? taskRaw : undefined;
   if (task !== undefined && !(TASKS as readonly string[]).includes(task)) {
-    return json({ error: `unknown task "${task}"`, tasks: TASKS }, 400);
+    return fail(`Unknown task "${task}".`);
   }
 
   const rl = await consumeAsync(`quest:${clientKey(req)}`, IP_RATE);
   if (!rl.ok) {
-    return json({ error: "Rate limit exceeded" }, 429);
+    return fail("Too many verification attempts right now, try again in a minute.", 429);
   }
 
   const key = address.toLowerCase();
@@ -192,22 +251,28 @@ async function handle(req: NextRequest, bodyRaw: unknown): Promise<NextResponse>
   try {
     status = await verify(address);
   } catch (err) {
-    // Never answer a chain failure with zeroes. Telling someone who did the
-    // work that they are ineligible costs a participant and earns a support
-    // message; telling them to retry costs a click. If we already know they
-    // earned something, serve that instead of failing.
+    // Never answer a chain failure with a plain "no". Telling someone who did
+    // the work that they are ineligible costs a participant and earns a
+    // support message; telling them to retry costs a click. If we already know
+    // they earned something, serve that instead of failing.
     if (already && already.size > 0) {
+      const passed = task ? already.has(task as Task) : already.size > 0;
+      if (zealy) return zealyReply(passed, passed ? PASS_MESSAGE : notYetMessage(task));
       return json({
         address,
         network: network.name,
         brand: network.brand.name,
         ...Object.fromEntries(TASKS.map(t => [t, already.has(t) ? 1 : 0])),
         cached: true,
-        ...(task ? { task, result: already.has(task as Task) ? 1 : 0 } : {}),
+        ...(task ? { task, result: passed ? 1 : 0 } : {}),
       });
     }
     console.error("[quest] chain read failed:", err);
-    return json({ error: "could not read the chain, retry shortly", retryAfterSec: 10 }, 503);
+    // Zealy accepts only 200 and 400, so a 503 is not an option there; say
+    // plainly that this is our side and worth retrying.
+    return zealy
+      ? zealyReply(false, "Could not read the chain just now. Wait a minute and claim again.")
+      : json({ error: "could not read the chain, retry shortly", retryAfterSec: 10 }, 503);
   }
 
   const set = already ?? new Set<Task>();
@@ -215,6 +280,13 @@ async function handle(req: NextRequest, bodyRaw: unknown): Promise<NextResponse>
   if (set.size > 0) earned.set(key, set);
 
   const merged = Object.fromEntries(TASKS.map(t => [t, set.has(t) ? 1 : status[t]])) as Record<Task, 0 | 1>;
+
+  if (zealy) {
+    // Without a task the only sensible reading is "did anything at all", which
+    // is a weak quest - but it should still not silently pass everyone.
+    const passed = task ? merged[task as Task] === 1 : TASKS.some(t => merged[t] === 1);
+    return zealyReply(passed, passed ? PASS_MESSAGE : notYetMessage(task));
+  }
 
   return json({
     address,
