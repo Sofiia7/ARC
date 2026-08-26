@@ -31,7 +31,19 @@ const client = createPublicClient({
   transport: http(network.rpcUrl, { batch: { wait: 16 }, retryCount: 2, retryDelay: 300 }),
 });
 
-const TASKS = ["took_bounty", "submitted_work", "completed_bounty", "posted_bounty"] as const;
+const TASKS = [
+  "took_bounty",
+  "submitted_work",
+  // Separate from submitted_work on purpose. takeBounty() has no
+  // msg.sender != poster check, so a participant can post a bounty, take it
+  // themselves and submit against it - satisfying "post one" and "do one"
+  // without ever touching another person's listing. A quest whose copy says
+  // "complete someone else's bounty" has to verify exactly that, or it pays
+  // for a closed loop that adds nothing to the board.
+  "submitted_for_other",
+  "completed_bounty",
+  "posted_bounty",
+] as const;
 type Task = (typeof TASKS)[number];
 
 /**
@@ -102,6 +114,7 @@ async function verify(address: Address) {
   ]);
 
   let submitted = 0;
+  let submittedForOther = 0;
   let completed = 0;
 
   if (assigned.length > 0) {
@@ -120,9 +133,10 @@ async function verify(address: Address) {
 
     for (const entry of metas) {
       if (entry.status !== "success") continue;
-      const meta = entry.result as { submittedResultHash: string; resolved: boolean };
+      const meta = entry.result as { submittedResultHash: string; resolved: boolean; poster: string };
       const hasSubmission = meta.submittedResultHash !== ZERO_HASH;
       if (hasSubmission) submitted++;
+      if (hasSubmission && meta.poster.toLowerCase() !== address) submittedForOther++;
       // `resolved` alone would also count a bounty the poster cancelled;
       // pairing it with a submission is what makes it "this worker was paid".
       if (hasSubmission && meta.resolved) completed++;
@@ -132,9 +146,16 @@ async function verify(address: Address) {
   return {
     took_bounty: assigned.length > 0 ? 1 : 0,
     submitted_work: submitted > 0 ? 1 : 0,
+    submitted_for_other: submittedForOther > 0 ? 1 : 0,
     completed_bounty: completed > 0 ? 1 : 0,
     posted_bounty: posted.length > 0 ? 1 : 0,
-    counts: { taken: assigned.length, submitted, completed, posted: posted.length },
+    counts: {
+      taken: assigned.length,
+      submitted,
+      submittedForOther,
+      completed,
+      posted: posted.length,
+    },
   } as const;
 }
 

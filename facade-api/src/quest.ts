@@ -24,6 +24,10 @@ import type { FacadeConfig } from "./config.js";
 export const QUEST_TASKS = [
   "took_bounty",
   "submitted_work",
+  // takeBounty() has no msg.sender != poster check, so posting a bounty and
+  // then taking it yourself clears "post one" and "do one" in a closed loop.
+  // Only this task means "someone else's".
+  "submitted_for_other",
   "completed_bounty",
   "posted_bounty",
 ] as const;
@@ -43,9 +47,16 @@ export type QuestStatus = {
    * than `return r.tookBounty ? 1 : 0`. */
   took_bounty: 0 | 1;
   submitted_work: 0 | 1;
+  submitted_for_other: 0 | 1;
   completed_bounty: 0 | 1;
   posted_bounty: 0 | 1;
-  counts: { taken: number; submitted: number; completed: number; posted: number };
+  counts: {
+    taken: number;
+    submitted: number;
+    submittedForOther: number;
+    completed: number;
+    posted: number;
+  };
 };
 
 /**
@@ -138,6 +149,7 @@ export class QuestVerifier {
     }
 
     let submitted = 0;
+    let submittedForOther = 0;
     let completed = 0;
     let truncated = false;
 
@@ -153,6 +165,7 @@ export class QuestVerifier {
         const { value } = await this.reader.get(jobId);
         const hasSubmission = /[1-9a-f]/i.test(value.submittedResultHash.slice(2));
         if (hasSubmission) submitted++;
+        if (hasSubmission && value.poster.toLowerCase() !== address.toLowerCase()) submittedForOther++;
         // `resolved` covers both the approved and the disputed-then-paid path;
         // pairing it with a submission is what makes it "this worker was paid"
         // rather than "the poster cancelled it".
@@ -169,9 +182,16 @@ export class QuestVerifier {
       brand: this.config.brandName,
       took_bounty: assigned.length > 0 ? 1 : 0,
       submitted_work: submitted > 0 ? 1 : 0,
+      submitted_for_other: submittedForOther > 0 ? 1 : 0,
       completed_bounty: completed > 0 ? 1 : 0,
       posted_bounty: posted.length > 0 ? 1 : 0,
-      counts: { taken: assigned.length, submitted, completed, posted: posted.length },
+      counts: {
+        taken: assigned.length,
+        submitted,
+        submittedForOther,
+        completed,
+        posted: posted.length,
+      },
     };
 
     // A truncated pass can only under-report the submission-derived tasks. If
@@ -221,9 +241,10 @@ export class QuestVerifier {
       brand: this.config.brandName,
       took_bounty: set.has("took_bounty") ? 1 : 0,
       submitted_work: set.has("submitted_work") ? 1 : 0,
+      submitted_for_other: set.has("submitted_for_other") ? 1 : 0,
       completed_bounty: set.has("completed_bounty") ? 1 : 0,
       posted_bounty: set.has("posted_bounty") ? 1 : 0,
-      counts: counts ?? { taken: 0, submitted: 0, completed: 0, posted: 0 },
+      counts: counts ?? { taken: 0, submitted: 0, submittedForOther: 0, completed: 0, posted: 0 },
     };
   }
 }

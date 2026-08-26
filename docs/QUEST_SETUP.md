@@ -43,9 +43,10 @@ Zealy's payload shape is set in its task editor rather than published.
   "brand": "ArcBounty",
   "took_bounty": 1,
   "submitted_work": 1,
+  "submitted_for_other": 1,
   "completed_bounty": 1,
   "posted_bounty": 0,
-  "counts": { "taken": 5, "submitted": 5, "completed": 5, "posted": 0 }
+  "counts": { "taken": 5, "submitted": 5, "submittedForOther": 5, "completed": 5, "posted": 0 }
 }
 ```
 
@@ -64,6 +65,7 @@ per instance and never downgraded.
 |---|---|
 | `took_bounty` | the address appears as provider on at least one bounty |
 | `submitted_work` | at least one of those has a submission hash |
+| `submitted_for_other` | at least one submission is against a bounty **someone else** posted |
 | `completed_bounty` | at least one submission was resolved, i.e. paid out |
 | `posted_bounty` | the address posted at least one bounty |
 
@@ -75,15 +77,36 @@ listing that a real worker could have done, and the board renders as a wall of
 punishes that wallet at `expireBounty` (15%, floor $0.50), but the damage to
 the board happens immediately and the bond only pays the poster back.
 
-Use **`submitted_work`** as the main task. It cannot be farmed by doing
-nothing, it is what actually fills the board with content, and anyone who
-reaches it has necessarily taken a bounty first. Keep `took_bounty` as a
+Reward a **submission** instead - `submitted_for_other` if the quest asks for
+someone else's bounty (it almost always should, see below), `submitted_work` if
+it genuinely does not care whose. Neither can be farmed by doing nothing,
+both are what actually fills the board with content, and anyone who reaches
+either has necessarily taken a bounty first. Keep `took_bounty` as a
 zero-or-low-XP step in a multi-task quest if a visible early win helps, never
 as the reward itself.
 
 `completed_bounty` depends on a poster approving, so it is not fully in the
 participant's hands - fine as a bonus tier, wrong as a required task with a
 deadline.
+
+### The two-task quest, and why the second task is `submitted_for_other`
+
+The design that works on a board this size is:
+
+1. **Post a bounty** -> `posted_bounty`
+2. **Do someone else's** -> `submitted_for_other`
+
+It is self-feeding: every participant adds one listing and consumes one, so the
+board does not drain the way it would if the quest only asked people to take
+work. On testnet the funding costs the participant nothing real - Arc's gas
+token is USDC and Circle's faucet hands it out - so step 1 is not a paywall.
+
+Use `submitted_for_other`, not `submitted_work`, for step 2. `takeBounty()` has
+no `msg.sender != poster` check, so a participant can post a bounty, take it
+themselves and submit against it, clearing both steps in a closed loop that
+adds nothing to the board and interacts with nobody. `submitted_for_other`
+compares the bounty's poster against the verified address and is the only task
+that actually means "someone else's".
 
 ## Galxe: REST credential
 
@@ -94,7 +117,7 @@ In the campaign builder, add a credential of type **REST**:
 | Endpoint | `https://arcbounty.app/api/quest/verify?address=$address` |
 | Method | `GET` |
 | Headers | none needed |
-| Expression | `function(resp){ return resp.submitted_work }` |
+| Expression | `function(resp){ return resp.submitted_for_other }` |
 
 Swap the field name in the expression for whichever task the credential is
 for. One endpoint serves every task, so a multi-task campaign adds several
@@ -110,7 +133,7 @@ this should pass; if a save ever fails, that is the first thing to re-check.
 
 | Field | Value |
 |---|---|
-| `endpoint` | `https://arcbounty.app/api/quest/verify?task=submitted_work` |
+| `endpoint` | `https://arcbounty.app/api/quest/verify?task=submitted_for_other` |
 | `identifications` | `["wallet"]` |
 | `network` | leave empty - the enum has no Arc, and the field is optional |
 | `apiKey` | leave empty unless `QUEST_API_KEY` is set on the facade |
@@ -127,8 +150,9 @@ publishing the quest.
 curl -s "https://arcbounty.app/api/quest/verify?address=0x6543555570aDf7F38e536B028D9DB5973A266115"
 ```
 
-That wallet has five completed bounties on Arc Testnet and should come back
-with `took_bounty`, `submitted_work` and `completed_bounty` all `1`. A wallet
+That wallet has five completed bounties on Arc Testnet, all posted by someone
+else, so `took_bounty`, `submitted_work`, `submitted_for_other` and
+`completed_bounty` all come back `1`. A wallet
 that has done nothing returns all zeroes rather than an error, which is what a
 platform needs in order to say "not eligible yet".
 
