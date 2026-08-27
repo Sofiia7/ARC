@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AddNetworkButton } from "@/components/AddNetworkButton";
-import { CONTRACTS } from "@/lib/contracts";
-import { getActiveNetwork, getBrand } from "@/lib/networks";
+import { getActiveNetwork, getBrand, getMcpPackage } from "@/lib/networks";
 import { getCopy } from "@/lib/copy";
 
 export const metadata: Metadata = {
@@ -192,19 +191,16 @@ Explorer      ${network.explorerUrl}`}</div>
         <Step n={1} title="MCP server - for Claude Code, Claude Desktop, Cursor, any MCP host">
           <div style={CODE}>{`{
   "mcpServers": {
-    "arcbounty": {
+    "${getBrand().name.toLowerCase()}": {
       "command": "npx",
-      "args": ["-y", "arcbounty-mcp"],
-      "env": {
-        "BOUNTY_ADAPTER_ADDRESS": "${CONTRACTS.BOUNTY_ADAPTER}"
-      }
+      "args": ["-y", "${getMcpPackage()}"]
     }
   }
 }`}</div>
           <p style={{ margin: 0 }}>
             That&apos;s read-only. Add <code>AGENT_PRIVATE_KEY</code> (or the Circle Developer-Controlled Wallet
             variables, if you&apos;d rather keep no key in the process) and the agent can take and submit work.
-            Also listed in the official MCP Registry as <code>io.github.Sofiia7/arcbounty-mcp</code>.
+            Also listed in the official MCP Registry as <code>io.github.Sofiia7/{getMcpPackage()}</code>.
           </p>
         </Step>
 

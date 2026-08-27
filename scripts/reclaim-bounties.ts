@@ -1,18 +1,20 @@
 /**
- * Reclaim USDC locked in superseded adapter deployments.
+ * Reclaim USDC that this wallet has left escrowed in bounties nobody can take.
  *
- * After a redeploy, open bounties on the old adapter keep the poster's USDC
- * escrowed there forever unless someone cancels/expires them. This walks every
- * historical adapter address, finds bounties posted by PRIVATE_KEY's address,
- * and refunds them:
+ * Two ways that happens. A redeploy strands open bounties on the old adapter
+ * forever unless someone cancels them; and on the live adapter, a listing whose
+ * deadline has passed is just as stuck, still holding its reward while
+ * disappearing from the board. Both are walked, for bounties posted by
+ * PRIVATE_KEY's address:
  *   - not taken            → cancelBounty (full refund, any time)
  *   - taken, no submission → expireBounty (full refund, only after deadline)
  * Anything submitted / disputed / resolved is left alone and reported.
  *
  * Env (same as seed-bounties.ts): PRIVATE_KEY, plus ARC_NETWORK /
- * ALLOW_MAINNET / ARC_TESTNET_RPC_URL (see scripts/lib/network.ts).
- * Old adapter list: see contracts/DEPLOYMENTS.md "Historical / abandoned"
- * (Arc Testnet only - there is no mainnet history yet).
+ * ALLOW_MAINNET / ARC_TESTNET_RPC_URL (see scripts/lib/network.ts), and
+ * BOUNTY_ADAPTER_ADDRESS if the live adapter is not the network's default.
+ * Historical adapter list: contracts/DEPLOYMENTS.md "Historical / abandoned",
+ * walked on Arc Testnet only - the other networks have no history yet.
  *
  * Usage (from repo root):
  *   cd scripts && npx tsx reclaim-bounties.ts            # dry run (default)
@@ -34,8 +36,11 @@ if (!PK) {
   process.exit(1);
 }
 
-// Superseded deployments (contracts/DEPLOYMENTS.md). V2-and-older lack the
-// getMyPostedBounties index and are skipped automatically by the try/catch.
+// Superseded Arc Testnet deployments (contracts/DEPLOYMENTS.md). V2-and-older
+// lack the getMyPostedBounties index and are skipped automatically by the
+// try/catch. Only walked on Arc Testnet: on another chain these are addresses
+// that mean nothing, and one of them belonging to an unrelated contract there
+// is not a call worth making.
 const OLD_ADAPTERS: { label: string; address: Address }[] = [
   { label: "V4.3", address: "0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7" },
   { label: "V4.2", address: "0x30C4EC6A846F8F879CAB3de481E3fd3f442e7572" },
@@ -45,6 +50,20 @@ const OLD_ADAPTERS: { label: string; address: Address }[] = [
   { label: "V3.2", address: "0x5E7106382bA80c8805A570dEE4cB4bC321a8Ed83" },
   { label: "V3.1", address: "0x15Fba46C1f5eCc043ebf0E859Ce1e7DC2aa0C679" },
   { label: "V3", address: "0x4AF985AE361354bB28e1c3A9096cB797567D04F3" },
+];
+
+const ARC_TESTNET_CHAIN_ID = 5_042_002;
+
+// The live adapter is walked too, which the superseded-only version did not do.
+// An expired bounty on the current board is exactly as stuck as one on an old
+// deployment, and rather more embarrassing: on Base that was 4 USDC held behind
+// a board showing nothing, because every seeded listing had run past its
+// deadline. `cancelBounty` on an untaken bounty refunds in full at any time.
+const CURRENT_ADAPTER = (process.env.BOUNTY_ADAPTER_ADDRESS ?? network.defaultBountyAdapter) as Address | undefined;
+
+const ADAPTERS: { label: string; address: Address }[] = [
+  ...(CURRENT_ADAPTER ? [{ label: "current", address: CURRENT_ADAPTER }] : []),
+  ...(network.chainId === ARC_TESTNET_CHAIN_ID ? OLD_ADAPTERS : []),
 ];
 
 const ABI = [
@@ -100,12 +119,37 @@ const account = privateKeyToAccount(PK);
 const wallet = createWalletClient({ account, chain: arc, transport: http(RPC) });
 const pub = createPublicClient({ chain: arc, transport: http(RPC) });
 
+/**
+ * Retry a read a few times before giving up on it.
+ *
+ * Base's public RPC is rate limited and load balanced, and a single failed
+ * `eth_call` used to abort the whole run - which, half way through sending
+ * cancellations, leaves the operator guessing which ones went out. Each
+ * bounty is independent, so a flaky read should cost that one bounty, not the
+ * rest of them.
+ */
+async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 3): Promise<T | null> {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const msg = (e instanceof Error ? e.message : String(e)).split("\n")[0];
+      if (i === attempts) {
+        console.log(`  ${label} - read failed after ${attempts} attempts, skipping: ${msg}`);
+        return null;
+      }
+      await new Promise(r => setTimeout(r, 500 * i));
+    }
+  }
+  return null;
+}
+
 async function main() {
   console.log(`Poster: ${account.address}${DO_SEND ? "" : "  (dry run - set RECLAIM=1 to send)"}`);
   const now = BigInt(Math.floor(Date.now() / 1000));
   let reclaimed = 0n;
 
-  for (const { label, address } of OLD_ADAPTERS) {
+  for (const { label, address } of ADAPTERS) {
     let jobIds: readonly bigint[];
     try {
       jobIds = await pub.readContract({
@@ -118,10 +162,10 @@ async function main() {
     console.log(`\n${label} ${address}: ${jobIds.length} bounties posted by us`);
 
     for (const jobId of jobIds) {
-      const m = await pub.readContract({
+      const m = await withRetry(`#${jobId}`, () => pub.readContract({
         address, abi: ABI, functionName: "getBountyMeta", args: [jobId],
-      });
-      if (m.resolved) continue;
+      }));
+      if (!m || m.resolved) continue;
 
       let action: "cancelBounty" | "expireBounty" | null = null;
       if (!m.isTaken) action = "cancelBounty";

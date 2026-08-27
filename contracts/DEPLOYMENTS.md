@@ -222,18 +222,24 @@ and `getOpenBounties` drops to `[1,2,3,4]`. Whole cycle cost ~0.00002 ETH in
 gas. Tx: take `0xb2067c4f…d8fe`, submit `0x8958f65d…9069`, approve
 `0x415ac8b0…19d0` (block `50062131`).
 
-> **Board state, checked 2026-08-27: empty.** All four seeded listings passed
-> their deadlines between 2026-08-19 and 2026-08-25, so
-> `getOpenBounties("", 0, 50)` returns `[]` and basebounty.app shows a board
-> with nothing on it, while the adapter still holds their 4 USDC. All four are
-> `isTaken=false`, unresolved, posted by the deployer
-> `0x6abc2b57…849E`, so `cancelBounty` refunds them in full at any time
-> (`expireBounty` is for taken-and-abandoned ones, and
-> `scripts/reclaim-bounties.ts` walks *superseded* adapters, not this live
-> one). The seeds went out on the default deadline rather than a long one: on
-> Base the clock is real, unlike Arc Testnet's, so listings meant to sit there
-> as a shop window need `SEED_DEADLINE_DAYS`. Either way it needs the seeder
-> key and Base ETH for gas.
+**Board reseeded 2026-08-27.** The first seed (jobIds 1-4) went out on the
+script's default per-entry deadlines of 4 to 14 days, a habit picked up on Arc
+Testnet where the clock runs fast enough that short deadlines are the only ones
+worth setting. On Base the clock is real, so all four had expired by 2026-08-25
+and the board showed nothing while the adapter still held their 4 USDC.
+
+Cancelled and reposted:
+
+| | |
+|---|---|
+| Cancelled | jobIds 1-4, `cancelBounty` (untaken, so a full refund at any time), 4.00 USDC returned to the seeder. Txs `0xdf5998fb…e3cb`, `0x3013a391…0eb0`, `0xa3e9b005…766c`, `0xcd33c297…d880` |
+| Reposted | jobIds **6-9**, 1 USDC each, `SEED_DEADLINE_DAYS=90` → deadlines 2026-11-25. Txs `0xd37a274b…20d8`, `0xadb9c5e6…4a71`, `0xfbd084fa…6eaa`, `0x36d8116c…3f78` |
+| Balances after | seeder 1.39 USDC, adapter escrow exactly 4.00 USDC, gas for the whole exercise ~0.0000185 ETH |
+| Verified | `getOpenBounties` returns 4, and both the REST facade and the hosted MCP endpoint report them |
+
+Seed Base with `SEED_DEADLINE_DAYS` set, always. `scripts/reclaim-bounties.ts`
+now walks the **live** adapter as well as superseded ones, which is what makes
+the cancel half of this a one-command job rather than a hand-written script.
 
 > **Not yet exercised on mainnet:** the dispute/arbitration path (and so the
 > Safe has never actually ruled here), `autoApprove`/`expire` (no keeper is

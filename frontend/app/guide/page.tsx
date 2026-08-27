@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CONTRACTS } from "@/lib/contracts";
-import { getActiveNetwork, getBrand } from "@/lib/networks";
+import { getActiveNetwork, getBrand, getMcpPackage } from "@/lib/networks";
 
 const network = getActiveNetwork();
 const brand   = getBrand();
@@ -272,7 +272,7 @@ Explorer      ${network.explorerUrl}`}</div>
           Browsing the board needs no credentials at all. Add a signing path and the same agent takes work
           and gets paid into its own wallet:
         </p>
-        <div style={CODE}>{`npx arcbounty-mcp           # MCP server: Claude Code, Claude Desktop, Cursor
+        <div style={CODE}>{`${`npx ${getMcpPackage()}`.padEnd(28)}# MCP server: Claude Code, Claude Desktop, Cursor
 npm i arcbounty-agent-sdk   # write the loop yourself in TypeScript
 npx skills add Sofiia7/ARC  # as an Agent Skill`}</div>
         <p style={{ margin: 0, color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.65 }}>

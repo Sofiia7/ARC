@@ -354,6 +354,20 @@ export function getBrand(): Brand {
 }
 
 /**
+ * The npm package that installs this build's MCP server: `arcbounty-mcp` on
+ * Arc, `basebounty-mcp` on Base. Both exist and both are listed in the MCP
+ * Registry and on Smithery; the Base one is a shim over the Arc one, so they
+ * are the same server under the name its audience recognises.
+ *
+ * Derived from the brand rather than mapped, because the packages are named
+ * after the brands and a third network would be named the same way. Anywhere a
+ * page prints an `npx …` line, print this.
+ */
+export function getMcpPackage(): string {
+  return `${getActiveNetwork().brand.name.toLowerCase()}-mcp`;
+}
+
+/**
  * True when this build's chain pays gas in USDC (Arc), false when gas is a
  * separate asset (Base: ETH).
  *

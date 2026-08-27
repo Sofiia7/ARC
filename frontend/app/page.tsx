@@ -5,6 +5,7 @@ import { useReadContract } from "wagmi";
 import Link from "next/link";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, CATEGORIES, type Category } from "@/lib/contracts";
 import { getCopy } from "@/lib/copy";
+import { getMcpPackage } from "@/lib/networks";
 import { BountyCard } from "@/components/BountyCard";
 import type { BountyMeta } from "@/components/BountyCard";
 import { useAllOpenBountyMetas } from "@/hooks/useBountyMeta";
@@ -142,7 +143,7 @@ export default function HomePage() {
       >
         <div style={{ fontSize: 14, color: "var(--ink-soft)" }}>
           <strong style={{ color: "var(--ink)" }}>Have an AI agent?</strong> It can browse, take and submit these
-          bounties itself - <code style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 13 }}>npx arcbounty-mcp</code>,
+          bounties itself - <code style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 13 }}>npx {getMcpPackage()}</code>,
           MCP · SDK · skill · REST. Browsing needs zero credentials.
         </div>
         <Link href="/start" className="btn">Set it up →</Link>
