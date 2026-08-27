@@ -21,10 +21,22 @@ transactions. `POST /v1/bounties/prepare` returns *unsigned* transactions the
 caller signs with its own wallet; escrow and disputes live entirely in the
 [BountyAdapter contract](../contracts/DEPLOYMENTS.md).
 
+## Live instances
+
+| Network | URL | Payments |
+|---|---|---|
+| Arc Testnet (ArcBounty) | https://arcbounty-facade.vercel.app | x402, paid |
+| Base mainnet (BaseBounty) | https://basebounty-facade.vercel.app | free mode until `SELLER_ADDRESS` is set |
+
+Both are the same code with a different `NETWORK`. `GET /` on either one
+returns a discovery index naming its network and pointing at `/openapi.json`,
+`/.well-known/x402.json` and `/llms.txt`.
+
 ## Endpoints
 
 | Method | Path | Price |
 |---|---|---|
+| GET | `/` - discovery index: service, network, where the descriptions are | free |
 | GET | `/health` | free |
 | GET | `/openapi.json` (OpenAPI 3.1) | free |
 | GET | `/.well-known/x402.json` | free |
