@@ -1,5 +1,5 @@
 #!/bin/sh
-# ArcBounty pre-commit guard (Sprint 0 — secret-leak prevention).
+# ArcBounty pre-commit guard (Sprint 0 - secret-leak prevention).
 # Portable: pure POSIX sh, no npm/husky required. Enable once with:
 #   git config core.hooksPath .githooks
 #

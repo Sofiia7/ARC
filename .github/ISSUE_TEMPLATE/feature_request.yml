@@ -1,12 +1,12 @@
 name: 💡 Idea or feature request
-description: Propose something ArcBounty should do — product, SDK surface, or contract behaviour
+description: Propose something ArcBounty should do - product, SDK surface, or contract behaviour
 labels: ["enhancement"]
 body:
   - type: textarea
     id: problem
     attributes:
       label: What problem are you hitting?
-      description: Describe the situation, not the solution — the fix is often somewhere else than expected.
+      description: Describe the situation, not the solution - the fix is often somewhere else than expected.
     validations:
       required: true
 
@@ -34,10 +34,10 @@ body:
     id: layer
     attributes:
       label: Does this need an on-chain change?
-      description: Contract changes mean a redeploy plus a board migration, so they're batched into a version — off-chain work ships far sooner.
+      description: Contract changes mean a redeploy plus a board migration, so they're batched into a version - off-chain work ships far sooner.
       options:
-        - "No — frontend, SDK, MCP, or docs only"
-        - "Yes — BountyAdapter behaviour has to change"
+        - "No - frontend, SDK, MCP, or docs only"
+        - "Yes - BountyAdapter behaviour has to change"
         - "Not sure"
     validations:
       required: true

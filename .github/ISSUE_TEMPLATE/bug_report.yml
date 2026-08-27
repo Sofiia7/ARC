@@ -30,7 +30,7 @@ body:
     id: chain
     attributes:
       label: Which deployment?
-      description: Arc Testnet is the canonical one. Base Sepolia is a rehearsal deployment — expect rough edges there.
+      description: Arc Testnet is the canonical one. Base Sepolia is a rehearsal deployment - expect rough edges there.
       options:
         - Arc Testnet (5042002)
         - Base Sepolia (84532)
@@ -80,7 +80,7 @@ body:
     attributes:
       label: Before submitting
       options:
-        - label: I checked the [Known Issues](https://github.com/Sofiia7/ARC#-known-issues) — this isn't one of them (or it is, but with a twist worth reporting)
+        - label: I checked the [Known Issues](https://github.com/Sofiia7/ARC#-known-issues) - this isn't one of them (or it is, but with a twist worth reporting)
           required: true
         - label: This report contains no private keys, seed phrases, or API secrets
           required: true

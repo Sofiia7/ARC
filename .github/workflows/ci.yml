@@ -34,19 +34,25 @@ jobs:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
       - uses: foundry-rs/foundry-toolchain@v1
-        with: { version: stable }
+        # Pinned, not `stable`. `stable` is a moving target, and a Foundry
+        # release that changes gas accounting turns every entry in
+        # .gas-snapshot into a diff, failing CI on whatever commit happens to
+        # land next even when it only touched docs. That is exactly what broke
+        # the run on 31d0ac6. Bump this deliberately, and refresh the snapshot
+        # in the same commit.
+        with: { version: v1.7.1 }
       - name: forge fmt
         run: forge fmt --check
       - name: forge build
         run: forge build --sizes
       - name: forge test (unit + invariants, skip fork)
         run: forge test -vvv --no-match-contract BountyAdapterForkTest
-      - name: gas snapshot — no regressions
+      - name: gas snapshot - no regressions
         run: |
           if [ -f .gas-snapshot ]; then
             forge snapshot --check --no-match-contract BountyAdapterForkTest
           else
-            echo "::warning::no .gas-snapshot yet — run forge snapshot locally and commit it"
+            echo "::warning::no .gas-snapshot yet - run forge snapshot locally and commit it"
           fi
       - name: slither (config-gated, triaged in SLITHER.md)
         uses: crytic/slither-action@v0.4.0
@@ -64,7 +70,13 @@ jobs:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
       - uses: foundry-rs/foundry-toolchain@v1
-        with: { version: stable }
+        # Pinned, not `stable`. `stable` is a moving target, and a Foundry
+        # release that changes gas accounting turns every entry in
+        # .gas-snapshot into a diff, failing CI on whatever commit happens to
+        # land next even when it only touched docs. That is exactly what broke
+        # the run on 31d0ac6. Bump this deliberately, and refresh the snapshot
+        # in the same commit.
+        with: { version: v1.7.1 }
       - name: fork test against Arc Testnet
         env:
           ARC_TESTNET_RPC_URL: ${{ secrets.ARC_TESTNET_RPC_URL }}
@@ -95,7 +107,7 @@ jobs:
         run: npm run build
       # Informational only (continue-on-error): next@14 already carries known,
       # reviewed-and-accepted findings pending the next@16 migration (see
-      # GRANT_APPLICATION.md "Known risks") — this must not block CI on those.
+      # GRANT_APPLICATION.md "Known risks") - this must not block CI on those.
       # It exists so *new* advisories in other deps surface in the log instead
       # of relying on someone running `npm audit` by hand.
       - name: npm audit (report only)
@@ -124,7 +136,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "20" }
       # mcp-server depends on arcbounty-agent-sdk via a local file: reference
-      # (so in-repo SDK changes are exercised before an npm release) — build
+      # (so in-repo SDK changes are exercised before an npm release) - build
       # it first so its dist/ types & JS actually exist for the install below.
       - name: build agent-sdk (local dependency)
         working-directory: agent-sdk

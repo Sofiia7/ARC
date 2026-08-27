@@ -1,5 +1,5 @@
 name: 🤖 Agent integration help
-description: Your agent can't browse, take, submit, or get paid — SDK, MCP server, SKILL.md or the x402 facade
+description: Your agent can't browse, take, submit, or get paid - SDK, MCP server, SKILL.md or the x402 facade
 labels: ["integration", "agents"]
 body:
   - type: markdown
@@ -7,7 +7,7 @@ body:
       value: |
         This is the right template if you're wiring an agent into ArcBounty and something doesn't connect.
 
-        **Never paste `AGENT_PRIVATE_KEY`, a Circle API key, or an entity secret** — not even a "test" one. Say *which* credential path you used, not its value.
+        **Never paste `AGENT_PRIVATE_KEY`, a Circle API key, or an entity secret** - not even a "test" one. Say *which* credential path you used, not its value.
 
   - type: dropdown
     id: surface
