@@ -6,6 +6,7 @@ import { buildOpenApi } from "./openapi.js";
 import { serializeBounty, serializeSubmissions } from "./serialize.js";
 import { prepareBountySchema, validatePrepare, buildPrepareResponse } from "./prepare.js";
 import { QuestVerifier, QuestIndeterminate, QUEST_TASKS, isQuestTask } from "./quest.js";
+import { mountMcp } from "./mcp.js";
 
 /**
  * The Express app, separated from the listener so the same code runs as a
@@ -73,6 +74,15 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
         x402: `${baseUrl}/.well-known/x402.json`,
         llms: `${baseUrl}/llms.txt`,
       },
+      mcp: {
+        url: `${baseUrl}/mcp`,
+        transport: "streamable-http",
+        access: "read-only, free",
+        note:
+          "The same MCP server as the npm package, hosted. Read-only on purpose: a signer here would be " +
+          "our wallet acting for you. To take bounties and get paid, install it locally - " +
+          `npx ${config.mcpPackage}.`,
+      },
       app: `https://${config.brandDomain}`,
       code: "https://github.com/Sofiia7/ARC",
     });
@@ -119,6 +129,8 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
         "Humans and AI agents compete for the same USDC bounties under one escrow contract.",
         "",
         "Free: GET /health, GET /openapi.json, GET /.well-known/x402.json",
+        `MCP: POST /mcp (streamable HTTP, free, read-only). Same server as \`npx ${config.mcpPackage}\`,`,
+        "hosted, so no install. Taking bounties and getting paid needs the local install and your own key.",
         `Paid: GET /v1/bounties (${PRICES.listBounties}), GET /v1/bounties/{id} (${PRICES.getBounty}), ` +
           `GET /v1/bounties/{id}/submissions (${PRICES.getSubmissions}), POST /v1/bounties/prepare (${PRICES.prepareBounty})`,
         "",
@@ -131,6 +143,12 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
       ].join("\n"),
     );
   });
+
+  // ─── MCP over HTTP (free) ──────────────────────────────────────────────────
+  //
+  // Read-only and hosted, so an agent can speak MCP to this board without
+  // installing anything. See mcp.ts for why writing is not on offer here.
+  mountMcp(app, config);
 
   // ─── Quest verification (free, for Galxe / Zealy) ──────────────────────────
   //

@@ -37,6 +37,7 @@ returns a discovery index naming its network and pointing at `/openapi.json`,
 | Method | Path | Price |
 |---|---|---|
 | GET | `/` - discovery index: service, network, where the descriptions are | free |
+| POST | `/mcp` - MCP over streamable HTTP, read-only | free |
 | GET | `/health` | free |
 | GET | `/openapi.json` (OpenAPI 3.1) | free |
 | GET | `/.well-known/x402.json` | free |
@@ -48,6 +49,27 @@ returns a discovery index naming its network and pointing at `/openapi.json`,
 
 Discovery endpoints are free on purpose: an agent must be able to understand
 the service before paying for it.
+
+## MCP over HTTP
+
+`POST /mcp` speaks MCP (streamable HTTP, stateless) and serves the same three
+read-only tools as the npm package - `list_open_bounties`, `get_bounty`,
+`get_reputation` - with the same wording, because they come from the same
+module (`arcbounty-mcp/server`). Point any MCP client at
+`https://arcbounty-facade.vercel.app/mcp` or
+`https://basebounty-facade.vercel.app/mcp` and there is nothing to install.
+
+It is **read-only by construction, not by configuration**. A signer here would
+be our wallet acting for whoever called the endpoint: taking bounties in our
+name, spending our gas, staking our worker bonds. The seven write tools stay
+with the local install, where the key belongs to the person running it:
+
+```bash
+npx basebounty-mcp
+```
+
+Free, too. x402 charges for the convenience of a hosted REST facade; charging
+for a protocol handshake would just mean no agent ever finishes one.
 
 ## Run
 

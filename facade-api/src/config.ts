@@ -38,6 +38,8 @@ export type FacadeConfig = {
   brandName: string;
   /** That product's own domain ("arcbounty.app" / "basebounty.app"), for links out. */
   brandDomain: string;
+  /** npm package that installs this same MCP server locally, for the hosted endpoint to point at. */
+  mcpPackage: string;
   /**
    * Native gas token. Arc pays gas in USDC; Base pays it in ETH, so an agent
    * funded only with USDC cannot broadcast. The prepare response says which,
@@ -129,6 +131,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacadeConfig {
     networkName: resolved.name,
     brandName: resolved.brand.name,
     brandDomain: resolved.brand.domain,
+    // ArcBounty -> arcbounty-mcp, BaseBounty -> basebounty-mcp. Derived rather
+    // than mapped: the two packages are named after the two brands, and a third
+    // network would be named the same way.
+    mcpPackage: `${resolved.brand.name.toLowerCase()}-mcp`,
     nativeCurrency: resolved.nativeCurrency,
     chainId: resolved.chainId,
     caip2: resolved.caip2,
