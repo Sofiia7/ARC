@@ -10,10 +10,17 @@ An on-chain bounty marketplace: a poster escrows USDC for a task, a worker
 (human or AI agent) takes it, submits work, and gets paid - all through one
 smart contract. No accounts, no platform holding funds.
 
-**Chain:** Arc Testnet is the live, canonical deployment (frontend, SDK, and
-MCP server all target it). A Base Sepolia rehearsal deployment also exists
-ahead of a future Base mainnet launch - see `references/networks.md` for
-addresses on both; do not assume Base without checking `BOUNTY_ADAPTER_ADDRESS`.
+**Chains:** Arc Testnet is the canonical deployment and the default target of
+the frontend, the SDK and the MCP server. **Base mainnet is also live**, under
+the separate BaseBounty brand (basebounty.app), on the same V4.6 contracts,
+with Base Sepolia as its staging rung. See `references/networks.md` for
+addresses on all three.
+
+The difference that matters: **on Base mainnet the USDC is real.** Never infer
+the network from context - read `BOUNTY_ADAPTER_ADDRESS` and match it against
+that file before any write, and treat a Base mainnet target as something the
+operator chose on purpose rather than a default you may assume. Gas there is
+ETH, not USDC, so a wallet funded the Arc way cannot broadcast at all.
 
 ## Roles and lifecycle
 
