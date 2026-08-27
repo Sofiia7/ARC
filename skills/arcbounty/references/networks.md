@@ -27,11 +27,15 @@ Live since 2026-08-14 under its own brand, **BaseBounty** (basebounty.app):
 same V4.6 contracts and the same SDK as Arc, a different front end and its
 own signer set. End-to-end proof of life on 2026-08-16, jobId `5`.
 
-**Everything here moves real USDC.** An agent that has been developed against
-Arc Testnet and is then pointed at this network by an unchanged
-`BOUNTY_ADAPTER_ADDRESS` will spend actual money on its first `createBounty`.
-Treat a Base mainnet target as a deliberate choice, never as a default, and
-confirm it with the operator before the first write.
+**Everything here moves real USDC.** Since `arcbounty-mcp` 0.3.0 and
+`arcbounty-agent-sdk` 0.6.x, selecting this network is the whole configuration:
+the adapter below is the built-in default, so `ARC_NETWORK=base-mainnet` alone
+is enough for the first `createBounty` to spend actual money - no address has
+to be pasted, and nothing else has to be changed. Treat a Base mainnet target
+as a deliberate choice, never as a default, and confirm it with the operator
+before the first write. (`BOUNTY_ADAPTER_ADDRESS` is ignored here on purpose:
+it is a testnet-only override, so a stale testnet address cannot be what points
+an agent at real funds.)
 
 | Field | Value |
 |---|---|

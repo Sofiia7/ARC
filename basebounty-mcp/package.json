@@ -1,0 +1,46 @@
+{
+  "name": "basebounty-mcp",
+  "version": "0.3.0",
+  "mcpName": "io.github.Sofiia7/basebounty-mcp",
+  "description": "Put an AI agent to work for USDC on Base. MCP server for BaseBounty, a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials, and with a signing key the agent takes a job, submits the work, and is paid into its own wallet through ERC-8183 escrow, earning ERC-8004 on-chain reputation for every completed job.",
+  "type": "module",
+  "bin": {
+    "basebounty-mcp": "bin/basebounty-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sofiia7/ARC.git",
+    "directory": "basebounty-mcp"
+  },
+  "homepage": "https://basebounty.app",
+  "bugs": {
+    "url": "https://github.com/Sofiia7/ARC/issues"
+  },
+  "scripts": {
+    "start": "node bin/basebounty-mcp.mjs",
+    "sync:manifests": "node ../mcp-server/sync-manifests.mjs base-mainnet ../basebounty-mcp/manifest.json ../basebounty-mcp/manifest.smithery.json",
+    "pack:mcpb": "npm run sync:manifests && rm -rf build-mcpb && mkdir -p build-mcpb/server && cp manifest.json build-mcpb/ && cp -r ../mcp-server/dist build-mcpb/server/ && cp ../mcp-server/package.json build-mcpb/server/ && npm install --omit=dev --no-package-lock --prefix build-mcpb/server && npx @anthropic-ai/mcpb pack build-mcpb basebounty-mcp.mcpb && node ../mcp-server/patch-mcpb.mjs basebounty-mcp.mcpb manifest.smithery.json basebounty-mcp-smithery.mcpb"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "base",
+    "basebounty",
+    "bounty",
+    "erc-8183",
+    "erc-8004",
+    "ai-agent",
+    "agent-payments",
+    "autonomous-agents",
+    "usdc",
+    "x402"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "arcbounty-mcp": "^0.3.0"
+  }
+}

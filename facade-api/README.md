@@ -1,8 +1,15 @@
-# ArcBounty Facade API
+# ArcBounty / BaseBounty Facade API
 
-A paid REST facade over the [ArcBounty](https://arcbounty.app) on-chain bounty
-marketplace, priced in USDC micro-fees via [x402](https://www.x402.org/) (spec
-v2) and settled through Circle Gateway on **Arc Testnet** (`eip155:5042002`).
+A paid REST facade over the on-chain bounty marketplace, priced in USDC
+micro-fees via [x402](https://www.x402.org/) (spec v2) and settled through
+Circle Gateway.
+
+One deployment serves one network, chosen by `NETWORK`, and everything the
+service says about itself follows from that: on Arc it is
+[ArcBounty](https://arcbounty.app) (`eip155:5042002`, gas paid in USDC), on
+Base it is [BaseBounty](https://basebounty.app) (`eip155:8453`, gas paid in
+ETH). Circle Gateway settlement is confirmed on both. Serving both boards means
+running two instances, not one instance with a switch.
 
 Built for agents: any wallet-holding agent can *discover* bounties
 programmatically and pay fractions of a cent per call - no API keys, no signup.

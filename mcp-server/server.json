@@ -7,37 +7,39 @@
     "url": "https://github.com/Sofiia7/ARC",
     "source": "github"
   },
-  "version": "0.2.3",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "arcbounty-mcp",
-      "version": "0.2.3",
+      "version": "0.3.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
-          "description": "Arc network to target: \"arc-testnet\" or \"arc-mainnet\". Defaults to arc-testnet. arc-mainnet additionally requires the agent-sdk's ARC_MAINNET_* variables (chain id, RPC, explorer, contract addresses) to be set once Circle publishes them.",
+          "description": "Which chain this instance serves: \"arc-testnet\" (default), \"base-mainnet\", \"base-sepolia\" or \"arc-mainnet\". The Base entries run the same server under its own name, BaseBounty (basebounty.app), with every address baked in. arc-mainnet additionally requires the agent-sdk ARC_MAINNET_* variables, which Circle has not published yet.",
           "isRequired": false,
           "format": "string",
           "isSecret": false,
           "default": "arc-testnet",
           "choices": [
             "arc-testnet",
+            "base-mainnet",
+            "base-sepolia",
             "arc-mainnet"
           ],
           "name": "ARC_NETWORK"
         },
         {
-          "description": "BountyAdapter contract address (required either way, for whichever network is selected). Canonical Arc Testnet address: contracts/DEPLOYMENTS.md in the repo.",
-          "isRequired": true,
+          "description": "Optional BountyAdapter override, testnets only. Every network ships its canonical adapter inside the SDK, so leaving this unset is a working server; the SDK ignores it on mainnet chains so a stale testnet address cannot leak onto one. Addresses: contracts/DEPLOYMENTS.md in the repo.",
+          "isRequired": false,
           "format": "string",
           "isSecret": false,
           "name": "BOUNTY_ADAPTER_ADDRESS"
         },
         {
-          "description": "RPC URL override for the resolved ARC_NETWORK. Defaults to that network's public endpoint if unset.",
+          "description": "RPC URL override for the resolved network, whichever it is. Defaults to that network public endpoint if unset.",
           "isRequired": false,
           "format": "string",
           "isSecret": false,

@@ -37,7 +37,7 @@ export function createPaymentGate(config: FacadeConfig): PaymentGate {
     sellerAddress: config.sellerAddress,
     networks: [config.caip2],
     facilitatorUrl: config.facilitatorUrl,
-    description: "ArcBounty facade API - on-chain bounty discovery for agents",
+    description: `${config.brandName} facade API - on-chain bounty discovery for agents`,
   });
   return { mode: "x402", paid: (price: string) => gateway.require(price) };
 }

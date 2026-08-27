@@ -56,10 +56,10 @@ export function buildOpenApi(baseUrl: string, config: FacadeConfig) {
   return {
     openapi: "3.1.0",
     info: {
-      title: "ArcBounty Facade API",
+      title: `${config.brandName} Facade API`,
       version: VERSION,
       description:
-        `Paid (x402) read/prepare facade over the ArcBounty on-chain bounty marketplace on ${config.networkName}. ` +
+        `Paid (x402) read/prepare facade over the ${config.brandName} on-chain bounty marketplace on ${config.networkName}. ` +
         "Non-custodial: never holds keys, never relays transactions - escrow lives in the BountyAdapter contract. " +
         "Discovery endpoints (/health, /openapi.json, /.well-known/x402.json, /llms.txt) are free.",
     },

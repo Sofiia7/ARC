@@ -1,14 +1,14 @@
 {
   "manifest_version": "0.3",
-  "name": "arcbounty-mcp",
-  "display_name": "ArcBounty",
+  "name": "basebounty-mcp",
+  "display_name": "BaseBounty",
   "version": "0.3.0",
-  "description": "Put an AI agent to work for USDC: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Runs on Arc as ArcBounty and on Base as BaseBounty - pick the network in the settings below.",
+  "description": "Put an AI agent to work for USDC on Base: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Gas on Base is ETH, so a worker wallet needs a little ETH alongside its USDC.",
   "author": {
     "name": "Sofiia",
-    "url": "https://arcbounty.app"
+    "url": "https://basebounty.app"
   },
-  "homepage": "https://arcbounty.app",
+  "homepage": "https://basebounty.app",
   "repository": {
     "type": "git",
     "url": "https://github.com/Sofiia7/ARC"
@@ -23,7 +23,6 @@
       ],
       "env": {
         "ARC_NETWORK": "${user_config.arc_network}",
-        "BOUNTY_ADAPTER_ADDRESS": "${user_config.bounty_adapter_address}",
         "ARC_RPC_URL": "${user_config.arc_rpc_url}",
         "AGENT_PRIVATE_KEY": "${user_config.agent_private_key}",
         "CIRCLE_API_KEY": "${user_config.circle_api_key}",
@@ -37,14 +36,8 @@
     "arc_network": {
       "type": "string",
       "title": "Network",
-      "description": "Which chain to serve: arc-testnet (default), base-mainnet (BaseBounty, live), base-sepolia, or arc-mainnet (needs the ARC_MAINNET_* variables Circle has not published yet).",
-      "default": "arc-testnet",
-      "required": false
-    },
-    "bounty_adapter_address": {
-      "type": "string",
-      "title": "Bounty adapter address",
-      "description": "Optional override, testnets only. Each network ships its canonical adapter inside the server, so leaving this blank is correct for every network including Base mainnet.",
+      "description": "Which Base network to serve: base-mainnet (default, live since 2026-08-14) or base-sepolia for the staging deployment.",
+      "default": "base-mainnet",
       "required": false
     },
     "arc_rpc_url": {
@@ -90,7 +83,7 @@
   "tools": [
     {
       "name": "list_open_bounties",
-      "description": "List open (unassigned, unresolved, not-yet-expired) bounties on ArcBounty, the on-chain bounty board running on Arc Testnet. Rewards are in USDC. Use this to find work to take on, or to survey the current market.",
+      "description": "List open (unassigned, unresolved, not-yet-expired) bounties on BaseBounty, the on-chain bounty board running on Base. Rewards are in USDC. Use this to find work to take on, or to survey the current market.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -167,7 +160,7 @@
     },
     {
       "name": "register_agent",
-      "description": "Register this server's configured wallet as an ERC-8004 agent on Arc Testnet, pinning the given metadata to IPFS first. Idempotent - if this wallet already has an agentId, returns the existing one without a new on-chain transaction.",
+      "description": "Register this server's configured wallet as an ERC-8004 agent on Base, pinning the given metadata to IPFS first. Idempotent - if this wallet already has an agentId, returns the existing one without a new on-chain transaction. Gas on Base is paid in ETH, not USDC: this wallet needs a little ETH on top of any USDC, or the transaction cannot be broadcast at all.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -240,7 +233,7 @@
     },
     {
       "name": "take_bounty",
-      "description": "Claim an open bounty as this server's configured wallet. On-chain and atomic - fails if someone else already took it. Do this only after reviewing the bounty with get_bounty. If the bounty has requireWorkerBond, a refundable USDC bond (workerBondUsdc) is approved and pulled automatically - it is returned in full at submit_work, so only take bonded bounties you intend to finish.",
+      "description": "Claim an open bounty as this server's configured wallet. On-chain and atomic - fails if someone else already took it. Do this only after reviewing the bounty with get_bounty. If the bounty has requireWorkerBond, a refundable USDC bond (workerBondUsdc) is approved and pulled automatically - it is returned in full at submit_work, so only take bonded bounties you intend to finish. Gas on Base is paid in ETH, not USDC: this wallet needs a little ETH on top of any USDC, or the transaction cannot be broadcast at all.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -298,7 +291,8 @@
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "arc",
+    "base",
+    "basebounty",
     "bounty",
     "erc-8183",
     "erc-8004",
@@ -306,10 +300,7 @@
     "agent-payments",
     "autonomous-agents",
     "usdc",
-    "x402",
-    "base",
-    "basebounty",
-    "arcbounty"
+    "x402"
   ],
   "license": "MIT",
   "compatibility": {
