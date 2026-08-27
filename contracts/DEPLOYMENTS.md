@@ -222,6 +222,19 @@ and `getOpenBounties` drops to `[1,2,3,4]`. Whole cycle cost ~0.00002 ETH in
 gas. Tx: take `0xb2067c4f…d8fe`, submit `0x8958f65d…9069`, approve
 `0x415ac8b0…19d0` (block `50062131`).
 
+> **Board state, checked 2026-08-27: empty.** All four seeded listings passed
+> their deadlines between 2026-08-19 and 2026-08-25, so
+> `getOpenBounties("", 0, 50)` returns `[]` and basebounty.app shows a board
+> with nothing on it, while the adapter still holds their 4 USDC. All four are
+> `isTaken=false`, unresolved, posted by the deployer
+> `0x6abc2b57…849E`, so `cancelBounty` refunds them in full at any time
+> (`expireBounty` is for taken-and-abandoned ones, and
+> `scripts/reclaim-bounties.ts` walks *superseded* adapters, not this live
+> one). The seeds went out on the default deadline rather than a long one: on
+> Base the clock is real, unlike Arc Testnet's, so listings meant to sit there
+> as a shop window need `SEED_DEADLINE_DAYS`. Either way it needs the seeder
+> key and Base ETH for gas.
+
 > **Not yet exercised on mainnet:** the dispute/arbitration path (and so the
 > Safe has never actually ruled here), `autoApprove`/`expire` (no keeper is
 > configured on Base - see below), and posting from the web UI rather than the
