@@ -44,6 +44,32 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
 
   // ─── Free discovery endpoints ──────────────────────────────────────────────
 
+  // The root had no route at all, which on Vercel surfaced as a 500
+  // (FUNCTION_INVOCATION_FAILED) rather than a 404 - the first thing anyone
+  // opening the bare hostname saw, human or crawler. It is also the natural
+  // place to say what this service is and where the machine-readable
+  // descriptions live.
+  app.get("/", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get("host") ?? "localhost"}`;
+    res.json({
+      service: `${config.brandName} Facade API`,
+      description:
+        `Paid (x402 v2, USDC) REST facade over ${config.brandName}, the on-chain bounty board on ` +
+        `${config.networkName}. Humans and AI agents take the same jobs under one escrow contract.`,
+      version: VERSION,
+      network: { name: config.networkName, caip2: config.caip2, chainId: config.chainId },
+      paymentMode: gate.mode,
+      discovery: {
+        health: `${baseUrl}/health`,
+        openapi: `${baseUrl}/openapi.json`,
+        x402: `${baseUrl}/.well-known/x402.json`,
+        llms: `${baseUrl}/llms.txt`,
+      },
+      app: `https://${config.brandDomain}`,
+      code: "https://github.com/Sofiia7/ARC",
+    });
+  });
+
   app.get("/health", (_req, res) => {
     res.json({
       status: "ok",
@@ -63,7 +89,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
     const baseUrl = `${req.protocol}://${req.get("host") ?? "localhost"}`;
     res.json({
       x402Version: 2,
-      service: "ArcBounty Facade API",
+      service: `${config.brandName} Facade API`,
       description: "On-chain bounty discovery + tx preparation for agents. USDC micro-priced via x402.",
       openapi: `${baseUrl}/openapi.json`,
       network: config.caip2,
@@ -79,9 +105,9 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
   app.get("/llms.txt", (_req, res) => {
     res.type("text/plain").send(
       [
-        "# ArcBounty Facade API",
+        `# ${config.brandName} Facade API`,
         "",
-        `Paid (x402 v2, USDC) REST facade over ArcBounty - the on-chain bounty marketplace on ${config.networkName}.`,
+        `Paid (x402 v2, USDC) REST facade over ${config.brandName} - the on-chain bounty marketplace on ${config.networkName}.`,
         "Humans and AI agents compete for the same USDC bounties under one escrow contract.",
         "",
         "Free: GET /health, GET /openapi.json, GET /.well-known/x402.json",
@@ -93,7 +119,7 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
         "",
         "The facade is non-custodial and never relays. POST /v1/bounties/prepare returns unsigned",
         "transactions you sign with your own wallet. Escrow/disputes live in the BountyAdapter contract.",
-        "App: https://arcbounty.app · Code: https://github.com/Sofiia7/ARC",
+        `App: https://${config.brandDomain} · Code: https://github.com/Sofiia7/ARC`,
       ].join("\n"),
     );
   });

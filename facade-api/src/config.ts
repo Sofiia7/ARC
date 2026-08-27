@@ -9,6 +9,9 @@ export const VERSION = "0.1.0";
 const FACILITATOR_DEFAULTS: Record<NetworkName, string> = {
   "arc-testnet": "https://gateway-api-testnet.circle.com",
   "arc-mainnet": "https://gateway-api.circle.com",
+  // BaseBounty. x402 settlement here is confirmed in docs/INTEGRATION_NOTES.md,
+  // so this instance can run in paid mode with a SELLER_ADDRESS set.
+  "base-mainnet": "https://gateway-api.circle.com",
   // Circle's testnet Gateway. NOTE: docs/INTEGRATION_NOTES.md confirms x402
   // settlement on Base *mainnet* and Arc Testnet - Base *Sepolia* settlement
   // is not confirmed there (the Base Sepolia ✅ in those notes is about Agent
@@ -33,6 +36,8 @@ export type FacadeConfig = {
   networkName: string;
   /** Product name for this network's deployment ("ArcBounty" / "BaseBounty"). */
   brandName: string;
+  /** That product's own domain ("arcbounty.app" / "basebounty.app"), for links out. */
+  brandDomain: string;
   /**
    * Native gas token. Arc pays gas in USDC; Base pays it in ETH, so an agent
    * funded only with USDC cannot broadcast. The prepare response says which,
@@ -61,7 +66,20 @@ export type FacadeConfig = {
   questApiKey: string | null;
 };
 
-const SUPPORTED_NETWORKS: NetworkName[] = ["arc-testnet", "arc-mainnet", "base-sepolia"];
+// Every network the SDK knows. Kept exhaustive by the same trick as the MCP
+// server's list: base-mainnet was missing here for the two weeks BaseBounty was
+// live on Base, so the facade could not be pointed at the one network where
+// x402 settlement is confirmed.
+const SUPPORTED_NETWORKS = [
+  "arc-testnet",
+  "arc-mainnet",
+  "base-mainnet",
+  "base-sepolia",
+] as const satisfies readonly NetworkName[];
+
+type UnlistedNetwork = Exclude<NetworkName, (typeof SUPPORTED_NETWORKS)[number]>;
+const _networksExhaustive: [UnlistedNetwork] extends [never] ? true : UnlistedNetwork = true;
+void _networksExhaustive;
 
 function parseNetwork(raw: string | undefined): NetworkName {
   const value = (raw ?? "arc-testnet") as NetworkName;
@@ -87,10 +105,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacadeConfig {
   // arc-testnet: static config, ARC_RPC_URL already merged in by the SDK.
   const resolved = resolveNetwork(network, env);
 
-  const bountyAdapterAddress = clean("BOUNTY_ADAPTER_ADDRESS");
+  // The env var is an override for testnets, not a requirement: each network
+  // carries its canonical adapter, and honouring the override on a mainnet
+  // chain is how a leftover testnet address ends up pointed at real funds. The
+  // SDK applies exactly this rule internally; the facade reads the variable
+  // itself, so it has to apply the rule itself too.
+  const adapterOverride = resolved.testnet ? clean("BOUNTY_ADAPTER_ADDRESS") : undefined;
+  const bountyAdapterAddress = adapterOverride ?? resolved.defaultBountyAdapter;
   if (!bountyAdapterAddress || !isAddress(bountyAdapterAddress)) {
     throw new Error(
-      "BOUNTY_ADAPTER_ADDRESS missing or invalid - see contracts/DEPLOYMENTS.md for the canonical address",
+      `BOUNTY_ADAPTER_ADDRESS invalid, and no canonical adapter is known for "${network}" - ` +
+      "see contracts/DEPLOYMENTS.md for the address",
     );
   }
 
@@ -103,6 +128,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacadeConfig {
     network,
     networkName: resolved.name,
     brandName: resolved.brand.name,
+    brandDomain: resolved.brand.domain,
     nativeCurrency: resolved.nativeCurrency,
     chainId: resolved.chainId,
     caip2: resolved.caip2,

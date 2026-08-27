@@ -18,7 +18,7 @@
     "@circle-fin/x402-batching": "3.2.0",
     "@x402/core": "^2.19.0",
     "@x402/evm": "^2.19.0",
-    "arcbounty-agent-sdk": "^0.6.0",
+    "arcbounty-agent-sdk": "^0.6.2",
     "express": "^4.21.2",
     "viem": "^2.0.0",
     "zod": "^3.23.0"
