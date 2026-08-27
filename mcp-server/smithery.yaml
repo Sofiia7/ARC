@@ -2,33 +2,37 @@ startCommand:
   type: stdio
   configSchema:
     type: object
-    required:
-      - BOUNTY_ADAPTER_ADDRESS
     properties:
       ARC_NETWORK:
         type: string
-        title: Arc network
+        title: Network
         description: >-
-          Arc network to target. "arc-mainnet" additionally requires the
-          agent-sdk's ARC_MAINNET_* variables (chain id, RPC, explorer,
-          contract addresses) to be set once Circle publishes them - until
-          then, use arc-testnet.
+          Which chain this server serves. "base-mainnet" is BaseBounty, the
+          same board live on Base since 2026-08-14, where gas is ETH rather
+          than USDC. "arc-mainnet" additionally requires the agent-sdk's
+          ARC_MAINNET_* variables (chain id, RPC, explorer, contract
+          addresses), which Circle has not published yet.
         enum:
           - arc-testnet
+          - base-mainnet
+          - base-sepolia
           - arc-mainnet
         default: "arc-testnet"
       BOUNTY_ADAPTER_ADDRESS:
         type: string
-        title: Bounty adapter address
+        title: Bounty adapter address (optional override)
         description: >-
-          Canonical ArcBounty adapter contract for the selected Arc network.
-          Defaults to the verified Arc Testnet deployment at
-          0x538CD48789667168bfb36f838Af8476237F9409F.
-        default: "0x538CD48789667168bfb36f838Af8476237F9409F"
+          Leave blank. Every network ships its canonical adapter inside the
+          server, so an unconfigured install is a working one. Set this only to
+          point a testnet at a different deployment; it is ignored on mainnet
+          chains so a stale testnet address can never be used against real
+          funds. Addresses: contracts/DEPLOYMENTS.md in the repo.
       ARC_RPC_URL:
         type: string
-        title: Arc RPC URL
-        description: Optional. Overrides the RPC endpoint for the selected Arc network.
+        title: RPC URL
+        description: >-
+          Optional. Overrides the RPC endpoint of whichever network is selected
+          above. Defaults to that network's public endpoint.
       AGENT_PRIVATE_KEY:
         type: string
         title: Agent private key
@@ -58,7 +62,10 @@ startCommand:
       args: ['dist/index.js'],
       env: {
         ARC_NETWORK: config.ARC_NETWORK || 'arc-testnet',
-        BOUNTY_ADAPTER_ADDRESS: config.BOUNTY_ADAPTER_ADDRESS || '0x538CD48789667168bfb36f838Af8476237F9409F',
+        // Deliberately no default: the server resolves each network's canonical
+        // adapter itself, and a hardcoded Arc address here would follow the
+        // user onto Base Sepolia.
+        BOUNTY_ADAPTER_ADDRESS: config.BOUNTY_ADAPTER_ADDRESS || '',
         ARC_RPC_URL: config.ARC_RPC_URL || '',
         AGENT_PRIVATE_KEY: config.AGENT_PRIVATE_KEY || '',
         CIRCLE_API_KEY: config.CIRCLE_API_KEY || '',

@@ -13,6 +13,15 @@ import {
   type NetworkName,
 } from "arcbounty-agent-sdk";
 
+// Read name and version off package.json instead of repeating them here:
+// registries label their listings with whatever the server reports at
+// `initialize`, so a stale literal shows up publicly as a version that doesn't
+// exist on npm - Glama's first release went out as 0.1.0 while npm was already
+// on 0.1.1. The name doubles as the stderr tag, so a differently-named
+// distribution of this same server labels its own logs correctly.
+const pkg = createRequire(import.meta.url)("../package.json") as { name: string; version: string };
+const TAG = `[${pkg.name}]`;
+
 // ─── Agent instance ────────────────────────────────────────────────────────
 //
 // Read-only tools always work (no signer needed - listOpenBounties/getBounty
@@ -20,25 +29,56 @@ import {
 // register if a signer is configured, via the same env-var conventions the
 // SDK itself and its examples already use:
 //
-//   ARC_NETWORK               - "arc-testnet" (default) or "arc-mainnet".
-//                                Mainnet additionally requires the SDK's
-//                                ARC_MAINNET_* variables (see .env.example) -
-//                                resolveNetwork() throws a descriptive error
-//                                listing anything missing.
+//   ARC_NETWORK               - which chain this instance serves: "arc-testnet"
+//                               (default), "arc-mainnet", "base-sepolia" or
+//                               "base-mainnet". The Base entries are the same
+//                               product under its own name, BaseBounty
+//                               (basebounty.app) - one package, one instance
+//                               per chain, brand read from the network.
+//                               arc-mainnet additionally requires the SDK's
+//                               ARC_MAINNET_* variables (see .env.example) -
+//                               resolveNetwork() throws a descriptive error
+//                               listing anything missing.
 //   AGENT_PRIVATE_KEY        - raw EOA private key, OR:
 //   CIRCLE_API_KEY / ENTITY_SECRET / CIRCLE_WALLET_ID / CIRCLE_WALLET_ADDRESS
 //                             - Circle developer-controlled wallet (no key
 //                               in this process at all - see
 //                               agent-sdk/docs/circle-wallet.md)
-//   BOUNTY_ADAPTER_ADDRESS    - required either way; see contracts/DEPLOYMENTS.md
+//   BOUNTY_ADAPTER_ADDRESS    - optional override, testnets only. Every network
+//                               ships its canonical adapter inside the SDK, so
+//                               an unconfigured server is a working read-only
+//                               one. The SDK ignores this variable on mainnet
+//                               chains on purpose, so that a stale testnet
+//                               address can never leak onto mainnet - which is
+//                               why this file hands the decision to the SDK
+//                               rather than reading the variable itself.
+//                               Source of truth: contracts/DEPLOYMENTS.md.
 //   ARC_RPC_URL (optional)    - overrides the RPC endpoint for whichever
 //                               network ARC_NETWORK resolves to (unchanged
 //                               from pre-network-selection behavior - this is
 //                               a transport-only override, so on arc-mainnet
 //                               it still talks to the mainnet chain id, just
 //                               through this URL instead of ARC_MAINNET_RPC_URL).
+//                               The SDK's own BASE_MAINNET_RPC_URL /
+//                               BASE_SEPOLIA_RPC_URL do the same for the Base
+//                               entries; ARC_RPC_URL wins over both.
 
-const KNOWN_NETWORKS: readonly NetworkName[] = ["arc-testnet", "arc-mainnet"];
+const KNOWN_NETWORKS = [
+  "arc-testnet",
+  "arc-mainnet",
+  "base-sepolia",
+  "base-mainnet",
+] as const satisfies readonly NetworkName[];
+
+// Compile-time drift guard. This list said "arc-testnet, arc-mainnet" for the
+// two weeks BaseBounty was live on Base mainnet: ARC_NETWORK=base-mainnet was
+// refused at startup by a server whose SDK supported it perfectly well, and
+// nothing failed loudly enough to notice. A NetworkName the list doesn't cover
+// now breaks the build here - the error names the missing network - instead of
+// breaking at someone else's runtime.
+type UnlistedNetwork = Exclude<NetworkName, (typeof KNOWN_NETWORKS)[number]>;
+const _networksExhaustive: [UnlistedNetwork] extends [never] ? true : UnlistedNetwork = true;
+void _networksExhaustive;
 
 /** Returns `null` (after logging) on an unrecognized ARC_NETWORK value, mirroring
  * the other startup-validation failures in this function. */
@@ -47,7 +87,7 @@ function readNetwork(): NetworkName | null {
   if (!raw) return "arc-testnet";
   if ((KNOWN_NETWORKS as readonly string[]).includes(raw)) return raw as NetworkName;
   console.error(
-    `[arcbounty-mcp] Invalid ARC_NETWORK="${raw}" - expected one of: ${KNOWN_NETWORKS.join(", ")}. ` +
+    `${TAG} Invalid ARC_NETWORK="${raw}" - expected one of: ${KNOWN_NETWORKS.join(", ")}. ` +
     "Server will not start.",
   );
   return null;
@@ -57,14 +97,12 @@ function buildAgent(): ArcBountyAgent | null {
   const network = readNetwork();
   if (!network) return null;
 
-  const bountyAdapterAddress = process.env["BOUNTY_ADAPTER_ADDRESS"] as `0x${string}` | undefined;
-  if (!bountyAdapterAddress) {
-    console.error(
-      "[arcbounty-mcp] BOUNTY_ADAPTER_ADDRESS not set - server will not start. " +
-      "See contracts/DEPLOYMENTS.md for the canonical address.",
-    );
-    return null;
-  }
+  // Deliberately not read here: BOUNTY_ADAPTER_ADDRESS. Passing it as an
+  // explicit constructor argument would override the SDK's own precedence
+  // (explicit > env-on-testnet > the network's canonical adapter) and defeat
+  // its guard against a testnet address leaking onto a mainnet chain. Leaving
+  // it to the SDK also means every network now has a default, so the server
+  // starts read-only with no configuration at all.
   const rpcUrl = process.env["ARC_RPC_URL"];
 
   const circleApiKey = process.env["CIRCLE_API_KEY"];
@@ -77,18 +115,17 @@ function buildAgent(): ArcBountyAgent | null {
     return new ArcBountyAgent({
       network,
       circleWallet: { apiKey: circleApiKey, entitySecret, walletId: circleWalletId, address: circleWalletAddress },
-      bountyAdapterAddress,
       rpcUrl,
     });
   }
   if (privateKey) {
-    return new ArcBountyAgent({ network, privateKey, bountyAdapterAddress, rpcUrl });
+    return new ArcBountyAgent({ network, privateKey, rpcUrl });
   }
 
   // No signer configured - read-only mode. Still useful: browsing bounties
   // needs no credentials at all.
   console.error(
-    "[arcbounty-mcp] No signer configured (AGENT_PRIVATE_KEY or CIRCLE_API_KEY+ENTITY_SECRET+" +
+    `${TAG} No signer configured (AGENT_PRIVATE_KEY or CIRCLE_API_KEY+ENTITY_SECRET+` +
     "CIRCLE_WALLET_ID+CIRCLE_WALLET_ADDRESS) - starting in READ-ONLY mode. " +
     "take_bounty/submit_work/register_agent/etc. will not be registered.",
   );
@@ -97,7 +134,7 @@ function buildAgent(): ArcBountyAgent | null {
   // burner key purely to satisfy the constructor - it is never used to sign
   // anything because no write tools are registered in this mode.
   const burner = "0x0000000000000000000000000000000000000000000000000000000000000001" as `0x${string}`;
-  return new ArcBountyAgent({ network, privateKey: burner, bountyAdapterAddress, rpcUrl });
+  return new ArcBountyAgent({ network, privateKey: burner, rpcUrl });
 }
 
 let agent: ArcBountyAgent | null;
@@ -108,7 +145,7 @@ try {
   // rejecting ARC_NETWORK=arc-mainnet because the ARC_MAINNET_* variables
   // aren't set yet (Circle hasn't published mainnet parameters). The SDK's
   // error message already lists exactly what's missing.
-  console.error(`[arcbounty-mcp] ${err instanceof Error ? err.message : String(err)}`);
+  console.error(`${TAG} ${err instanceof Error ? err.message : String(err)}`);
   agent = null;
 }
 if (!agent) process.exit(1);
@@ -155,13 +192,20 @@ function errorResult(err: unknown) {
 
 // ─── Server ─────────────────────────────────────────────────────────────────
 
-// Read the version off package.json instead of repeating it here: registries
-// label their listings with whatever the server reports at `initialize`, so a
-// stale literal shows up publicly as a version that doesn't exist on npm -
-// Glama's first release went out as 0.1.0 while npm was already on 0.1.1.
-const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
+// The resolved network decides what this instance is called and what it says.
+// On Arc it is ArcBounty and gas is USDC; on Base it is BaseBounty and gas is
+// ETH, which an agent has to know before it funds a wallet and discovers it
+// cannot broadcast. Both come from the SDK's network entry, so nothing here
+// hardcodes one chain's answer.
+const net = agent!.network;
+const BRAND = net.brand.name;
+/** Non-empty only where the gas token is not the reward token, i.e. on Base. */
+const GAS_NOTE = net.nativeCurrency.isUsdc
+  ? ""
+  : ` Gas on ${net.name} is paid in ${net.nativeCurrency.symbol}, not USDC: this wallet needs a little ` +
+    `${net.nativeCurrency.symbol} on top of any USDC, or the transaction cannot be broadcast at all.`;
 
-const server = new McpServer({ name: "arcbounty", version: pkg.version });
+const server = new McpServer({ name: BRAND.toLowerCase(), version: pkg.version });
 
 // -- Read-only tools (always registered) -------------------------------------
 
@@ -169,8 +213,9 @@ server.registerTool(
   "list_open_bounties",
   {
     description:
-      "List open (unassigned, unresolved, not-yet-expired) bounties on ArcBounty, the Arc Network bounty board. " +
-      "Rewards are in USDC. Use this to find work to take on, or to survey the current market.",
+      `List open (unassigned, unresolved, not-yet-expired) bounties on ${BRAND}, the on-chain bounty board ` +
+      `running on ${net.name}. Rewards are in USDC. Use this to find work to take on, or to survey the ` +
+      "current market.",
     inputSchema: z.object({
       category: z.enum(["dev", "design", "content", "data", "other"]).optional()
         .describe("Filter by category. Omit for all categories."),
@@ -244,9 +289,9 @@ if (hasSigner) {
     "register_agent",
     {
       description:
-        "Register this server's configured wallet as an ERC-8004 agent on Arc, pinning the given metadata to " +
-        "IPFS first. Idempotent - if this wallet already has an agentId, returns the existing one without a new " +
-        "on-chain transaction.",
+        `Register this server's configured wallet as an ERC-8004 agent on ${net.name}, pinning the given ` +
+        "metadata to IPFS first. Idempotent - if this wallet already has an agentId, returns the existing one " +
+        "without a new on-chain transaction." + GAS_NOTE,
       inputSchema: z.object({
         name: z.string(),
         description: z.string(),
@@ -349,7 +394,7 @@ if (hasSigner) {
         "Claim an open bounty as this server's configured wallet. On-chain and atomic - fails if someone else " +
         "already took it. Do this only after reviewing the bounty with get_bounty. If the bounty has " +
         "requireWorkerBond, a refundable USDC bond (workerBondUsdc) is approved and pulled automatically - " +
-        "it is returned in full at submit_work, so only take bonded bounties you intend to finish.",
+        "it is returned in full at submit_work, so only take bonded bounties you intend to finish." + GAS_NOTE,
       inputSchema: z.object({ jobId: z.string() }),
     },
     async ({ jobId }) => {
@@ -418,10 +463,16 @@ async function main() {
   // console.error, never console.log - stdout is the JSON-RPC transport
   // itself, and anything printed there corrupts the stream from the host's
   // perspective.
-  console.error(`[arcbounty-mcp] running on stdio${hasSigner ? "" : " (read-only mode - no signer configured)"}`);
+  // Name the chain and the adapter, not just "running": an instance pointed at
+  // the wrong network is otherwise indistinguishable from a working one until
+  // its first empty board.
+  console.error(
+    `${TAG} ${BRAND} running on stdio - ${net.name} (chain ${net.chainId})` +
+    `${hasSigner ? "" : " - read-only mode, no signer configured"}`,
+  );
 }
 
 main().catch(err => {
-  console.error("[arcbounty-mcp] fatal:", err);
+  console.error(`${TAG} fatal:`, err);
   process.exit(1);
 });

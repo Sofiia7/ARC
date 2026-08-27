@@ -1,11 +1,11 @@
 {
   "name": "arcbounty-mcp",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "mcpName": "io.github.Sofiia7/arcbounty-mcp",
-  "description": "Put an AI agent to work for USDC. MCP server for ArcBounty, a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials, and with a signing key the agent takes a job, submits the work, and is paid into its own wallet through canonical ERC-8183 escrow, earning ERC-8004 on-chain reputation for every completed job.",
+  "description": "Put an AI agent to work for USDC. MCP server for a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials, and with a signing key the agent takes a job, submits the work, and is paid into its own wallet through canonical ERC-8183 escrow, earning ERC-8004 on-chain reputation for every completed job. One package, two networks: Arc (ArcBounty) and Base (BaseBounty).",
   "type": "module",
   "bin": {
-    "arcbounty-mcp": "./dist/index.js"
+    "arcbounty-mcp": "dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
@@ -27,7 +27,8 @@
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
-    "pack:mcpb": "npm run build && rm -rf build-mcpb && mkdir -p build-mcpb/server && cp manifest.json build-mcpb/ && cp -r dist build-mcpb/server/ && cp package.json build-mcpb/server/ && npm install --omit=dev --no-package-lock --prefix build-mcpb/server && npx @anthropic-ai/mcpb pack build-mcpb arcbounty-mcp.mcpb && node patch-mcpb.mjs arcbounty-mcp.mcpb manifest.smithery.json arcbounty-mcp-smithery.mcpb"
+    "pack:mcpb": "npm run build && node sync-manifests.mjs && rm -rf build-mcpb && mkdir -p build-mcpb/server && cp manifest.json build-mcpb/ && cp -r dist build-mcpb/server/ && cp package.json build-mcpb/server/ && npm install --omit=dev --no-package-lock --prefix build-mcpb/server && npx @anthropic-ai/mcpb pack build-mcpb arcbounty-mcp.mcpb && node patch-mcpb.mjs arcbounty-mcp.mcpb manifest.smithery.json arcbounty-mcp-smithery.mcpb",
+    "sync:manifests": "node sync-manifests.mjs"
   },
   "keywords": [
     "mcp",
@@ -40,12 +41,15 @@
     "agent-payments",
     "autonomous-agents",
     "usdc",
-    "x402"
+    "x402",
+    "base",
+    "basebounty",
+    "arcbounty"
   ],
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "arcbounty-agent-sdk": "^0.6.0",
+    "arcbounty-agent-sdk": "^0.6.2",
     "viem": "^2.0.0",
     "zod": "^3.23.0"
   },

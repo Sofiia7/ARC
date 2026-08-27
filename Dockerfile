@@ -19,15 +19,19 @@ RUN npm run build
 FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-# Testnet-by-default deployment (contracts/DEPLOYMENTS.md). Baked in so the
-# container starts with no configuration at all: with no signer set the server
-# comes up read-only, which is what automated introspection (tools/list) needs.
+# Testnet by default, stated explicitly rather than relied on: with no signer
+# set the server comes up read-only, which is what automated introspection
+# (tools/list) needs, and every network's contract addresses ship inside the
+# SDK, so nothing else has to be baked in here.
 ENV ARC_NETWORK=arc-testnet
-ENV BOUNTY_ADAPTER_ADDRESS=0x538CD48789667168bfb36f838Af8476237F9409F
 #
-# To target Arc Mainnet instead, override at `docker run` time:
+# To serve BaseBounty on Base mainnet instead, that one variable is the whole
+# change - no addresses, no RPC:
+#   -e ARC_NETWORK=base-mainnet
+# (also base-sepolia for its staging deployment).
+#
+# To target Arc Mainnet, override at `docker run` time:
 #   -e ARC_NETWORK=arc-mainnet \
-#   -e BOUNTY_ADAPTER_ADDRESS=<mainnet adapter address> \
 #   -e ARC_MAINNET_CHAIN_ID=... -e ARC_MAINNET_RPC_URL=... \
 #   -e ARC_MAINNET_EXPLORER_URL=... -e ARC_MAINNET_EXPLORER_API_URL=... \
 #   -e ARC_MAINNET_AGENTIC_COMMERCE=... -e ARC_MAINNET_IDENTITY_REGISTRY=... \

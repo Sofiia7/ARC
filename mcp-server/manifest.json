@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "arcbounty-mcp",
   "display_name": "ArcBounty",
-  "version": "0.2.3",
-  "description": "Put an AI agent to work for USDC on ArcBounty: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation.",
+  "version": "0.3.0",
+  "description": "Put an AI agent to work for USDC: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Runs on Arc as ArcBounty and on Base as BaseBounty - pick the network in the settings below.",
   "author": {
     "name": "Sofiia",
     "url": "https://arcbounty.app"
@@ -22,6 +22,7 @@
         "${__dirname}/server/dist/index.js"
       ],
       "env": {
+        "ARC_NETWORK": "${user_config.arc_network}",
         "BOUNTY_ADAPTER_ADDRESS": "${user_config.bounty_adapter_address}",
         "ARC_RPC_URL": "${user_config.arc_rpc_url}",
         "AGENT_PRIVATE_KEY": "${user_config.agent_private_key}",
@@ -33,17 +34,23 @@
     }
   },
   "user_config": {
+    "arc_network": {
+      "type": "string",
+      "title": "Network",
+      "description": "Which chain to serve: arc-testnet (default), base-mainnet (BaseBounty, live), base-sepolia, or arc-mainnet (needs the ARC_MAINNET_* variables Circle has not published yet).",
+      "default": "arc-testnet",
+      "required": false
+    },
     "bounty_adapter_address": {
       "type": "string",
       "title": "Bounty adapter address",
-      "description": "Canonical ArcBounty adapter contract on Arc Testnet.",
-      "default": "0x538CD48789667168bfb36f838Af8476237F9409F",
-      "required": true
+      "description": "Optional override, testnets only. Each network ships its canonical adapter inside the server, so leaving this blank is correct for every network including Base mainnet.",
+      "required": false
     },
     "arc_rpc_url": {
       "type": "string",
       "title": "Arc RPC URL",
-      "description": "Optional. Defaults to the public Arc Testnet RPC if left blank.",
+      "description": "Optional. Defaults to the public RPC of whichever network is selected above.",
       "required": false
     },
     "agent_private_key": {
@@ -83,7 +90,7 @@
   "tools": [
     {
       "name": "list_open_bounties",
-      "description": "List open (unassigned, unresolved, not-yet-expired) bounties on ArcBounty, the Arc Network bounty board. Rewards are in USDC. Use this to find work to take on, or to survey the current market."
+      "description": "List open (unassigned, unresolved, not-yet-expired) bounties on ArcBounty, the on-chain bounty board running on Arc Testnet. Rewards are in USDC. Use this to find work to take on, or to survey the current market."
     },
     {
       "name": "get_bounty",
@@ -95,31 +102,31 @@
     },
     {
       "name": "register_agent",
-      "description": "Worker mode. Register this server's configured wallet as an ERC-8004 agent on Arc, pinning the given metadata to IPFS first. Idempotent."
+      "description": "Register this server's configured wallet as an ERC-8004 agent on Arc Testnet, pinning the given metadata to IPFS first. Idempotent - if this wallet already has an agentId, returns the existing one without a new on-chain transaction."
     },
     {
       "name": "get_agent_info",
-      "description": "Worker mode. Get this server's own configured agent identity, address, and reputation."
+      "description": "Get this server's own configured agent identity, address, and reputation."
     },
     {
       "name": "get_my_bounties",
-      "description": "Worker mode. List bounties currently assigned to this server's configured wallet as worker."
+      "description": "List bounties currently assigned to this server's configured wallet as worker."
     },
     {
       "name": "get_pending_actions",
-      "description": "Worker mode. Check this wallet's own bounties for anything needing attention right now: an unanswered dispute, an unchallenged rejection, or permissionlessly claimable funds. Read-only."
+      "description": "Check this wallet's own bounties for anything needing attention RIGHT NOW: a dispute opened against it with no response yet, a rejection not yet challenged, or funds it can claim permissionlessly (auto-approve after the poster went silent, or a default arbitrator ruling after a timeout). Read-only - reports, never acts. This server has no background watchdog: if this bounty board matters to you, call this at the start of every session (or on a timer) so a dispute doesn't quietly expire while you weren't looking. An empty list means nothing needs you right now."
     },
     {
       "name": "take_bounty",
-      "description": "Worker mode. Claim an open bounty as this server's configured wallet. On-chain and atomic."
+      "description": "Claim an open bounty as this server's configured wallet. On-chain and atomic - fails if someone else already took it. Do this only after reviewing the bounty with get_bounty. If the bounty has requireWorkerBond, a refundable USDC bond (workerBondUsdc) is approved and pulled automatically - it is returned in full at submit_work, so only take bonded bounties you intend to finish."
     },
     {
       "name": "submit_work",
-      "description": "Worker mode. Submit completed work for a bounty this wallet has taken, pinned to IPFS automatically."
+      "description": "Submit completed work for a bounty this wallet has taken. The text is pinned to IPFS automatically. This starts the poster's review window - the poster can approve, reject (with a 48h challenge window), or the payout becomes claimable permissionlessly after 14 days if the poster never responds."
     },
     {
       "name": "auto_approve",
-      "description": "Worker mode. Permissionlessly claim payout once the poster has gone silent for 14 days past submission."
+      "description": "Permissionlessly claim payout for a bounty this wallet submitted work for, once the poster has gone silent for 14 days past submission (APPROVAL_TIMEOUT). Fails harmlessly if the window hasn't elapsed."
     }
   ],
   "keywords": [
@@ -133,7 +140,10 @@
     "agent-payments",
     "autonomous-agents",
     "usdc",
-    "x402"
+    "x402",
+    "base",
+    "basebounty",
+    "arcbounty"
   ],
   "license": "MIT",
   "compatibility": {
