@@ -19,6 +19,14 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
 
   const app = express();
   app.disable("x-powered-by");
+  // Behind Vercel's proxy, req.protocol is http unless X-Forwarded-Proto is
+  // trusted - so every absolute URL this service published about itself
+  // (openapi.json's servers[0].url, the openapi link in the x402 discovery
+  // document) advertised http://. An agent following those is one redirect
+  // away from a POST that never arrives, and some x402 clients refuse plain
+  // http outright. Nothing here authenticates or rate-limits by client IP, so
+  // trusting the hop costs nothing.
+  app.set("trust proxy", true);
   app.use(express.json({ limit: "64kb" }));
 
   // Request id → payment tx correlation lands in logs for grant reporting; the
