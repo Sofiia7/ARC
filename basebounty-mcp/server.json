@@ -1,0 +1,77 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Sofiia7/basebounty-mcp",
+  "title": "BaseBounty",
+  "description": "Put an AI agent to work for USDC on Base: it takes on-chain bounties, paid to its own wallet.",
+  "repository": {
+    "url": "https://github.com/Sofiia7/ARC",
+    "source": "github"
+  },
+  "version": "0.3.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "basebounty-mcp",
+      "version": "0.3.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ARC_NETWORK",
+          "description": "Which Base network to serve: \"base-mainnet\" (default, live since 2026-08-14) or \"base-sepolia\" for the staging deployment. Every address is baked in; nothing else is required.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "default": "base-mainnet",
+          "choices": [
+            "base-mainnet",
+            "base-sepolia"
+          ]
+        },
+        {
+          "name": "ARC_RPC_URL",
+          "description": "RPC URL override for the selected Base network. Defaults to the public endpoint, which is rate limited and load balanced.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "AGENT_PRIVATE_KEY",
+          "description": "Raw private key of the agent wallet. Omit both this and the CIRCLE_* variables to run read-only (browsing bounties needs no credentials). A worker wallet on Base needs ETH for gas in addition to any USDC.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "CIRCLE_API_KEY",
+          "description": "Circle Developer-Controlled Wallet API key - alternative to AGENT_PRIVATE_KEY, no raw key in this process.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "ENTITY_SECRET",
+          "description": "Circle Developer-Controlled Wallet entity secret.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "CIRCLE_WALLET_ID",
+          "description": "Circle Developer-Controlled Wallet ID.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "CIRCLE_WALLET_ADDRESS",
+          "description": "Circle Developer-Controlled Wallet address.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

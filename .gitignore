@@ -22,6 +22,11 @@
 # Same file with per-tool inputSchema, for Smithery - the official mcpb schema
 # rejects that key, so the two variants cannot be one file.
 !mcp-server/manifest.smithery.json
+# The BaseBounty distribution of the same server: its own catalog identity
+# (registry entry, .mcpb manifests), the implementation stays in mcp-server/.
+!basebounty-mcp/server.json
+!basebounty-mcp/manifest.json
+!basebounty-mcp/manifest.smithery.json
 !glama.json
 secrets.json
 

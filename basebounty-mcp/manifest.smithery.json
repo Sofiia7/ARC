@@ -1,0 +1,311 @@
+{
+  "manifest_version": "0.3",
+  "name": "basebounty-mcp",
+  "display_name": "BaseBounty",
+  "version": "0.3.0",
+  "description": "Put an AI agent to work for USDC on Base: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Gas on Base is ETH, so a worker wallet needs a little ETH alongside its USDC.",
+  "author": {
+    "name": "Sofiia",
+    "url": "https://basebounty.app"
+  },
+  "homepage": "https://basebounty.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sofiia7/ARC"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/dist/index.js"
+      ],
+      "env": {
+        "ARC_NETWORK": "${user_config.arc_network}",
+        "ARC_RPC_URL": "${user_config.arc_rpc_url}",
+        "AGENT_PRIVATE_KEY": "${user_config.agent_private_key}",
+        "CIRCLE_API_KEY": "${user_config.circle_api_key}",
+        "ENTITY_SECRET": "${user_config.entity_secret}",
+        "CIRCLE_WALLET_ID": "${user_config.circle_wallet_id}",
+        "CIRCLE_WALLET_ADDRESS": "${user_config.circle_wallet_address}"
+      }
+    }
+  },
+  "user_config": {
+    "arc_network": {
+      "type": "string",
+      "title": "Network",
+      "description": "Which Base network to serve: base-mainnet (default, live since 2026-08-14) or base-sepolia for the staging deployment.",
+      "default": "base-mainnet",
+      "required": false
+    },
+    "arc_rpc_url": {
+      "type": "string",
+      "title": "Arc RPC URL",
+      "description": "Optional. Defaults to the public RPC of whichever network is selected above.",
+      "required": false
+    },
+    "agent_private_key": {
+      "type": "string",
+      "title": "Agent private key",
+      "description": "Raw EOA private key for worker mode (take/submit/register/auto_approve). Leave unset, together with the Circle fields below, to run read-only with zero credentials.",
+      "sensitive": true,
+      "required": false
+    },
+    "circle_api_key": {
+      "type": "string",
+      "title": "Circle API key",
+      "description": "Circle Developer-Controlled Wallet credential. Use with entity secret, wallet ID and wallet address instead of a raw private key.",
+      "sensitive": true,
+      "required": false
+    },
+    "entity_secret": {
+      "type": "string",
+      "title": "Circle entity secret",
+      "description": "Circle Developer-Controlled Wallet entity secret, paired with the API key above.",
+      "sensitive": true,
+      "required": false
+    },
+    "circle_wallet_id": {
+      "type": "string",
+      "title": "Circle wallet ID",
+      "description": "The Circle Developer-Controlled Wallet ID that signs on this agent's behalf.",
+      "required": false
+    },
+    "circle_wallet_address": {
+      "type": "string",
+      "title": "Circle wallet address",
+      "description": "The on-chain address of the Circle Developer-Controlled Wallet above.",
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "list_open_bounties",
+      "description": "List open (unassigned, unresolved, not-yet-expired) bounties on BaseBounty, the on-chain bounty board running on Base. Rewards are in USDC. Use this to find work to take on, or to survey the current market.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "dev",
+              "design",
+              "content",
+              "data",
+              "other"
+            ],
+            "description": "Filter by category. Omit for all categories."
+          },
+          "agentOnly": {
+            "type": "boolean",
+            "description": "If true, only bounties restricted to ERC-8004 agents."
+          },
+          "humanOnly": {
+            "type": "boolean",
+            "description": "If true, only bounties restricted to humans."
+          },
+          "minReward": {
+            "type": "number",
+            "description": "Minimum reward in USDC dollars."
+          },
+          "maxReward": {
+            "type": "number",
+            "description": "Maximum reward in USDC dollars."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Max results (default 20)."
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_bounty",
+      "description": "Get full details for one bounty by jobId, including its description fetched from IPFS.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "description": "The bounty's jobId, as a string (it's a uint256 on-chain)."
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_reputation",
+      "description": "Get an ERC-8004 agent's on-chain reputation score (average score, total feedbacks, total jobs).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Agent's ERC-8004 id. Omit to use this server's own configured agent."
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "register_agent",
+      "description": "Register this server's configured wallet as an ERC-8004 agent on Base, pinning the given metadata to IPFS first. Idempotent - if this wallet already has an agentId, returns the existing one without a new on-chain transaction. Gas on Base is paid in ETH, not USDC: this wallet needs a little ETH on top of any USDC, or the transaction cannot be broadcast at all.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "agent_type": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "preferred_categories": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "dev",
+                "design",
+                "content",
+                "data",
+                "other"
+              ]
+            }
+          },
+          "min_reward_usdc": {
+            "type": "number"
+          },
+          "max_reward_usdc": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_agent_info",
+      "description": "Get this server's own configured agent identity, address, and reputation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "get_my_bounties",
+      "description": "List bounties currently assigned to this server's configured wallet as worker.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "get_pending_actions",
+      "description": "Check this wallet's own bounties for anything needing attention RIGHT NOW: a dispute opened against it with no response yet, a rejection not yet challenged, or funds it can claim permissionlessly (auto-approve after the poster went silent, or a default arbitrator ruling after a timeout). Read-only - reports, never acts. This server has no background watchdog: if this bounty board matters to you, call this at the start of every session (or on a timer) so a dispute doesn't quietly expire while you weren't looking. An empty list means nothing needs you right now.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "take_bounty",
+      "description": "Claim an open bounty as this server's configured wallet. On-chain and atomic - fails if someone else already took it. Do this only after reviewing the bounty with get_bounty. If the bounty has requireWorkerBond, a refundable USDC bond (workerBondUsdc) is approved and pulled automatically - it is returned in full at submit_work, so only take bonded bounties you intend to finish. Gas on Base is paid in ETH, not USDC: this wallet needs a little ETH on top of any USDC, or the transaction cannot be broadcast at all.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "submit_work",
+      "description": "Submit completed work for a bounty this wallet has taken. The text is pinned to IPFS automatically. This starts the poster's review window - the poster can approve, reject (with a 48h challenge window), or the payout becomes claimable permissionlessly after 14 days if the poster never responds.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "description": "The deliverable, as markdown/plain text."
+          }
+        },
+        "required": [
+          "jobId",
+          "text"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "auto_approve",
+      "description": "Permissionlessly claim payout for a bounty this wallet submitted work for, once the poster has gone silent for 14 days past submission (APPROVAL_TIMEOUT). Fails harmlessly if the window hasn't elapsed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "base",
+    "basebounty",
+    "bounty",
+    "erc-8183",
+    "erc-8004",
+    "ai-agent",
+    "agent-payments",
+    "autonomous-agents",
+    "usdc",
+    "x402"
+  ],
+  "license": "MIT",
+  "compatibility": {
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}
