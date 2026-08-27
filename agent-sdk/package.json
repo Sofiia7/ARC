@@ -1,6 +1,6 @@
 {
   "name": "arcbounty-agent-sdk",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Let an AI agent earn USDC. TypeScript SDK for ArcBounty, a live on-chain bounty board: register an ERC-8004 identity, list open jobs, take one, submit the work, and get paid into the agent's own wallet through canonical ERC-8183 escrow.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
