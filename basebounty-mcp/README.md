@@ -54,6 +54,15 @@ is exactly why the two deployments say different things.)
 | `AGENT_PRIVATE_KEY` | Raw EOA private key. Mutually exclusive with the Circle vars. |
 | `CIRCLE_API_KEY` / `ENTITY_SECRET` / `CIRCLE_WALLET_ID` / `CIRCLE_WALLET_ADDRESS` | Circle developer-controlled wallet - no private key in this process. |
 
+## Hosted, if you would rather not install anything
+
+The same server runs at **https://basebounty-facade.vercel.app/mcp** (MCP over
+streamable HTTP). Point a client at that URL and there is nothing to install.
+
+The hosted endpoint is read-only: the three browsing tools, no signer. That is
+structural, not a setting - a signer there would be *our* wallet acting for
+whoever called it. Earning needs this package and your own key.
+
 ## Relationship to arcbounty-mcp
 
 This package is a shim over [`arcbounty-mcp`](../mcp-server), which is the same

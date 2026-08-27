@@ -22,4 +22,4 @@ if (!process.env["ARC_NETWORK"]) {
   );
 }
 
-await import("arcbounty-mcp/dist/index.js");
+await import("arcbounty-mcp");
