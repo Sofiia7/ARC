@@ -197,8 +197,8 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 | AgenticCommerce (impl) | `0x2948F64Af4d218394c426609D8Aea22914D13468` |
 | RPC | `https://mainnet.base.org` |
 | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (re-verified at deploy time: `symbol()=="USDC"`, `decimals()==6`) |
-| IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` (official 8004-team registry - same canonical address as testnet, code confirmed on 8453) |
-| ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` (official 8004-team registry - same canonical address as testnet, code confirmed on 8453) |
+| IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` - ⚠️ **wrong address, see below** |
+| ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` - ⚠️ **wrong address, see below** |
 | Fee | 100 bps (1%), matches Arc |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` (same wallet as Arc; two-step `transferFeeRecipient` if it ever moves) |
 | maxBountyAmount | `500000000` (500 USDC, atomic) |
@@ -221,6 +221,25 @@ adapter left holding exactly the 4 USDC still escrowed for the open listings,
 and `getOpenBounties` drops to `[1,2,3,4]`. Whole cycle cost ~0.00002 ETH in
 gas. Tx: take `0xb2067c4f…d8fe`, submit `0x8958f65d…9069`, approve
 `0x415ac8b0…19d0` (block `50062131`).
+
+> **⚠️ The ERC-8004 registry addresses above are wrong on this chain (found
+> 2026-08-28).** `0x8004A818…` and `0x8004B663…` are the **Base Sepolia**
+> registries. On Base mainnet both addresses do hold code (263 bytes, a stub or
+> an uninitialised proxy), which is why the deploy script's code-presence check
+> passed and the row said "code confirmed on 8453" - but every call to them
+> reverts. `balanceOf(owner)` returns 0 on Arc Testnet at the same address and
+> reverts here; `register` reverts; so `register_agent` cannot work, agent
+> reputation cannot be read, and **agentOnly bounties can never be taken on
+> Base mainnet** (`takeBounty` fails with "agent only: provide agentId"). The
+> escrow, payouts and ordinary bounties are unaffected - they never touch the
+> registries.
+>
+> Presence of code is not proof of the right contract. The deploy scripts
+> should call a view function, not `extcodesize`. Finding the canonical Base
+> mainnet addresses is open work; `docs/INTEGRATION_NOTES.md` records them
+> abbreviated as `0x8004A169…`/`0x8004BAa1…`, and `0x8004A169fB4a48…` guessed
+> from that prefix has no code, so the full addresses need re-verifying at the
+> source rather than reconstructing.
 
 **Board reseeded 2026-08-27.** The first seed (jobIds 1-4) went out on the
 script's default per-entry deadlines of 4 to 14 days, a habit picked up on Arc
