@@ -45,6 +45,15 @@ import type {
   PendingAction,
 } from "./types.js";
 
+/**
+ * How long to wait for a transaction receipt before giving up on it.
+ *
+ * Generous next to a 2s Base block or a 1s Arc one: this is not a latency
+ * budget, it is the line past which "still mining" stops being the likely
+ * explanation. See `_waitForTx`.
+ */
+const TX_RECEIPT_TIMEOUT_MS = 120_000;
+
 /** Used when `protect()` is called without an `onEvent` callback, so
  * actionable events are never fully silent even with zero configuration. */
 function defaultOnEvent(event: string, meta: BountyMeta): void {
@@ -770,8 +779,35 @@ export class ArcBountyAgent {
 
   // ─── Internal ───────────────────────────────────────────────────────────────
 
+  /**
+   * Wait for a receipt, but never forever.
+   *
+   * viem builds transactions from the *pending* nonce, and a load-balanced RPC
+   * can serve that tag from a lagging replica. Measured on Base's public
+   * endpoint 2026-08-28: `latest=27` and `pending=24` from the same host,
+   * seconds apart. A transaction built on that stale nonce can never be
+   * included, so an untimed `waitForTransactionReceipt` waits for a receipt
+   * that will never exist - and every write in this SDK sat on that wait. Over
+   * MCP it looked like the tool call itself had frozen, with no hash, no error
+   * and nothing to retry against.
+   *
+   * The timeout turns that into something a caller can act on: it names the
+   * hash, so the transaction can be looked up or resent, and it names the
+   * cause, because "set a dedicated RPC" is the actual fix.
+   */
   private async _waitForTx(hash: Hash): Promise<void> {
-    await this.publicClient.waitForTransactionReceipt({ hash });
+    try {
+      await this.publicClient.waitForTransactionReceipt({ hash, timeout: TX_RECEIPT_TIMEOUT_MS });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Transaction ${hash} was sent but no receipt arrived within ` +
+        `${TX_RECEIPT_TIMEOUT_MS / 1000}s on ${this.network.name}. It may still be pending, or it may ` +
+        "have been built on a stale nonce by a lagging RPC replica and can never be included - check the " +
+        "hash on the explorer before resending. A dedicated RPC endpoint avoids this; the public one is " +
+        `load balanced. Underlying error: ${msg}`,
+      );
+    }
   }
 
   /**
