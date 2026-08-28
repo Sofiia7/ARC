@@ -189,8 +189,8 @@ export const NETWORKS = {
       // Our own copy of Arc's escrow variant - no canonical instance on Base.
       AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
       // Canonical ERC-8004 registries deployed by the 8004 team - NOT ours.
-      IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
-      REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+      IDENTITY_REGISTRY:   "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+      REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     },
     // Same as Base Sepolia: one adapter, baked in as the default.

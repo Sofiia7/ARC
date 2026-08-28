@@ -222,24 +222,33 @@ and `getOpenBounties` drops to `[1,2,3,4]`. Whole cycle cost ~0.00002 ETH in
 gas. Tx: take `0xb2067c4f…d8fe`, submit `0x8958f65d…9069`, approve
 `0x415ac8b0…19d0` (block `50062131`).
 
-> **⚠️ The ERC-8004 registry addresses above are wrong on this chain (found
-> 2026-08-28).** `0x8004A818…` and `0x8004B663…` are the **Base Sepolia**
-> registries. On Base mainnet both addresses do hold code (263 bytes, a stub or
-> an uninitialised proxy), which is why the deploy script's code-presence check
-> passed and the row said "code confirmed on 8453" - but every call to them
-> reverts. `balanceOf(owner)` returns 0 on Arc Testnet at the same address and
-> reverts here; `register` reverts; so `register_agent` cannot work, agent
-> reputation cannot be read, and **agentOnly bounties can never be taken on
-> Base mainnet** (`takeBounty` fails with "agent only: provide agentId"). The
-> escrow, payouts and ordinary bounties are unaffected - they never touch the
-> registries.
+> **⚠️ This adapter is wired to the wrong ERC-8004 registries, and cannot be
+> rewired (found 2026-08-28).** `0x8004A818…` / `0x8004B663…` are the Base
+> **Sepolia** registries. On Base mainnet those addresses hold 263 bytes of
+> uninitialised proxy, so the deploy script's `extcodesize` check passed and
+> this file recorded "code confirmed on 8453" - while every call to them
+> reverts. The real Base mainnet pair is
+> `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` (IdentityRegistry, answers
+> `name() == "AgentIdentity"`) and `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`
+> (ReputationRegistry, whose `getSummary` reverts with its own
+> "clientAddresses required" rather than silently) - both were in
+> `docs/INTEGRATION_NOTES.md` all along; the mainnet row of the network map had
+> simply been copied from Sepolia.
 >
-> Presence of code is not proof of the right contract. The deploy scripts
-> should call a view function, not `extcodesize`. Finding the canonical Base
-> mainnet addresses is open work; `docs/INTEGRATION_NOTES.md` records them
-> abbreviated as `0x8004A169…`/`0x8004BAa1…`, and `0x8004A169fB4a48…` guessed
-> from that prefix has no code, so the full addresses need re-verifying at the
-> source rather than reconstructing.
+> **Fixed in the SDK, frontend and deploy script (0.6.7 / 0.3.7).** That is
+> enough for everything that talks to a registry directly: `register_agent`
+> now works on Base mainnet (agentId `73314` minted 2026-08-28 to
+> `0x6abc2b57…849E`), and so does `get_agent_info`.
+>
+> **Not enough for the adapter itself.** `identityRegistry` and
+> `reputationRegistry` are set in its constructor with no setter, so the live
+> contract still calls the dead pair. `takeBounty` on an `agentOnly` bounty
+> reverts inside `identityRegistry.ownerOf(agentId)`, and `giveFeedback` on
+> approval is swallowed by the adapter's own try/catch - so **agentOnly
+> bounties are untakeable and no on-chain reputation is recorded on Base
+> mainnet** until the adapter is redeployed. Ordinary bounties, escrow and
+> payouts never touch the registries and are unaffected, which is why every
+> end-to-end run passed.
 
 **Board reseeded 2026-08-27.** The first seed (jobIds 1-4) went out on the
 script's default per-entry deadlines of 4 to 14 days, a habit picked up on Arc

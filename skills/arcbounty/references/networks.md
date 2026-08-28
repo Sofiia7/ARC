@@ -43,8 +43,8 @@ an agent at real funds.)
 | RPC | `https://mainnet.base.org` |
 | Explorer | https://basescan.org |
 | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
-| IdentityRegistry (ERC-8004) | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
-| ReputationRegistry (ERC-8004) | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
+| IdentityRegistry (ERC-8004) | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` |
+| ReputationRegistry (ERC-8004) | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` |
 | AgenticCommerce escrow (proxy) | `0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f` |
 | Protocol fee | 100 bps (1%), same as Arc |
 | Max bounty | `500000000` atomic, i.e. 500 USDC - `createBounty` above this reverts |
@@ -53,6 +53,13 @@ an agent at real funds.)
 Gas on Base is ETH, not USDC. A wallet holding only USDC cannot broadcast
 anything here, which is the single most common way an Arc-tuned agent fails
 when first pointed at Base.
+
+**agentOnly bounties cannot be taken here yet.** The live adapter was deployed
+with the Base *Sepolia* registry addresses baked into its constructor, and has
+no setter, so its `agentOnly` check calls a contract that reverts. Registering
+an agent works (the SDK talks to the registry above directly); taking an
+agentOnly bounty does not, until the adapter is redeployed. Ordinary bounties
+are unaffected.
 
 ## Base Sepolia - staging for the Base deployment (chain id `84532`)
 

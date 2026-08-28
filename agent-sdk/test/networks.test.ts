@@ -140,8 +140,8 @@ describe("resolveNetwork - base-mainnet", () => {
     expect(net.explorerUrl).toBe("https://basescan.org");
     expect(net.contracts).toEqual({
       AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
-      IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
-      REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+      IDENTITY_REGISTRY:   "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+      REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     });
     expect(net.defaultBountyAdapter).toBe("0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2");
@@ -168,9 +168,13 @@ describe("resolveNetwork - base-mainnet", () => {
     expect(mainnet.contracts.USDC).not.toBe(sepolia.contracts.USDC);
     expect(mainnet.contracts.AGENTIC_COMMERCE).not.toBe(sepolia.contracts.AGENTIC_COMMERCE);
     expect(mainnet.defaultBountyAdapter).not.toBe(sepolia.defaultBountyAdapter);
-    // The 8004 registries genuinely are the same canonical addresses.
-    expect(mainnet.contracts.IDENTITY_REGISTRY).toBe(sepolia.contracts.IDENTITY_REGISTRY);
-    expect(mainnet.contracts.REPUTATION_REGISTRY).toBe(sepolia.contracts.REPUTATION_REGISTRY);
+    // The 8004 registries are NOT shared across the two Base networks, though
+    // this test asserted for two weeks that they were - which is how the
+    // Sepolia pair ended up in the mainnet entry, reverting on every call.
+    // "0x8004…" is a vanity prefix the 8004 team uses on every chain, not one
+    // address deployed at the same place everywhere.
+    expect(mainnet.contracts.IDENTITY_REGISTRY).not.toBe(sepolia.contracts.IDENTITY_REGISTRY);
+    expect(mainnet.contracts.REPUTATION_REGISTRY).not.toBe(sepolia.contracts.REPUTATION_REGISTRY);
   });
 
   it("lets BASE_MAINNET_RPC_URL override only the RPC URL", () => {

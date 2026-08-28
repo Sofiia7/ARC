@@ -6,6 +6,12 @@ import "../src/BountyAdapter.sol";
 import "../src/base/AgenticCommerce.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
+/// @dev Just enough of the IdentityRegistry to prove it is the real one: the
+///      8004 registries are ERC-721s named "AgentIdentity".
+interface IIdentityRegistryName {
+    function name() external view returns (string memory);
+}
+
 /// @notice Base **mainnet** deploy (BaseBounty). Same shape as the Base Sepolia
 ///         rehearsal — self-deployed escrow (no canonical ERC-8183 on Base),
 ///         official ERC-8004 team registries — with mainnet addresses and a
@@ -23,8 +29,12 @@ contract DeployBaseMainnet is Script {
 
     // Base mainnet (chainId 8453).
     address constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
-    address constant IDENTITY_REGISTRY = 0x8004A818BFB912233c491871b3d84c89A494BD9e;
-    address constant REPUTATION_REGISTRY = 0x8004B663056A597Dffe9eCcC1965A193B7388713;
+    // The 8004 team's Base MAINNET registries. The Base *Sepolia* pair
+    // (0x8004A818…/0x8004B663…) sat here until 2026-08-28 and shipped: those
+    // addresses hold 263 bytes of uninitialised proxy on mainnet too, so the
+    // code-length checks below passed while every call to them reverted.
+    address constant IDENTITY_REGISTRY = 0x8004A169FB4a3325136EB29fA0ceB6D2e539a432;
+    address constant REPUTATION_REGISTRY = 0x8004BAa17C55a88189AE136b182e5fdA19dE9b63;
 
     function run() external {
         require(block.chainid == BASE_MAINNET_CHAIN_ID, "wrong chain: expected Base mainnet (8453)");
@@ -35,9 +45,28 @@ contract DeployBaseMainnet is Script {
 
         // Fail before spending gas rather than after: a typo'd registry would
         // otherwise deploy fine and only revert on the first bounty.
+        //
+        // Call the registries, do not measure them. Code length was the check
+        // here until 2026-08-28, and it passed on a pair of Base Sepolia
+        // addresses that carry an uninitialised proxy on mainnet as well - so
+        // the adapter shipped wired to two contracts that revert on every call,
+        // and agentOnly bounties were untakeable on Base mainnet from day one.
+        // A registry that answers a view call is a registry; one that merely
+        // has bytecode is an address.
         require(USDC.code.length > 0, "USDC has no code");
-        require(IDENTITY_REGISTRY.code.length > 0, "identity registry has no code");
-        require(REPUTATION_REGISTRY.code.length > 0, "reputation registry has no code");
+        require(
+            keccak256(bytes(IIdentityRegistryName(IDENTITY_REGISTRY).name())) == keccak256("AgentIdentity"),
+            "identity registry does not answer name() == AgentIdentity"
+        );
+        // The reputation registry has no name(); getSummary reverts with its
+        // own require string ("clientAddresses required") when it is live, and
+        // with no reason at all when the address is a dead proxy. Distinguish
+        // the two rather than accepting both.
+        (bool ok, bytes memory ret) = REPUTATION_REGISTRY.staticcall(
+            abi.encodeWithSignature("getSummary(uint256,address[],string,string)", uint256(1), new address[](0), "", "")
+        );
+        require(!ok, "reputation registry: getSummary unexpectedly succeeded with no clients");
+        require(ret.length > 0, "reputation registry does not answer getSummary - wrong address for this chain");
 
         // vm.addr(key), NOT msg.sender: inside run() msg.sender is Foundry's
         // default sender (0x1804c8AB…), which startBroadcast does not change —
