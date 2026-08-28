@@ -6,9 +6,17 @@
  * deadline has passed is just as stuck, still holding its reward while
  * disappearing from the board. Both are walked, for bounties posted by
  * PRIVATE_KEY's address:
- *   - not taken            → cancelBounty (full refund, any time)
- *   - taken, no submission → expireBounty (full refund, only after deadline)
+ *   - superseded adapter, not taken   → cancelBounty (nothing there is
+ *                                       reachable, expired or not)
+ *   - live adapter, not taken, EXPIRED → cancelBounty
+ *   - taken, no submission, expired    → expireBounty
  * Anything submitted / disputed / resolved is left alone and reported.
+ *
+ * The expiry condition on the live adapter is the whole safety of this script.
+ * An untaken bounty that has not expired is not stuck - it is the marketplace.
+ * Without that check a run against Arc Testnet would have cancelled all 38 open
+ * listings and emptied arcbounty.app, which is exactly what the first version
+ * of the live-adapter walk proposed to do.
  *
  * Env (same as seed-bounties.ts): PRIVATE_KEY, plus ARC_NETWORK /
  * ALLOW_MAINNET / ARC_TESTNET_RPC_URL (see scripts/lib/network.ts), and
@@ -61,9 +69,11 @@ const ARC_TESTNET_CHAIN_ID = 5_042_002;
 // deadline. `cancelBounty` on an untaken bounty refunds in full at any time.
 const CURRENT_ADAPTER = (process.env.BOUNTY_ADAPTER_ADDRESS ?? network.defaultBountyAdapter) as Address | undefined;
 
-const ADAPTERS: { label: string; address: Address }[] = [
-  ...(CURRENT_ADAPTER ? [{ label: "current", address: CURRENT_ADAPTER }] : []),
-  ...(network.chainId === ARC_TESTNET_CHAIN_ID ? OLD_ADAPTERS : []),
+const ADAPTERS: { label: string; address: Address; live: boolean }[] = [
+  ...(CURRENT_ADAPTER ? [{ label: "current", address: CURRENT_ADAPTER, live: true }] : []),
+  ...(network.chainId === ARC_TESTNET_CHAIN_ID
+    ? OLD_ADAPTERS.map(a => ({ ...a, live: false }))
+    : []),
 ];
 
 const ABI = [
@@ -149,7 +159,7 @@ async function main() {
   const now = BigInt(Math.floor(Date.now() / 1000));
   let reclaimed = 0n;
 
-  for (const { label, address } of ADAPTERS) {
+  for (const { label, address, live } of ADAPTERS) {
     let jobIds: readonly bigint[];
     try {
       jobIds = await pub.readContract({
@@ -167,12 +177,23 @@ async function main() {
       }));
       if (!m || m.resolved) continue;
 
+      const expired = now > m.deadline;
       let action: "cancelBounty" | "expireBounty" | null = null;
-      if (!m.isTaken) action = "cancelBounty";
-      else if (m.submittedResultHash.length === 0 && now > m.deadline) action = "expireBounty";
+      if (!m.isTaken) {
+        // On a superseded adapter every untaken bounty is stuck, expired or
+        // not: nothing reaches that deployment any more. On the LIVE adapter an
+        // untaken bounty that has not expired is not stuck at all - it is the
+        // board. Cancelling those empties the marketplace, which on Arc would
+        // have been all 38 of them.
+        if (!live || expired) action = "cancelBounty";
+      } else if (m.submittedResultHash.length === 0 && expired) {
+        action = "expireBounty";
+      }
 
       if (!action) {
-        console.log(`  #${jobId} - active (taken/submitted/disputed), leaving alone`);
+        console.log(
+          `  #${jobId} - ${m.isTaken ? "active (taken/submitted/disputed)" : "open and unexpired"}, leaving alone`,
+        );
         continue;
       }
       console.log(`  #${jobId} - ${action}, refund ${Number(m.reward) / 1e6} USDC`);
