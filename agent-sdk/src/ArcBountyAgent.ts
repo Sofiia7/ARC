@@ -815,12 +815,49 @@ export class ArcBountyAgent {
    * mutating helpers funnel through here so future changes (gas estimation,
    * retry, paymaster) land in one place.
    */
+  /**
+   * Estimate this call's gas and add half again, or return undefined and let
+   * viem estimate as before.
+   *
+   * The adapter records ERC-8004 feedback inside a `try/catch`, deliberately:
+   * a reputation write must never block a payout that already happened. But
+   * `eth_estimateGas` binary-searches for the *lowest* limit at which the
+   * transaction succeeds, and the outer call succeeds whether or not the inner
+   * one runs out of gas - so the search settles on a limit where the feedback
+   * silently fails. Measured on Base mainnet 2026-08-28: approveBounty at the
+   * estimated limit emitted nothing from the registry, and the same call at
+   * three times that limit emitted the feedback and used 316k gas. Every
+   * approval had been quietly skipping the reputation write.
+   *
+   * Unused gas is refunded, so the buffer costs nothing but a slightly higher
+   * balance requirement at send time.
+   */
+  private async _gasWithBuffer(functionName: string, args: readonly unknown[]): Promise<bigint | undefined> {
+    try {
+      const estimate = await this.publicClient.estimateContractGas({
+        address: this.bountyAdapter,
+        abi: BOUNTY_ADAPTER_ABI,
+        functionName,
+        args,
+        account: this.signer.address,
+      } as Parameters<typeof this.publicClient.estimateContractGas>[0]);
+      return (estimate * 3n) / 2n;
+    } catch {
+      // Estimation can fail for reasons that are not this call's problem (a
+      // rate-limited node, say). Falling back to viem's own estimate keeps the
+      // write working; it only loses the buffer.
+      return undefined;
+    }
+  }
+
   private async _writeAdapter(functionName: string, args: readonly unknown[]): Promise<TxResult> {
+    const gas = await this._gasWithBuffer(functionName, args);
     const hash = await this.signer.writeContract({
       address: this.bountyAdapter,
       abi: BOUNTY_ADAPTER_ABI,
       functionName,
       args,
+      ...(gas !== undefined ? { gas } : {}),
     });
     await this._waitForTx(hash);
     return { hash };

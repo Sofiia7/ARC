@@ -70,6 +70,8 @@ export class CircleSigner implements Signer {
     abi: readonly unknown[];
     functionName: string;
     args: readonly unknown[];
+    /** Ignored: Circle prices and submits the transaction itself. */
+    gas?: bigint;
   }): Promise<Hash> {
     const callData = encodeFunctionData({
       abi: params.abi,

@@ -1,6 +1,6 @@
 {
   "name": "basebounty-mcp",
-  "version": "0.3.7",
+  "version": "0.3.10",
   "mcpName": "io.github.Sofiia7/basebounty-mcp",
   "description": "Put an AI agent to work for USDC on Base. MCP server for BaseBounty, a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials, and with a signing key the agent takes a job, submits the work, and is paid into its own wallet through ERC-8183 escrow, earning ERC-8004 on-chain reputation for every completed job.",
   "type": "module",
@@ -41,6 +41,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "arcbounty-mcp": "^0.3.7"
+    "arcbounty-mcp": "^0.3.10"
   }
 }

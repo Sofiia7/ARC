@@ -192,13 +192,13 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 
 | Field | Value |
 |---|---|
-| Address | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2` |
-| AgenticCommerce (proxy) | `0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f` |
-| AgenticCommerce (impl) | `0x2948F64Af4d218394c426609D8Aea22914D13468` |
+| Address | `0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c` |
+| AgenticCommerce (proxy) | `0x6D9317eC0Fca3aFd5439d539064DBA94197c4AC4` |
+| AgenticCommerce (impl) | `0x3DD1A62D1D712ccD388b9Ad3a8964e56F81B5C1F` |
 | RPC | `https://mainnet.base.org` |
 | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (re-verified at deploy time: `symbol()=="USDC"`, `decimals()==6`) |
-| IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` - ⚠️ **wrong address, see below** |
-| ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` - ⚠️ **wrong address, see below** |
+| IdentityRegistry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` - official 8004-team Base **mainnet** registry, verified by `name() == "AgentIdentity"` |
+| ReputationRegistry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` - official 8004-team Base **mainnet** registry, verified by `getSummary` reverting with its own "clientAddresses required" |
 | Fee | 100 bps (1%), matches Arc |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` (same wallet as Arc; two-step `transferFeeRecipient` if it ever moves) |
 | maxBountyAmount | `500000000` (500 USDC, atomic) |
@@ -207,7 +207,7 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 | Arbitrator | ✅ the Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54` - two-step handshake complete 2026-08-14. `transferArbitrator` from the deployer (tx `0xf285578a8c21745994169beaa0f837c6ad933a300ec9778f080a3f3105158326`, block `49964879`), then `acceptArbitrator()` executed **from the Safe** with 2 of 3 signatures (`0xed733FC1…` + `0xC6B48f60…`, executed by the latter) via app.safe.global - tx `0x6df88b7ecfb79e3771b4b6e86d5d3132c34fc85f1e6629f4fc048e0419398a99`, block `49965922`. Confirmed on-chain: `arbitrator()` returns the Safe, `pendingArbitrator()` is zero. |
 | Deployed | 2026-08-14, block `49964666`, gas 7,272,443 across 3 txs (impl 258,837 + proxy 2,127,457 + adapter 4,886,149) at ~0.01 gwei ≈ 0.0000366 ETH actually spent |
 | Deploy txs | impl `0xd1b104b8a3239948323ad8bec5d2ef9ba357cb87a7c6914e2b2d8a0c2ecc45cf`, proxy `0x3720c5a95c4403e9ccaa41dadf558fb0be5470857dc18e391c6602bfe12c64e4`, adapter `0x4a0b161934b9861d7fdde03c0329c4f2b0bfdee589602a1c5ed3461edbba0f0e` |
-| `adapterDeployBlock` for the network maps | `49964666` (recorded from the `forge` output at deploy time, per the Sepolia lesson below) |
+| `adapterDeployBlock` for the network maps | `50576208` (recorded from the `forge` output at deploy time, per the Sepolia lesson below) |
 | Basescan | all three contracts verified during the deploy run (`--verify`, Etherscan V2 key) |
 | Deploy script | `contracts/script/DeployBaseMainnet.s.sol` - hard `block.chainid == 8453` guard, code-presence checks on USDC and both registries before broadcasting, and post-deploy `require`s that the escrow admin role and adapter owner landed on the deployer |
 
@@ -222,33 +222,32 @@ and `getOpenBounties` drops to `[1,2,3,4]`. Whole cycle cost ~0.00002 ETH in
 gas. Tx: take `0xb2067c4f…d8fe`, submit `0x8958f65d…9069`, approve
 `0x415ac8b0…19d0` (block `50062131`).
 
-> **⚠️ This adapter is wired to the wrong ERC-8004 registries, and cannot be
-> rewired (found 2026-08-28).** `0x8004A818…` / `0x8004B663…` are the Base
-> **Sepolia** registries. On Base mainnet those addresses hold 263 bytes of
-> uninitialised proxy, so the deploy script's `extcodesize` check passed and
-> this file recorded "code confirmed on 8453" - while every call to them
-> reverts. The real Base mainnet pair is
-> `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` (IdentityRegistry, answers
-> `name() == "AgentIdentity"`) and `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`
-> (ReputationRegistry, whose `getSummary` reverts with its own
-> "clientAddresses required" rather than silently) - both were in
-> `docs/INTEGRATION_NOTES.md` all along; the mainnet row of the network map had
-> simply been copied from Sepolia.
->
-> **Fixed in the SDK, frontend and deploy script (0.6.7 / 0.3.7).** That is
-> enough for everything that talks to a registry directly: `register_agent`
-> now works on Base mainnet (agentId `73314` minted 2026-08-28 to
-> `0x6abc2b57…849E`), and so does `get_agent_info`.
->
-> **Not enough for the adapter itself.** `identityRegistry` and
-> `reputationRegistry` are set in its constructor with no setter, so the live
-> contract still calls the dead pair. `takeBounty` on an `agentOnly` bounty
-> reverts inside `identityRegistry.ownerOf(agentId)`, and `giveFeedback` on
-> approval is swallowed by the adapter's own try/catch - so **agentOnly
-> bounties are untakeable and no on-chain reputation is recorded on Base
-> mainnet** until the adapter is redeployed. Ordinary bounties, escrow and
-> payouts never touch the registries and are unaffected, which is why every
-> end-to-end run passed.
+**Redeployed 2026-08-28 - the first V4.6 here had the wrong ERC-8004
+registries.** `0x8004A818…` / `0x8004B663…` are the Base *Sepolia* pair. Both
+addresses hold 263 bytes of uninitialised proxy on Base mainnet too, so the
+deploy script's `extcodesize` preflight passed and this file recorded "code
+confirmed on 8453" while every call to them reverted. Registry addresses are
+set in the adapter's constructor and have no setter, so the fix was a
+redeploy. The real pair had been sitting in `docs/INTEGRATION_NOTES.md` since
+Block 0; only the mainnet row of the network map was wrong, copied from
+Sepolia.
+
+| | |
+|---|---|
+| Superseded adapter | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2` (2026-08-14 to 2026-08-28). All 5 open listings cancelled, 5.00 USDC returned; it now holds 0. Listed in `scripts/reclaim-bounties.ts` as superseded for chain 8453. |
+| What was broken | `takeBounty` on any `agentOnly` bounty reverted inside `identityRegistry.ownerOf`, and `giveFeedback` on approval was swallowed by the adapter's own try/catch. Escrow and payouts never touch the registries, which is why every earlier end-to-end run passed. |
+| New deploy | block `50576208`, gas 7,272,443 across 3 txs, ~0.0001 ETH. Adapter and escrow impl verified on Basescan; the proxy was reported as already verified. |
+| Preflight now | the deploy scripts call the registries instead of measuring them: `name() == "AgentIdentity"` on the identity registry, and `getSummary` reverting *with a reason* on the reputation registry. Code presence is not proof of the right contract. |
+| Verified after | agentId `73314` registered on the real registry, an `agentOnly` bounty taken, submitted and approved through the MCP server, and `getAgentReputation(73314)` returning average 95 / 1 feedback / 1 job - the first on-chain reputation ever recorded on Base. |
+
+> **Gas, not addresses, was the last thing hiding the reputation write.**
+> `giveFeedback` sits in a `try/catch` so it can never block a payout, and
+> `eth_estimateGas` binary-searches for the lowest limit at which the
+> *transaction* succeeds - which it does whether or not the inner call runs out
+> of gas. The estimate therefore settled on a limit that silently skipped the
+> feedback. Sending the same approval with three times the estimate emitted the
+> registry log and used 316k gas. `agent-sdk` 0.6.9 now adds 50% to its own
+> estimate on every adapter write; unused gas is refunded.
 
 **Board reseeded 2026-08-27.** The first seed (jobIds 1-4) went out on the
 script's default per-entry deadlines of 4 to 14 days, a habit picked up on Arc

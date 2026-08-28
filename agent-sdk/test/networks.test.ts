@@ -139,13 +139,13 @@ describe("resolveNetwork - base-mainnet", () => {
     expect(net.rpcUrl).toBe("https://mainnet.base.org");
     expect(net.explorerUrl).toBe("https://basescan.org");
     expect(net.contracts).toEqual({
-      AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
+      AGENTIC_COMMERCE:    "0x6D9317eC0Fca3aFd5439d539064DBA94197c4AC4",
       IDENTITY_REGISTRY:   "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
       REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     });
-    expect(net.defaultBountyAdapter).toBe("0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2");
-    expect(net.adapterDeployBlock).toBe(49_964_666);
+    expect(net.defaultBountyAdapter).toBe("0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c");
+    expect(net.adapterDeployBlock).toBe(50_576_208);
     expect(net.blocksPerDay).toBe(43_200);
   });
 

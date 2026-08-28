@@ -187,7 +187,7 @@ export const NETWORKS = {
     brand: { name: "BaseBounty", domain: "basebounty.app" },
     contracts: {
       // Our own copy of Arc's escrow variant - no canonical instance on Base.
-      AGENTIC_COMMERCE:    "0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f",
+      AGENTIC_COMMERCE:    "0x6D9317eC0Fca3aFd5439d539064DBA94197c4AC4",
       // Canonical ERC-8004 registries deployed by the 8004 team - NOT ours.
       IDENTITY_REGISTRY:   "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
       REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
@@ -195,9 +195,9 @@ export const NETWORKS = {
     },
     // Same as Base Sepolia: one adapter, baked in as the default.
     // NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS still wins.
-    bountyAdapterAddress: "0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2",
+    bountyAdapterAddress: "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c",
     // V4.6 mainnet deploy, 2026-08-14 (from the forge broadcast receipt).
-    adapterDeployBlock: 49_964_666n,
+    adapterDeployBlock: 50_576_208n,
     // Verified on-chain, not assumed: eth_getCode at the canonical Multicall3
     // address returns bytecode on both Base Sepolia and Base mainnet.
     multicall3: true,

@@ -61,6 +61,15 @@ const OLD_ADAPTERS: { label: string; address: Address }[] = [
 ];
 
 const ARC_TESTNET_CHAIN_ID = 5_042_002;
+const BASE_MAINNET_CHAIN_ID = 8_453;
+
+// Superseded on Base mainnet. The first V4.6 there was deployed with the Base
+// *Sepolia* ERC-8004 registry addresses baked into its constructor, which have
+// no setter, so agentOnly bounties could never be taken and no reputation was
+// ever recorded. Replaced 2026-08-28 by a redeploy carrying the real pair.
+const BASE_MAINNET_OLD_ADAPTERS: { label: string; address: Address }[] = [
+  { label: "V4.6 (wrong 8004 registries)", address: "0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2" },
+];
 
 // The live adapter is walked too, which the superseded-only version did not do.
 // An expired bounty on the current board is exactly as stuck as one on an old
@@ -69,11 +78,15 @@ const ARC_TESTNET_CHAIN_ID = 5_042_002;
 // deadline. `cancelBounty` on an untaken bounty refunds in full at any time.
 const CURRENT_ADAPTER = (process.env.BOUNTY_ADAPTER_ADDRESS ?? network.defaultBountyAdapter) as Address | undefined;
 
+function supersededFor(chainId: number): { label: string; address: Address }[] {
+  if (chainId === ARC_TESTNET_CHAIN_ID) return OLD_ADAPTERS;
+  if (chainId === BASE_MAINNET_CHAIN_ID) return BASE_MAINNET_OLD_ADAPTERS;
+  return [];
+}
+
 const ADAPTERS: { label: string; address: Address; live: boolean }[] = [
   ...(CURRENT_ADAPTER ? [{ label: "current", address: CURRENT_ADAPTER, live: true }] : []),
-  ...(network.chainId === ARC_TESTNET_CHAIN_ID
-    ? OLD_ADAPTERS.map(a => ({ ...a, live: false }))
-    : []),
+  ...supersededFor(network.chainId).map(a => ({ ...a, live: false })),
 ];
 
 const ABI = [

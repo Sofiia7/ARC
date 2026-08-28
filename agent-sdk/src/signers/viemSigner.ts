@@ -21,6 +21,7 @@ export class ViemSigner implements Signer {
     abi: readonly unknown[];
     functionName: string;
     args: readonly unknown[];
+    gas?: bigint;
   }): Promise<Hash> {
     // The nonce is the higher of `latest` and `pending`, because on a
     // load-balanced endpoint either tag can be the stale one and the failure
@@ -55,6 +56,7 @@ export class ViemSigner implements Signer {
       chain: null,
       account: this.account,
       nonce,
+      ...(params.gas !== undefined ? { gas: params.gas } : {}),
     });
   }
 }
