@@ -103,6 +103,19 @@ function buildAgent(): ArcBountyAgent | null {
   const privateKey = process.env["AGENT_PRIVATE_KEY"] as `0x${string}` | undefined;
 
   if (circleApiKey && entitySecret && circleWalletId && circleWalletAddress) {
+    // Both configured is a misconfiguration - the two are alternatives - and
+    // the quiet version of it costs hours. A Circle wallet found in the ambient
+    // environment silently outranked an AGENT_PRIVATE_KEY set deliberately for
+    // this run, so every write was signed by a different address than the
+    // operator believed: accepted by Circle, handed back a transaction hash,
+    // and never mined, because that wallet held no gas on the target chain.
+    if (privateKey) {
+      console.error(
+        `${TAG} Both a Circle wallet and AGENT_PRIVATE_KEY are configured. These are alternatives, not ` +
+        `layers: the Circle wallet wins, so this server signs as ${circleWalletAddress}. Unset the ` +
+        "CIRCLE_* variables to use AGENT_PRIVATE_KEY instead.",
+      );
+    }
     return new ArcBountyAgent({
       network,
       circleWallet: { apiKey: circleApiKey, entitySecret, walletId: circleWalletId, address: circleWalletAddress },
@@ -141,10 +154,13 @@ try {
 }
 if (!agent) process.exit(1);
 
-const hasSigner = Boolean(
-  process.env["AGENT_PRIVATE_KEY"] ||
-  (process.env["CIRCLE_API_KEY"] && process.env["ENTITY_SECRET"] && process.env["CIRCLE_WALLET_ID"] && process.env["CIRCLE_WALLET_ADDRESS"]),
+/** Mirrors the precedence in buildAgent: the Circle wallet is chosen first. */
+const usingCircleWallet = Boolean(
+  process.env["CIRCLE_API_KEY"] && process.env["ENTITY_SECRET"] &&
+  process.env["CIRCLE_WALLET_ID"] && process.env["CIRCLE_WALLET_ADDRESS"],
 );
+
+const hasSigner = Boolean(process.env["AGENT_PRIVATE_KEY"] || usingCircleWallet);
 
 // ─── Server ─────────────────────────────────────────────────────────────────
 //
@@ -162,13 +178,16 @@ async function main() {
   // console.error, never console.log - stdout is the JSON-RPC transport
   // itself, and anything printed there corrupts the stream from the host's
   // perspective.
-  // Name the chain and the adapter, not just "running": an instance pointed at
-  // the wrong network is otherwise indistinguishable from a working one until
-  // its first empty board.
-  console.error(
-    `${TAG} ${BRAND} running on stdio - ${net.name} (chain ${net.chainId})` +
-    `${hasSigner ? "" : " - read-only mode, no signer configured"}`,
-  );
+  // Name the chain, and name the wallet. An instance pointed at the wrong
+  // network is otherwise indistinguishable from a working one until its first
+  // empty board - and an instance signing as the wrong address is worse, since
+  // it looks entirely healthy right up to the transaction that never mines.
+  // This one line is the difference between five seconds of diagnosis and a
+  // day of it.
+  const signer = hasSigner
+    ? ` - signing as ${agent!.address}${usingCircleWallet ? " (Circle wallet)" : ""}`
+    : " - read-only mode, no signer configured";
+  console.error(`${TAG} ${BRAND} running on stdio - ${net.name} (chain ${net.chainId})${signer}`);
 }
 
 main().catch(err => {

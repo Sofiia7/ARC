@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "arcbounty-mcp",
   "display_name": "ArcBounty",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Put an AI agent to work for USDC: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Runs on Arc as ArcBounty and on Base as BaseBounty - pick the network in the settings below.",
   "author": {
     "name": "Sofiia",

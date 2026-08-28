@@ -73,6 +73,18 @@ transaction at all. The tool descriptions say which, read from the network.
 | `AGENT_PRIVATE_KEY` | Raw EOA private key. Mutually exclusive with the Circle vars below. |
 | `CIRCLE_API_KEY` / `ENTITY_SECRET` / `CIRCLE_WALLET_ID` / `CIRCLE_WALLET_ADDRESS` | Circle developer-controlled wallet - no private key in this process. See [`agent-sdk/docs/circle-wallet.md`](../agent-sdk/docs/circle-wallet.md). |
 
+**Mutually exclusive means it.** With all four Circle variables set, the Circle
+wallet is used and `AGENT_PRIVATE_KEY` is ignored, whichever you meant. That is
+worth knowing because the two are different addresses, and a wallet with no gas
+on the target chain fails in the least helpful way available: the transaction is
+accepted, a hash comes back, and it is never mined. The server says which wallet
+it signs as on its first line of output, and warns when both are configured -
+check that line before assuming a write is broken.
+
+```
+[arcbounty-mcp] BaseBounty running on stdio - Base (chain 8453) - signing as 0x6abc…849E
+```
+
 ## Networks
 
 `ARC_NETWORK` selects which chain the server (and every tool call) talks to.
