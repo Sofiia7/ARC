@@ -248,6 +248,12 @@ Sepolia.
 > feedback. Sending the same approval with three times the estimate emitted the
 > registry log and used 316k gas. `agent-sdk` 0.6.9 now adds 50% to its own
 > estimate on every adapter write; unused gas is refunded.
+>
+> Base only, as far as anything shows: on Arc Testnet the same code path has
+> been recording feedback all along - agentId `850249` reads 85 / 3 / 3 and
+> `847205` reads 96 / 2 / 2 through `getAgentReputation` on the live V4.4
+> adapter. Whatever the estimator does differently there, it lands above the
+> threshold. The buffer protects both.
 
 **Board reseeded 2026-08-27.** The first seed (jobIds 1-4) went out on the
 script's default per-entry deadlines of 4 to 14 days, a habit picked up on Arc
