@@ -4,15 +4,39 @@ function cidFromUri(uriOrCid: string): string {
   return uriOrCid.replace(/^ipfs:\/\//, "");
 }
 
-export async function fetchIpfsText(uriOrCid: string): Promise<string> {
-  const cid = cidFromUri(uriOrCid);
-  for (const gateway of IPFS_GATEWAYS) {
-    try {
-      const res = await fetch(`${gateway}${cid}`);
-      if (res.ok) return res.text();
-    } catch {
-      // try next gateway
+/**
+ * Read text back out of IPFS, trying each gateway in turn and re-trying the
+ * whole list before giving up.
+ *
+ * The retry is not defensive padding. Content pinned seconds ago is routinely
+ * unreachable through every public gateway at once while providers propagate -
+ * measured on Base mainnet: a CID pinned weeks earlier served 200 from ipfs.io
+ * while one pinned minutes earlier 504'd on all of pinata/ipfs.io/cloudflare
+ * /dweb/w3s/4everland. A single pass therefore fails exactly when a poster
+ * opens a submission right after the worker delivered it, which reads as the
+ * worker having submitted nothing.
+ */
+export async function fetchIpfsText(
+  uriOrCid: string,
+  opts: { attempts?: number; delayMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<string> {
+  const cid      = cidFromUri(uriOrCid);
+  const attempts = opts.attempts ?? 3;
+  const delayMs  = opts.delayMs ?? 1_000;
+  const sleep    = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
+
+  for (let round = 0; round < attempts; round++) {
+    for (const gateway of IPFS_GATEWAYS) {
+      try {
+        const res = await fetch(`${gateway}${cid}`);
+        if (res.ok) return res.text();
+      } catch {
+        // try next gateway
+      }
     }
+    // Back off between rounds: propagation is the thing being waited on, and
+    // hammering the same three gateways immediately does not help it along.
+    if (round < attempts - 1) await sleep(delayMs * (round + 1));
   }
   throw new Error(`Failed to fetch IPFS content: ${uriOrCid}`);
 }

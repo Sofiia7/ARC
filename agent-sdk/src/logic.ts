@@ -85,3 +85,34 @@ export function agentIdFromReceiptLogs(
   }
   return null;
 }
+
+/**
+ * Poll `read` until the allowance it reports covers `required`.
+ *
+ * A mined approve is not the same thing as a *visible* approve. `mainnet.base.org`
+ * is a load-balanced pool: `waitForTransactionReceipt` can be satisfied by one
+ * node while the `eth_call` that simulates the next write lands on another that
+ * is still a block or two behind. The caller then reverts with
+ * "ERC20: transfer amount exceeds allowance" even though its own approve
+ * succeeded. Confirming through the same client that will do the simulating is
+ * what closes that gap.
+ */
+export async function waitForAllowance(
+  read: () => Promise<bigint>,
+  required: bigint,
+  opts: { attempts?: number; delayMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<void> {
+  const attempts = opts.attempts ?? 6;
+  const delayMs  = opts.delayMs ?? 500;
+  const sleep    = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
+
+  for (let i = 0; i < attempts; i++) {
+    if (await read() >= required) return;
+    await sleep(delayMs);
+  }
+  throw new Error(
+    `Approved ${required.toString()} but the RPC still reports a smaller allowance after ` +
+    `${attempts} checks. The next call would revert with "transfer amount exceeds allowance" - ` +
+    "retry in a moment, or point the agent at a less laggy RPC.",
+  );
+}

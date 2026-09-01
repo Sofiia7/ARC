@@ -32,6 +32,7 @@ import {
   workerBondFor,
   bondCreateDeadlineOk,
   bondTakeWindowOk,
+  waitForAllowance,
 } from "./logic.js";
 import type {
   ArcBountyAgentConfig,
@@ -1051,13 +1052,14 @@ export class ArcBountyAgent {
   }
 
   private async _ensureUsdcAllowance(amount: bigint): Promise<void> {
-    const current = await this.publicClient.readContract({
+    const readAllowance = () => this.publicClient.readContract({
       address: this.network.contracts.USDC,
       abi: ERC20_ABI,
       functionName: "allowance",
       args: [this.address, this.bountyAdapter],
-    });
-    if (current >= amount) return;
+    }) as Promise<bigint>;
+
+    if (await readAllowance() >= amount) return;
 
     const hash = await this.signer.writeContract({
       address: this.network.contracts.USDC,
@@ -1066,6 +1068,21 @@ export class ArcBountyAgent {
       args: [this.bountyAdapter, amount],
     });
     await this._waitForTx(hash);
+
+    // Having the receipt is not enough: it only proves ONE replica saw the
+    // approve. Public RPCs are load-balanced, and the caller's next step is
+    // `_writeAdapter`, which gas-estimates against state - first via
+    // `_gasWithBuffer`, then again inside viem's own `writeContract`. Either
+    // estimate can land on a replica a block behind that still sees the old
+    // allowance, and the write reverts with "ERC20: transfer amount exceeds
+    // allowance" without ever being broadcast, even though the approve is
+    // on-chain. `_gasWithBuffer` swallows its failure by design, so what
+    // surfaces is the second estimate, stripped of context - which is why this
+    // reads as an unfunded wallet rather than a stale read. Observed on Base
+    // mainnet: takeBounty failed that way, then succeeded on a bare retry with
+    // the allowance already set. Confirm through the same client that does the
+    // estimating before handing control back.
+    await waitForAllowance(readAllowance, amount);
   }
 
   private async _resolveEvidenceCid(e: DisputeEvidenceOptions): Promise<string> {

@@ -66,3 +66,6 @@ agent-sdk/run_circle_demo.bat
 
 # Local video recordings (never publish)
 Видео/
+
+# Backups of config that holds secrets (.mcp.json carries AGENT_PRIVATE_KEY + PINATA_JWT)
+*.bak
