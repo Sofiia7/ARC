@@ -47,10 +47,16 @@ const POSTER_PK = (process.env.POSTER_PRIVATE_KEY
   ?? (networkName === "base-mainnet" ? process.env.BASE_MAINNET_DEPLOYER_KEY : undefined)
   ?? process.env.PRIVATE_KEY) as `0x${string}`;
 const WORKER_PK = process.env.AGENT_PRIVATE_KEY as `0x${string}`;
-const ADAPTER   = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
+// Default to the adapter the SDK already resolves for this network, and treat
+// BOUNTY_ADAPTER_ADDRESS as an override. A single `.env` cannot hold the right
+// adapter for four chains at once: with Arc's address left in it, a Base run
+// would aim every call at an address that holds no code on 8453 and fail with
+// an unrelated-looking revert. The code-presence check in main() catches an
+// override pointed at the wrong chain.
+const ADAPTER_ENV = process.env.BOUNTY_ADAPTER_ADDRESS as Address | undefined;
 
-if (!POSTER_PK || !WORKER_PK || !ADAPTER) {
-  console.error("Missing env: PRIVATE_KEY / AGENT_PRIVATE_KEY / BOUNTY_ADAPTER_ADDRESS");
+if (!POSTER_PK || !WORKER_PK) {
+  console.error("Missing env: PRIVATE_KEY / AGENT_PRIVATE_KEY");
   process.exit(1);
 }
 if (!process.env.PINATA_JWT && !(process.env.PINATA_API_KEY && process.env.PINATA_SECRET)) {
@@ -160,7 +166,32 @@ const fmt = (n: bigint) => `${(Number(n) / 1e6).toFixed(2)} USDC`;
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
+/**
+ * Which adapter to talk to. One `.env` cannot hold the right adapter for four
+ * chains at once, so a stale BOUNTY_ADAPTER_ADDRESS left over from an Arc run
+ * is the normal state of things, not operator error - on Base it would aim
+ * every call at an address holding no code and fail with an unrelated-looking
+ * revert. Zero code is never a legitimate target, so fall back to the
+ * network's own adapter and say so loudly rather than stopping.
+ */
+async function resolveAdapter(rpc: ReturnType<typeof createPublicClient>): Promise<Address> {
+  const fallback = network.defaultBountyAdapter as Address;
+  if (!ADAPTER_ENV || ADAPTER_ENV.toLowerCase() === fallback.toLowerCase()) return fallback;
+
+  const code = await rpc.getCode({ address: ADAPTER_ENV });
+  if (code && code !== "0x") return ADAPTER_ENV;
+
+  console.warn(
+    `BOUNTY_ADAPTER_ADDRESS=${ADAPTER_ENV} holds no code on ${network.name} ` +
+    `(chain ${network.chainId}) - it belongs to another network. Using this one's adapter ${fallback}.`,
+  );
+  return fallback;
+}
+
 async function main() {
+  const rpc = createPublicClient({ transport: http(RPC) });
+  const ADAPTER = await resolveAdapter(rpc);
+
   const worker = new ArcBountyAgent({ privateKey: WORKER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER, network: networkName });
   const poster = new ArcBountyAgent({ privateKey: POSTER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER, network: networkName });
 
@@ -187,8 +218,7 @@ async function main() {
   // funded only with USDC transacts fine on Arc and dies on the first Base tx.
   // Check before spending anything: an unfunded worker otherwise fails midway,
   // typically after it has already posted its bond.
-  const rpc = createPublicClient({ transport: http(RPC) });
-  const gas = await rpc.getBalance({ address: workerAddr });
+  const gas: bigint = await rpc.getBalance({ address: workerAddr });
   if (gas === 0n) {
     const { symbol } = network.nativeCurrency;
     console.error(
