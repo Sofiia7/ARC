@@ -450,6 +450,13 @@ export const IDENTITY_REGISTRY_ABI = [
     outputs: [{ name: "", type: "address" }],
   },
   {
+    name: "tokenURI",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
     name: "Transfer",
     type: "event" as const,
     inputs: [
@@ -459,6 +466,18 @@ export const IDENTITY_REGISTRY_ABI = [
     ],
   },
 ] as const;
+
+/**
+ * The registry's Transfer event, looked up by name.
+ *
+ * `getLogs` callers used to index this array positionally
+ * (`IDENTITY_REGISTRY_ABI[2]`), which silently pointed at the wrong entry the
+ * moment a function was inserted above it.
+ */
+export const IDENTITY_TRANSFER_EVENT = IDENTITY_REGISTRY_ABI.find(
+  (item): item is Extract<(typeof IDENTITY_REGISTRY_ABI)[number], { type: "event" }> =>
+    item.type === "event" && item.name === "Transfer",
+)!;
 
 export const ERC20_ABI = [
   {

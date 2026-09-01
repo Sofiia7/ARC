@@ -11,6 +11,7 @@ import {
 import {
   BOUNTY_ADAPTER_ABI,
   IDENTITY_REGISTRY_ABI,
+  IDENTITY_TRANSFER_EVENT,
   ERC20_ABI,
 } from "./abi.js";
 import { ViemSigner } from "./signers/viemSigner.js";
@@ -71,6 +72,8 @@ export class ArcBountyAgent {
   private readonly chain: ReturnType<typeof defineChain>;
 
   private _agentId: bigint | null = null;
+  /** True once `ownerOf(_agentId)` has confirmed this wallet owns that identity. */
+  private _agentIdVerified = false;
 
   constructor(config: ArcBountyAgentConfig) {
     // Everything network-shaped (chain id, RPC, contract addresses) comes
@@ -115,6 +118,27 @@ export class ArcBountyAgent {
     this.bountyAdapter = rawAdapter as Address;
 
     this.publicClient = createPublicClient({ chain: this.chain, transport: http(rpcUrl) }) as PublicClient;
+
+    // Identity may be pinned up front (config `agentId`, or the AGENT_ID env
+    // var). This is the only reliable path on Base: the canonical ERC-8004
+    // registry exposes no reverse address → agentId lookup, and every free Base
+    // RPC caps eth_getLogs at 10k blocks (~5.5h of a 2s chain), so the
+    // Transfer-log scan below can only ever see a sliver of history. A pinned id
+    // lets a freshly started process know its own identity with zero RPC calls;
+    // resolveAgentId() still verifies it against ownerOf before it is used.
+    const rawAgentId = config.agentId ?? process.env["AGENT_ID"]?.trim();
+    if (rawAgentId !== undefined && rawAgentId !== "") {
+      let parsed: bigint;
+      try {
+        parsed = BigInt(rawAgentId);
+      } catch {
+        throw new Error(`ArcBountyAgent: invalid agentId ${JSON.stringify(String(rawAgentId))} - expected a positive integer.`);
+      }
+      if (parsed <= 0n) {
+        throw new Error(`ArcBountyAgent: agentId must be positive, got ${parsed.toString()}. 0 means "no agent" on-chain.`);
+      }
+      this._agentId = parsed;
+    }
   }
 
   get address(): Address {
@@ -131,10 +155,27 @@ export class ArcBountyAgent {
    *   constructed with.
    */
   async register(metadataURI?: string): Promise<bigint> {
-    const existing = await this._findExistingAgentId();
+    // A pinned id is authoritative: verify and reuse it rather than minting a
+    // second identity for a wallet that already has one.
+    if (this._agentId !== null) return (await this.resolveAgentId())!;
+
+    const { agentId: existing, scanned } = await this._findExistingAgentId();
     if (existing !== null) {
       this._agentId = existing;
+      this._agentIdVerified = true;
       return existing;
+    }
+    if (!scanned) {
+      // The scan errored (RPC failure or rate limit) rather than completing and
+      // finding nothing. Minting here would create a SECOND identity and orphan
+      // every rating attached to the first - reputation is this protocol's whole
+      // point, so refuse instead of silently forking it.
+      throw new Error(
+        "ArcBountyAgent.register(): could not determine whether this wallet already has an agentId - " +
+        "the registry log scan failed (RPC error or rate limit). Registering now risks minting a second " +
+        "identity and orphaning the reputation on the first. Retry against a healthy RPC, or pass the " +
+        "known id via the `agentId` config option / AGENT_ID env var.",
+      );
     }
 
     const hash = await this.signer.writeContract({
@@ -151,16 +192,71 @@ export class ArcBountyAgent {
     if (agentId === null) throw new Error("Registration succeeded but agentId not found in events");
 
     this._agentId = agentId;
+    this._agentIdVerified = true;
     return agentId;
   }
 
+  /**
+   * Synchronous accessor for an ALREADY resolved id. It never touches the
+   * chain, so it throws on a freshly constructed agent even when the wallet
+   * demonstrably owns an identity - use `resolveAgentId()` for that.
+   */
   get agentId(): bigint {
-    if (this._agentId === null) throw new Error("Agent not registered. Call register() first.");
+    if (this._agentId === null) {
+      throw new Error(
+        "Agent identity is not resolved in this process yet. `agentId` is a synchronous getter and never " +
+        "reads the chain - call `await agent.resolveAgentId()` (or `register()`, which is idempotent), pass " +
+        "`agentId` to the constructor, or set AGENT_ID.",
+      );
+    }
     return this._agentId;
   }
 
   setAgentId(id: bigint): void {
     this._agentId = id;
+    this._agentIdVerified = false;
+  }
+
+  /**
+   * Resolve this wallet's ERC-8004 agentId, touching the chain at most once per
+   * process. Returns null when the wallet owns no identity.
+   *
+   * Order of resolution:
+   *   1. a pinned id (constructor `agentId` / AGENT_ID), checked against
+   *      `ownerOf` - the same check `BountyAdapter.takeBounty` performs, so a
+   *      wrong pin fails here with a clear message instead of as a revert;
+   *   2. a bounded Transfer(0x0 → self) log scan.
+   *
+   * Step 2 is best-effort by nature: the registry has no reverse address →
+   * agentId lookup and public RPCs cap eth_getLogs at 10k blocks, so on Base it
+   * only sees a few hours of history. Pin the id in production.
+   */
+  async resolveAgentId(): Promise<bigint | null> {
+    if (this._agentId !== null) {
+      if (!this._agentIdVerified) {
+        const owner = await this.publicClient.readContract({
+          address: this.network.contracts.IDENTITY_REGISTRY,
+          abi: IDENTITY_REGISTRY_ABI,
+          functionName: "ownerOf",
+          args: [this._agentId],
+        });
+        if (owner.toLowerCase() !== this.address.toLowerCase()) {
+          throw new Error(
+            `ArcBountyAgent: agentId ${this._agentId.toString()} is owned by ${owner}, not by this wallet ` +
+            `(${this.address}). Correct the pinned id (\`agentId\` config / AGENT_ID) or sign with the owning wallet.`,
+          );
+        }
+        this._agentIdVerified = true;
+      }
+      return this._agentId;
+    }
+
+    const { agentId } = await this._findExistingAgentId();
+    if (agentId !== null) {
+      this._agentId = agentId;
+      this._agentIdVerified = true;
+    }
+    return agentId;
   }
 
   // ─── Browse bounties ────────────────────────────────────────────────────────
@@ -294,13 +390,35 @@ export class ArcBountyAgent {
 
   // ─── Take / submit ──────────────────────────────────────────────────────────
 
-  async takeBounty(jobId: bigint, opts: { skipBondTakeWindowGuard?: boolean } = {}): Promise<TxResult> {
-    const agentId = this._agentId ?? 0n;
+  async takeBounty(
+    jobId: bigint,
+    opts: { skipBondTakeWindowGuard?: boolean; asHuman?: boolean } = {},
+  ): Promise<TxResult> {
     // V4: a requireWorkerBond bounty pulls the bond from the worker via
     // transferFrom inside takeBounty - without a USDC allowance the take
     // reverts. Read the live bond parameters rather than hardcoding them so
     // the SDK stays correct if a future deployment tunes them.
     const meta = await this.getBounty(jobId);
+    // Resolve from the chain rather than reading the in-memory cache: a fresh
+    // process (every MCP server start) had no cached id, sent agentId=0, and
+    // every agentOnly bounty reverted with "agent only: provide agentId".
+    // `asHuman` keeps the pre-fix escape hatch explicit: a wallet that owns an
+    // identity can still take a humanOnly bounty, but only by saying so.
+    const agentId = opts.asHuman ? 0n : (await this.resolveAgentId()) ?? 0n;
+    if (meta.agentOnly && agentId === 0n) {
+      throw new Error(
+        `takeBounty(${jobId.toString()}): this bounty is agentOnly, but no ERC-8004 identity resolved for ` +
+        `${this.address} on ${this.network.name}. Call register() first, or pin a known id via the ` +
+        "`agentId` config option / AGENT_ID env var.",
+      );
+    }
+    if (meta.humanOnly && agentId !== 0n) {
+      throw new Error(
+        `takeBounty(${jobId.toString()}): this bounty is humanOnly, but this wallet resolved to agentId ` +
+        `${agentId.toString()}, which the adapter rejects. Pass { asHuman: true } to take it without an ` +
+        "identity, or use a wallet that has none.",
+      );
+    }
     if (meta.requireWorkerBond) {
       // V4.2 take-window guard: taking a bond bounty with under 12h to its
       // deadline is a bond-forfeiture trap (no plausible time to deliver).
@@ -510,12 +628,30 @@ export class ArcBountyAgent {
   }
 
   async getAgentInfo(): Promise<AgentInfo> {
-    const id = this.agentId;
-    const reputation = await this.getReputation(id);
+    const id = await this.resolveAgentId();
+    if (id === null) {
+      throw new Error(
+        `No ERC-8004 identity found for ${this.address} on ${this.network.name}. Call register() (idempotent), ` +
+        "or pin a known id via the `agentId` config option / AGENT_ID env var.",
+      );
+    }
+    // Prefer the URI the registry actually holds over the constructor's copy,
+    // which is empty for every process that did not itself register.
+    const [reputation, onChainURI] = await Promise.all([
+      this.getReputation(id),
+      this.publicClient
+        .readContract({
+          address: this.network.contracts.IDENTITY_REGISTRY,
+          abi: IDENTITY_REGISTRY_ABI,
+          functionName: "tokenURI",
+          args: [id],
+        })
+        .catch(() => ""),
+    ]);
     return {
       agentId: id,
       address: this.address,
-      metadataURI: this.metadataURI,
+      metadataURI: onChainURI || this.metadataURI,
       reputation,
     };
   }
@@ -864,39 +1000,53 @@ export class ArcBountyAgent {
   }
 
   /**
-   * Best-effort idempotency check: scan a bounded recent window for a
-   * Transfer(0x0 → self) on the registry. Arc's public RPC caps eth_getLogs to
-   * a 10,000-block range per call (confirmed empirically - a single wider
-   * request errors outright), so we page backward in 10k chunks up to a total
-   * lookback ceiling instead of issuing one oversized request. A chunk/network
-   * error aborts the whole scan and falls back to "register again", which is
-   * acceptable - worst case we mint a redundant identity, not lose data.
+   * Best-effort discovery: scan a bounded recent window for a
+   * Transfer(0x0 → self) on the registry. Every public RPC we target caps
+   * eth_getLogs at a 10,000-block range per call (Arc's, Base's own
+   * mainnet.base.org, and drpc all reject a wider request outright), so we page
+   * backward in 10k chunks up to a lookback ceiling instead of issuing one
+   * oversized request.
+   *
+   * `scanned` distinguishes "completed and found nothing" from "gave up": the
+   * caller must not treat an RPC failure as proof that no identity exists, or
+   * `register()` mints a duplicate and orphans the first identity's reputation.
+   *
+   * The ceiling is expressed in DAYS and converted via the network's
+   * `blocksPerDay`. A flat 500k-block window meant ~5.8 days on Arc but only
+   * ~11.6 days on Base, and would shrink further on any faster chain; the call
+   * budget keeps a miss cheap where that window runs to thousands of requests.
+   * This is why production should pin `agentId` / AGENT_ID rather than rely on
+   * discovery at all.
    */
-  private async _findExistingAgentId(): Promise<bigint | null> {
-    const CHUNK = 10_000n; // Arc RPC's actual eth_getLogs range cap.
-    const TOTAL_LOOKBACK = 500_000n;
+  private async _findExistingAgentId(): Promise<{ agentId: bigint | null; scanned: boolean }> {
+    const CHUNK = 10_000n; // The eth_getLogs range cap public RPCs enforce.
+    const MAX_CALLS = 24n; // Bounded RPC budget - see doc comment.
+    const LOOKBACK_DAYS = 30n;
+    const wanted = BigInt(Math.max(1, Math.round(this.network.blocksPerDay))) * LOOKBACK_DAYS;
+    const lookback = wanted > CHUNK * MAX_CALLS ? CHUNK * MAX_CALLS : wanted;
+
     try {
       const head = await this.publicClient.getBlockNumber();
-      const floor = head > TOTAL_LOOKBACK ? head - TOTAL_LOOKBACK : 0n;
+      const floor = head > lookback ? head - lookback : 0n;
 
       for (let to = head; to > floor; to -= CHUNK) {
         const from = to - CHUNK + 1n > floor ? to - CHUNK + 1n : floor;
         const logs = await this.publicClient.getLogs({
           address: this.network.contracts.IDENTITY_REGISTRY,
-          event: IDENTITY_REGISTRY_ABI[2], // Transfer event
+          event: IDENTITY_TRANSFER_EVENT,
           args: { from: ZERO_ADDRESS, to: this.address },
           fromBlock: from,
           toBlock: to,
         });
         if (logs.length > 0) {
           const last = logs[logs.length - 1]!;
-          return (last.args as { tokenId: bigint }).tokenId;
+          return { agentId: (last.args as { tokenId: bigint }).tokenId, scanned: true };
         }
         if (from === floor) break;
       }
-      return null;
+      return { agentId: null, scanned: true };
     } catch {
-      return null;
+      return { agentId: null, scanned: false };
     }
   }
 

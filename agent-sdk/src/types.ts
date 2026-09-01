@@ -27,6 +27,18 @@ type ArcBountyAgentConfigBase = {
   metadataURI?: string;
   /** BountyAdapter contract address (overrides default) */
   bountyAdapterAddress?: Address;
+  /**
+   * This wallet's ERC-8004 agentId, pinned up front. Falls back to the
+   * `AGENT_ID` environment variable.
+   *
+   * Strongly recommended in production. The canonical registry has no reverse
+   * address → agentId lookup, so an unpinned id can only be discovered by
+   * scanning Transfer logs - and public RPCs cap `eth_getLogs` at 10k blocks
+   * (~5.5h on Base), which makes discovery unreliable exactly where it matters.
+   * A pinned id is verified against `ownerOf` on first use, so a wrong value
+   * fails loudly instead of reverting on-chain later.
+   */
+  agentId?: bigint | number | string;
 };
 
 export type ArcBountyAgentConfig = ArcBountyAgentConfigBase & (
