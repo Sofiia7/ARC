@@ -24,15 +24,28 @@
  */
 
 import { ArcBountyAgent, type BountyMeta } from "arcbounty-agent-sdk";
-import type { Address } from "viem";
-import { requireNetworkForMoneyMove, type NetworkName } from "./lib/network.js";
+import { createPublicClient, http, type Address } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { getNetworkName, requireNetworkForMoneyMove, type NetworkName } from "./lib/network.js";
 
 const network   = requireNetworkForMoneyMove();
-// Derived, not re-parsed from ARC_NETWORK - requireNetworkForMoneyMove()
-// already validated it; `testnet` is the resolved config's own source of truth.
-const networkName: NetworkName = network.testnet ? "arc-testnet" : "arc-mainnet";
+// Ask for the name the operator actually selected. The old derivation here was
+// `network.testnet ? "arc-testnet" : "arc-mainnet"`, which silently collapsed
+// all four networks onto the two Arc ones: with ARC_NETWORK=base-mainnet the
+// SDK was handed `network: "arc-mainnet"` and resolved Arc's chain id and Arc's
+// contract map against a Base RPC. getNetworkName() has already been validated
+// by requireNetworkForMoneyMove() above, so this re-read cannot widen anything.
+const networkName: NetworkName = getNetworkName();
 const RPC       = network.rpcUrl;
-const POSTER_PK = process.env.PRIVATE_KEY as `0x${string}`;
+// The poster must be the wallet that actually created the listings - only it
+// can call approveBounty. That is a different key per network (Base mainnet was
+// deployed and seeded from a fresh key that never touched testnet, see
+// contracts/DEPLOYMENTS.md), so pick the network's own poster rather than
+// assuming PRIVATE_KEY. POSTER_PRIVATE_KEY overrides both when reseeding from
+// somewhere else.
+const POSTER_PK = (process.env.POSTER_PRIVATE_KEY
+  ?? (networkName === "base-mainnet" ? process.env.BASE_MAINNET_DEPLOYER_KEY : undefined)
+  ?? process.env.PRIVATE_KEY) as `0x${string}`;
 const WORKER_PK = process.env.AGENT_PRIVATE_KEY as `0x${string}`;
 const ADAPTER   = process.env.BOUNTY_ADAPTER_ADDRESS as Address;
 
@@ -151,9 +164,42 @@ async function main() {
   const worker = new ArcBountyAgent({ privateKey: WORKER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER, network: networkName });
   const poster = new ArcBountyAgent({ privateKey: POSTER_PK, rpcUrl: RPC, bountyAdapterAddress: ADAPTER, network: networkName });
 
+  // The entire point of this script over demo-lifecycle.ts is that the two
+  // sides are different wallets. A run where they collapse to one address is
+  // a self-payment: it proves the contract moves USDC and nothing else - no
+  // counterparty, and uniquePosterCount stays meaningless. Fail loudly here
+  // rather than produce a transcript that reads like evidence but is not.
+  const workerAddr = privateKeyToAccount(WORKER_PK).address;
+  const posterAddr = privateKeyToAccount(POSTER_PK).address;
+  console.log(`network: ${networkName} (chain ${network.chainId})  adapter: ${ADAPTER}`);
+  console.log(`poster:  ${posterAddr}`);
+  console.log(`worker:  ${workerAddr}`);
+  if (workerAddr.toLowerCase() === posterAddr.toLowerCase()) {
+    console.error(
+      `\nRefusing to run: poster and worker are the same wallet (${workerAddr}).\n` +
+      `Point AGENT_PRIVATE_KEY at a separate funded wallet - this script exists to ` +
+      `produce a two-party payout, not a self-payment.`,
+    );
+    process.exit(1);
+  }
+
+  // Gas is a separate asset on Base (ETH) but is USDC on Arc, so a worker
+  // funded only with USDC transacts fine on Arc and dies on the first Base tx.
+  // Check before spending anything: an unfunded worker otherwise fails midway,
+  // typically after it has already posted its bond.
+  const rpc = createPublicClient({ transport: http(RPC) });
+  const gas = await rpc.getBalance({ address: workerAddr });
+  if (gas === 0n) {
+    const { symbol } = network.nativeCurrency;
+    console.error(
+      `\nRefusing to run: worker ${workerAddr} holds 0 ${symbol} on ${network.name} and ` +
+      `cannot pay gas for register/take/submit. Fund it with ${symbol} first.`,
+    );
+    process.exit(1);
+  }
+
   const agentId = await worker.register(); // reuses an existing agentId if found
-  const info = await worker.getAgentInfo();
-  console.log(`worker: ${info.address}  agentId: ${agentId}  balance: ${fmt(await worker.usdcBalance())}`);
+  console.log(`worker agentId: ${agentId}  USDC: ${fmt(await worker.usdcBalance())}  gas: ${gas} wei`);
 
   const open = await worker.listOpenBounties({});
   console.log(`open bounties on ${ADAPTER}: ${open.length}`);
