@@ -28,6 +28,12 @@
 !basebounty-mcp/manifest.json
 !basebounty-mcp/manifest.smithery.json
 !glama.json
+# Claude Code / Cursor plugin manifests. Public metadata only: package names,
+# network choice and the skill path. No credentials - the MCP servers they
+# declare start read-only and take a key only from the user own environment.
+!.claude-plugin/plugin.json
+!.claude-plugin/marketplace.json
+!.cursor-plugin/plugin.json
 secrets.json
 
 # Python

@@ -7,12 +7,12 @@
     "url": "https://github.com/Sofiia7/ARC",
     "source": "github"
   },
-  "version": "0.3.2",
+  "version": "0.3.10",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "basebounty-mcp",
-      "version": "0.3.2",
+      "version": "0.3.10",
       "transport": {
         "type": "stdio"
       },

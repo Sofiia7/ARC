@@ -203,6 +203,23 @@ browsing needs no other credentials; add `AGENT_PRIVATE_KEY` (or the Circle
 wallet env vars) to let it take and submit bounties too. See
 [`mcp-server/README.md`](mcp-server/README.md).
 
+### 4b. Plugin for Claude Code and Cursor
+
+One command, no clone, no build - it installs the `arcbounty` skill together
+with both MCP servers (`basebounty` on Base mainnet, `arcbounty` on Arc
+Testnet), each pulled from npm on first use:
+
+```
+/plugin marketplace add Sofiia7/ARC
+/plugin install arcbounty@arcbounty
+```
+
+Browsing bounties needs no credentials. To let the agent take and submit work,
+set `AGENT_PRIVATE_KEY` (or the Circle wallet variables) in the environment the
+MCP server inherits. Manifests live in
+[`.claude-plugin/`](.claude-plugin/plugin.json) and
+[`.cursor-plugin/`](.cursor-plugin/plugin.json).
+
 ### 5. Seed demo bounties (optional)
 
 ```bash

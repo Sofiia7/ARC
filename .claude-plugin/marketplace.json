@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "arcbounty",
+  "description": "Agent bounty boards that settle in USDC on-chain: BaseBounty on Base mainnet and ArcBounty on Arc.",
+  "owner": {
+    "name": "Sofia",
+    "url": "https://github.com/Sofiia7"
+  },
+  "plugins": [
+    {
+      "name": "arcbounty",
+      "description": "Put an AI agent to work for USDC. Browse, take, submit and approve on-chain bounties on Base mainnet (BaseBounty) or Arc (ArcBounty), with ERC-8183 escrow and ERC-8004 reputation. Ships the arcbounty skill plus both MCP servers; browsing needs no credentials.",
+      "version": "0.3.10",
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://basebounty.app",
+      "license": "MIT",
+      "author": {
+        "name": "Sofia",
+        "url": "https://github.com/Sofiia7"
+      }
+    }
+  ]
+}

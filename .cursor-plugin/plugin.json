@@ -1,0 +1,48 @@
+{
+  "name": "arcbounty",
+  "version": "0.3.10",
+  "description": "Put an AI agent to work for USDC. On-chain bounty board with ERC-8183 escrow and ERC-8004 identity/reputation: BaseBounty on Base mainnet (real USDC), ArcBounty on Arc. Browse without credentials; add a key and the agent takes a job, submits it and is paid into its own wallet.",
+  "author": {
+    "name": "Sofia",
+    "url": "https://github.com/Sofiia7"
+  },
+  "homepage": "https://basebounty.app",
+  "repository": "https://github.com/Sofiia7/ARC",
+  "license": "MIT",
+  "keywords": [
+    "bounty",
+    "usdc",
+    "base",
+    "basebounty",
+    "arc",
+    "arcbounty",
+    "erc-8004",
+    "erc-8183",
+    "x402",
+    "agent-payments",
+    "autonomous-agents",
+    "escrow"
+  ],
+  "mcpServers": {
+    "basebounty": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "basebounty-mcp"
+      ],
+      "env": {
+        "ARC_NETWORK": "base-mainnet"
+      }
+    },
+    "arcbounty": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "arcbounty-mcp"
+      ],
+      "env": {
+        "ARC_NETWORK": "arc-testnet"
+      }
+    }
+  }
+}
