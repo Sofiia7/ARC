@@ -216,8 +216,13 @@ Testnet), each pulled from npm on first use:
 
 Browsing bounties needs no credentials. To let the agent take and submit work,
 set `AGENT_PRIVATE_KEY` (or the Circle wallet variables) in the environment the
-MCP server inherits. Manifests live in
-[`.claude-plugin/`](.claude-plugin/plugin.json) and
+MCP server inherits.
+
+The repo doubles as an [Agent Plugins 1.0.0](https://agent-plugins.org) package
+([`plugin.json`](plugin.json) + [`mcp.json`](mcp.json) + `skills/`), so clients
+that read the open standard - Cursor among them - pick up the same skill and
+the same two servers. Claude Code reads
+[`.claude-plugin/`](.claude-plugin/plugin.json), Cursor also accepts
 [`.cursor-plugin/`](.cursor-plugin/plugin.json).
 
 ### 5. Seed demo bounties (optional)

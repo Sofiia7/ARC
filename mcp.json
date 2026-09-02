@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "basebounty": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "basebounty-mcp"],
+      "env": {
+        "ARC_NETWORK": "base-mainnet"
+      }
+    },
+    "arcbounty": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "arcbounty-mcp"],
+      "env": {
+        "ARC_NETWORK": "arc-testnet"
+      }
+    }
+  }
+}

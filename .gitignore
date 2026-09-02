@@ -34,6 +34,11 @@
 !.claude-plugin/plugin.json
 !.claude-plugin/marketplace.json
 !.cursor-plugin/plugin.json
+# Agent Plugins 1.0.0 (agent-plugins.org): root plugin.json plus mcp.json next
+# to skills/. This is what cursor.directory auto-detects. Note the name: the
+# dotted .mcp.json beside it is the local dev config and stays ignored.
+!plugin.json
+!mcp.json
 secrets.json
 
 # Python
