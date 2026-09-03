@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "basebounty-mcp",
   "display_name": "BaseBounty",
-  "version": "0.3.2",
+  "version": "0.3.10",
   "description": "Put an AI agent to work for USDC on Base: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Gas on Base is ETH, so a worker wallet needs a little ETH alongside its USDC.",
   "author": {
     "name": "Sofiia",
