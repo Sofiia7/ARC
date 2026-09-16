@@ -8,21 +8,10 @@ import {
   ArcBountyAgent,
 } from "../src/index.js";
 
-// NOTE: this is a PLACEHOLDER chain id for tests only. The real Arc mainnet
-// chain id is not published by Circle yet and must never be hardcoded.
-const FAKE_MAINNET_ENV: Record<string, string> = {
-  ARC_MAINNET_CHAIN_ID:            "777001",
-  ARC_MAINNET_RPC_URL:             "https://rpc.example-mainnet.invalid",
-  ARC_MAINNET_EXPLORER_URL:        "https://explorer.example-mainnet.invalid",
-  ARC_MAINNET_EXPLORER_API_URL:    "https://explorer.example-mainnet.invalid/api",
-  ARC_MAINNET_AGENTIC_COMMERCE:    "0x00000000000000000000000000000000000000a1",
-  ARC_MAINNET_IDENTITY_REGISTRY:   "0x00000000000000000000000000000000000000a2",
-  ARC_MAINNET_REPUTATION_REGISTRY: "0x00000000000000000000000000000000000000a3",
-  ARC_MAINNET_USDC:                "0x00000000000000000000000000000000000000a4",
-};
 const FAKE_ADAPTER = "0x00000000000000000000000000000000000000a5";
 
-const MAINNET_REQUIRED_VARS = Object.keys(FAKE_MAINNET_ENV);
+const ARC_MAINNET_ADAPTER = "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D";
+const ARC_TESTNET_ADAPTER = "0xeDf2c738915b042da97788b2b5499D4655FB1f20";
 
 // Deterministic, well-known dev key - never used on a real network.
 const DUMMY_KEY = "0x0000000000000000000000000000000000000000000000000000000000000001" as const;
@@ -95,7 +84,7 @@ describe("resolveNetwork - base-sepolia", () => {
     expect(resolveNetwork("base-sepolia", {}).brand)
       .toEqual({ name: "BaseBounty", domain: "basebounty.app" });
     expect(resolveNetwork("arc-testnet", {}).brand)
-      .toEqual({ name: "ArcBounty", domain: "arcbounty.app" });
+      .toEqual({ name: "ArcBounty", domain: "testnet.arcbounty.app" });
   });
 
   it("pays gas in ETH, not USDC - the one thing that differs from Arc", () => {
@@ -151,8 +140,9 @@ describe("resolveNetwork - base-mainnet", () => {
     expect(net.blocksPerDay).toBe(43_200);
   });
 
-  it("is the only network flagged as non-testnet today", () => {
+  it("is flagged non-testnet, as is Arc mainnet and nothing else", () => {
     expect(resolveNetwork("base-mainnet", {}).testnet).toBe(false);
+    expect(resolveNetwork("arc-mainnet", {}).testnet).toBe(false);
     expect(resolveNetwork("base-sepolia", {}).testnet).toBe(true);
     expect(resolveNetwork("arc-testnet", {}).testnet).toBe(true);
   });
@@ -201,81 +191,64 @@ describe("resolveNetwork - base-mainnet", () => {
 });
 
 describe("resolveNetwork - arc-mainnet", () => {
-  it("throws one error naming every missing variable and the docs source of truth", () => {
-    let error: Error | null = null;
-    try {
-      resolveNetwork("arc-mainnet", {});
-    } catch (e) {
-      error = e as Error;
-    }
-    expect(error).not.toBeNull();
-    for (const varName of MAINNET_REQUIRED_VARS) {
-      expect(error!.message).toContain(varName);
-    }
-    expect(error!.message).toContain("docs.arc.io/arc/references/contract-addresses");
-  });
-
-  it("names only the variables that are actually missing", () => {
-    const env = { ...FAKE_MAINNET_ENV };
-    delete env["ARC_MAINNET_USDC"];
-    delete env["ARC_MAINNET_RPC_URL"];
-    let message = "";
-    try {
-      resolveNetwork("arc-mainnet", env);
-    } catch (e) {
-      message = (e as Error).message;
-    }
-    expect(message).toContain("ARC_MAINNET_USDC");
-    expect(message).toContain("ARC_MAINNET_RPC_URL");
-    expect(message).not.toContain("ARC_MAINNET_CHAIN_ID");
-    expect(message).not.toContain("ARC_MAINNET_IDENTITY_REGISTRY");
-  });
-
-  it("treats empty/whitespace values as missing", () => {
-    const env = { ...FAKE_MAINNET_ENV, ARC_MAINNET_USDC: "  " };
-    expect(() => resolveNetwork("arc-mainnet", env)).toThrowError(/ARC_MAINNET_USDC/);
-  });
-
-  it("resolves a full config from env", () => {
-    const net = resolveNetwork("arc-mainnet", FAKE_MAINNET_ENV);
-    expect(net.chainId).toBe(777_001);
+  it("returns the static Arc mainnet entry", () => {
+    const net = resolveNetwork("arc-mainnet", {});
+    expect(net.chainId).toBe(5_042);
     expect(net.name).toBe("Arc");
-    expect(net.caip2).toBe("eip155:777001");
-    expect(net.rpcUrl).toBe(FAKE_MAINNET_ENV["ARC_MAINNET_RPC_URL"]);
-    expect(net.explorerUrl).toBe(FAKE_MAINNET_ENV["ARC_MAINNET_EXPLORER_URL"]);
-    expect(net.explorerApiUrl).toBe(FAKE_MAINNET_ENV["ARC_MAINNET_EXPLORER_API_URL"]);
+    expect(net.caip2).toBe("eip155:5042");
+    expect(net.rpcUrl).toBe("https://rpc.blockdaemon.mainnet.arc.io");
+    expect(net.explorerUrl).toBe("https://explorer.arc.io");
     expect(net.contracts).toEqual({
-      AGENTIC_COMMERCE:    FAKE_MAINNET_ENV["ARC_MAINNET_AGENTIC_COMMERCE"],
-      IDENTITY_REGISTRY:   FAKE_MAINNET_ENV["ARC_MAINNET_IDENTITY_REGISTRY"],
-      REPUTATION_REGISTRY: FAKE_MAINNET_ENV["ARC_MAINNET_REPUTATION_REGISTRY"],
-      USDC:                FAKE_MAINNET_ENV["ARC_MAINNET_USDC"],
+      AGENTIC_COMMERCE:    "0x64cA39Fc57315D0D488acCaC07c37C6E841CD058",
+      IDENTITY_REGISTRY:   "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+      REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
+      USDC:                "0x3600000000000000000000000000000000000000",
     });
-    expect(net.testnet).toBe(false);
-    expect(net.defaultBountyAdapter).toBeUndefined();
-    expect(net.adapterDeployBlock).toBeUndefined();
-    expect(net.blocksPerDay).toBe(86_400); // default when ARC_MAINNET_BLOCKS_PER_DAY is unset
+    expect(net.defaultBountyAdapter).toBe(ARC_MAINNET_ADAPTER);
+    expect(net.adapterDeployBlock).toBe(21_153_190);
+    expect(net.blocksPerDay).toBe(170_000);
   });
 
-  it("parses the optional adapter / deploy-block / blocks-per-day vars", () => {
-    const net = resolveNetwork("arc-mainnet", {
-      ...FAKE_MAINNET_ENV,
-      ARC_MAINNET_BOUNTY_ADAPTER: FAKE_ADAPTER,
-      ARC_MAINNET_ADAPTER_DEPLOY_BLOCK: "0",
-      ARC_MAINNET_BLOCKS_PER_DAY: "43200",
-    });
-    expect(net.defaultBountyAdapter).toBe(FAKE_ADAPTER);
-    expect(net.adapterDeployBlock).toBe(0);
-    expect(net.blocksPerDay).toBe(43_200);
+  it("takes arcbounty.app over from the testnet build, and pays gas in 18-decimal USDC", () => {
+    expect(resolveNetwork("arc-mainnet", {}).brand)
+      .toEqual({ name: "ArcBounty", domain: "arcbounty.app" });
+    expect(resolveNetwork("arc-mainnet", {}).nativeCurrency)
+      .toEqual({ symbol: "USDC", decimals: 18, isUsdc: true });
   });
 
-  it("rejects malformed addresses, naming the offending variable", () => {
-    const env = { ...FAKE_MAINNET_ENV, ARC_MAINNET_USDC: "0xnot-an-address" };
-    expect(() => resolveNetwork("arc-mainnet", env)).toThrowError(/ARC_MAINNET_USDC/);
+  it("uses Base mainnet's 8004 registries and its own escrow, never Arc testnet's", () => {
+    const mainnet = resolveNetwork("arc-mainnet", {});
+    const testnet = resolveNetwork("arc-testnet", {});
+    // The 8004 team's mainnet pair really is at the same addresses on Arc and
+    // Base - checked on both chains, not inferred from the vanity prefix
+    // (the inference is what shipped Sepolia's pair to Base mainnet once).
+    expect(mainnet.contracts.IDENTITY_REGISTRY).toBe(resolveNetwork("base-mainnet", {}).contracts.IDENTITY_REGISTRY);
+    expect(mainnet.contracts.REPUTATION_REGISTRY).toBe(resolveNetwork("base-mainnet", {}).contracts.REPUTATION_REGISTRY);
+    expect(mainnet.contracts.IDENTITY_REGISTRY).not.toBe(testnet.contracts.IDENTITY_REGISTRY);
+    expect(mainnet.contracts.AGENTIC_COMMERCE).not.toBe(testnet.contracts.AGENTIC_COMMERCE);
+    expect(mainnet.defaultBountyAdapter).not.toBe(testnet.defaultBountyAdapter);
+    // USDC's ERC-20 interface is the same system address on both Arc networks.
+    expect(mainnet.contracts.USDC).toBe(testnet.contracts.USDC);
   });
 
-  it("rejects a non-integer chain id", () => {
-    const env = { ...FAKE_MAINNET_ENV, ARC_MAINNET_CHAIN_ID: "soon" };
-    expect(() => resolveNetwork("arc-mainnet", env)).toThrowError(/ARC_MAINNET_CHAIN_ID/);
+  it("lets ARC_MAINNET_RPC_URL override only the RPC URL", () => {
+    const net = resolveNetwork("arc-mainnet", { ARC_MAINNET_RPC_URL: "http://localhost:8545" });
+    expect(net.rpcUrl).toBe("http://localhost:8545");
+    expect(net.chainId).toBe(5_042);
+    expect(NETWORKS["arc-mainnet"].rpcUrl).toBe("https://rpc.blockdaemon.mainnet.arc.io");
+  });
+
+  it("does not leak the testnet ARC_RPC_URL onto mainnet", () => {
+    const net = resolveNetwork("arc-mainnet", { ARC_RPC_URL: "https://rpc.testnet.arc.network" });
+    expect(net.rpcUrl).toBe("https://rpc.blockdaemon.mainnet.arc.io");
+  });
+
+  it("returns a copy - mutating the result never touches NETWORKS", () => {
+    const net = resolveNetwork("arc-mainnet", {});
+    net.contracts.AGENTIC_COMMERCE = "0x00000000000000000000000000000000000000ff";
+    net.brand.domain = "mutated.invalid";
+    expect(NETWORKS["arc-mainnet"].contracts.AGENTIC_COMMERCE).toBe("0x64cA39Fc57315D0D488acCaC07c37C6E841CD058");
+    expect(NETWORKS["arc-mainnet"].brand.domain).toBe("arcbounty.app");
   });
 });
 
@@ -284,24 +257,18 @@ describe("ArcBountyAgent constructor - network wiring", () => {
     // Isolate from whatever the host shell has configured.
     vi.stubEnv("BOUNTY_ADAPTER_ADDRESS", undefined);
     vi.stubEnv("ARC_RPC_URL", undefined);
+    vi.stubEnv("ARC_MAINNET_RPC_URL", undefined);
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  function stubMainnetEnv(extra: Record<string, string> = {}): void {
-    for (const [key, value] of Object.entries({ ...FAKE_MAINNET_ENV, ...extra })) {
-      vi.stubEnv(key, value);
-    }
-  }
-
   it("defaults to arc-testnet with the canonical adapter", () => {
     const agent = new ArcBountyAgent({ privateKey: DUMMY_KEY });
     expect(agent.network.chainId).toBe(5_042_002);
     expect(clientOf(agent).chain.id).toBe(5_042_002);
-    expect((agent as unknown as { bountyAdapter: string }).bountyAdapter)
-      .toBe("0xeDf2c738915b042da97788b2b5499D4655FB1f20");
+    expect((agent as unknown as { bountyAdapter: string }).bountyAdapter).toBe(ARC_TESTNET_ADAPTER);
   });
 
   it("keeps the testnet chain id when only rpcUrl is overridden", () => {
@@ -319,38 +286,31 @@ describe("ArcBountyAgent constructor - network wiring", () => {
     expect((agent as unknown as { bountyAdapter: string }).bountyAdapter).toBe(FAKE_ADAPTER);
   });
 
-  it("network: 'arc-mainnet' + full env yields a client on the env chain id", () => {
-    stubMainnetEnv({ ARC_MAINNET_BOUNTY_ADAPTER: FAKE_ADAPTER });
+  it("network: 'arc-mainnet' yields a client on chain 5042 with the mainnet adapter", () => {
     const agent = new ArcBountyAgent({ privateKey: DUMMY_KEY, network: "arc-mainnet" });
-    expect(agent.network.chainId).toBe(777_001);
+    expect(agent.network.chainId).toBe(5_042);
     expect(agent.network.testnet).toBe(false);
-    expect(clientOf(agent).chain.id).toBe(777_001);
-    expect(clientOf(agent).transport.url).toBe(FAKE_MAINNET_ENV["ARC_MAINNET_RPC_URL"]);
-    expect((agent as unknown as { bountyAdapter: string }).bountyAdapter).toBe(FAKE_ADAPTER);
-    expect(agent.network.contracts.USDC).toBe(FAKE_MAINNET_ENV["ARC_MAINNET_USDC"]);
+    expect(clientOf(agent).chain.id).toBe(5_042);
+    expect(clientOf(agent).transport.url).toBe("https://rpc.blockdaemon.mainnet.arc.io");
+    expect((agent as unknown as { bountyAdapter: string }).bountyAdapter).toBe(ARC_MAINNET_ADAPTER);
   });
 
   it("mainnet rpcUrl override changes the transport, NOT the chain id (0.4.x bug)", () => {
-    stubMainnetEnv({ ARC_MAINNET_BOUNTY_ADAPTER: FAKE_ADAPTER });
     const agent = new ArcBountyAgent({
       privateKey: DUMMY_KEY,
       network: "arc-mainnet",
       rpcUrl: "http://localhost:9999",
     });
-    expect(clientOf(agent).chain.id).toBe(777_001);
+    expect(clientOf(agent).chain.id).toBe(5_042);
     expect(clientOf(agent).transport.url).toBe("http://localhost:9999");
   });
 
-  it("network: 'arc-mainnet' without env throws, naming the missing vars", () => {
-    expect(() => new ArcBountyAgent({ privateKey: DUMMY_KEY, network: "arc-mainnet" }))
-      .toThrowError(/ARC_MAINNET_CHAIN_ID[\s\S]*docs\.arc\.io/);
-  });
-
-  it("mainnet ignores the generic testnet BOUNTY_ADAPTER_ADDRESS env var", () => {
-    stubMainnetEnv(); // no ARC_MAINNET_BOUNTY_ADAPTER
-    vi.stubEnv("BOUNTY_ADAPTER_ADDRESS", "0x538CD48789667168bfb36f838Af8476237F9409F");
-    expect(() => new ArcBountyAgent({ privateKey: DUMMY_KEY, network: "arc-mainnet" }))
-      .toThrowError(/no BountyAdapter address/);
+  it("mainnet ignores a testnet BOUNTY_ADAPTER_ADDRESS and ARC_RPC_URL left in the env", () => {
+    vi.stubEnv("BOUNTY_ADAPTER_ADDRESS", ARC_TESTNET_ADAPTER);
+    vi.stubEnv("ARC_RPC_URL", "https://rpc.testnet.arc.network");
+    const agent = new ArcBountyAgent({ privateKey: DUMMY_KEY, network: "arc-mainnet" });
+    expect((agent as unknown as { bountyAdapter: string }).bountyAdapter).toBe(ARC_MAINNET_ADAPTER);
+    expect(clientOf(agent).transport.url).toBe("https://rpc.blockdaemon.mainnet.arc.io");
   });
 });
 

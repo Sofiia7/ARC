@@ -8,13 +8,17 @@ const network = getActiveNetwork();
 // page that talks to the chain, so the check runs on every build and every
 // cold start.
 //
-// NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS keeps working as the adapter override
-// exactly as today, on either network. If it's unset, we fall back to the
-// active network's own default (arc-mainnet always has one - see
-// lib/networks.ts's required NEXT_PUBLIC_ARC_MAINNET_BOUNTY_ADAPTER; arc-testnet
-// never has one, so it stays exactly as mandatory as it always was).
+// NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS overrides the adapter on testnets only,
+// the same rule the SDK applies to BOUNTY_ADAPTER_ADDRESS. On a mainnet the
+// baked-in address always wins: arcbounty.app's Vercel project served the
+// testnet build until 2026-09-16 and still carries the testnet adapter in
+// that variable, and a mainnet build reading it would aim every real-USDC
+// approval and createBounty at an address with no contract on Arc mainnet.
+// arc-testnet has no default, so there the variable stays exactly as
+// mandatory as it always was.
 function requireAdapterAddress(): Address {
-  const raw = process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS ?? network.bountyAdapterAddress;
+  const envOverride = network.testnet ? process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS : undefined;
+  const raw = envOverride ?? network.bountyAdapterAddress;
   if (!raw) {
     throw new Error(
       "[arcbounty] NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS is not set. " +

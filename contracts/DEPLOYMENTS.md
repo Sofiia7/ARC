@@ -4,6 +4,65 @@ Canonical source of truth for deployed contracts. Always trust this file
 over `broadcast/` artifacts - those are forge's working area and may be
 overwritten or out of date.
 
+## Arc Mainnet (chain id `5042`) - ArcBounty, V4.7 live
+
+> Circle opened Arc mainnet to the public on 2026-09-16 and this deployment
+> went live the same day; `arcbounty.app` serves it. The Arc Testnet section
+> below moved to `testnet.arcbounty.app` and remains the deployment cited in
+> the submitted grant application.
+
+### BountyAdapter (V4.7 - live)
+
+| Field | Value |
+|---|---|
+| Address | `0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D` |
+| AgenticCommerce (proxy) | `0x64cA39Fc57315D0D488acCaC07c37C6E841CD058` - our own escrow from `contracts/src/base/`, as on Base: Arc mainnet has no ERC-8183 instance (no code at the address Arc testnet uses, none listed at docs.arc.io) |
+| AgenticCommerce (impl) | `0x3BD209158283FE1cd81054b1c91Ea723f1eBB251` - `initialize` reverts on it directly (`InvalidInitialization`), checked on-chain |
+| RPC | `https://rpc.blockdaemon.mainnet.arc.io` - Circle's `rpc.mainnet.arc.io` refuses `eth_getLogs` over 10,000 blocks, Blockdaemon serves 100,000 |
+| USDC | `0x3600000000000000000000000000000000000000` - the ERC-20 interface (6 decimals) over native USDC (18 decimals), same system address as testnet |
+| IdentityRegistry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` - the 8004 team's mainnet registry, same proxy address and same implementation (`0x7274e874ca62410a93bd8bf61c69d8045e399c02`) as Base mainnet; `name() == "AgentIdentity"`, `getVersion() == "2.0.0"` |
+| ReputationRegistry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` - same implementation as Base mainnet (`0x16e0fa7f7c56b9a767e34b192b51f921be31da34`); `getIdentityRegistry()` returns the registry above |
+| Fee | 100 bps (1%) |
+| Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` (same wallet as Arc testnet and Base) |
+| maxBountyAmount | `500000000` (500 USDC, atomic) - the unaudited-mainnet cap, same as Base |
+| Owner | deployer `0xde427f3967cc7a0BF7A9F891195760cCffC82edA`, `pendingOwner` = the Safe. The testnet deployer key, reused for mainnet by the owner's decision on 2026-09-16 over `PRE_MAINNET_RUNBOOK.md` §9 |
+| Arbitrator | deployer, `pendingArbitrator` = the Safe. **Not accepted yet**: app.safe.global does not list chain 5042, so `acceptOwner()` / `acceptArbitrator()` need owner signatures gathered outside the Safe web app. Until then one EOA rules disputes on this deployment, bounded by the 500 USDC cap |
+| AgenticCommerce admin (upgrade key) | the Safe, from `initialize` - `hasRole(DEFAULT_ADMIN_ROLE)` and `hasRole(ADMIN_ROLE)` are true for the Safe and false for the deployer (checked on-chain); `platformFeeBP` and `evaluatorFeeBP` are 0 |
+| Paused | deployed paused; opened with `setPaused(false)` at block `21153303`, tx `0x205abadb7f07737a7733b0dd13ef2c3ae7b0d0905c1ab10e0023c02209141e6e` |
+| Deployed | 2026-09-16, blocks `21153182` (impl), `21153186` (proxy), `21153190` (adapter); gas 2,127,457 + 258,609 + 5,222,849, plus 46,875 (`setPaused(true)`), 48,510 (`transferArbitrator`), 48,070 (`transferOwner`); 0.2575 USDC in total |
+| Deploy txs | impl `0xd3aa5dc40a4e8fdf8cfb956a05e60a67a1e187fe181598a38fd8f0ce47ac5763`, proxy `0x0394a838487ac19326ef659d249cf648cbf5d727cd7d0e81efd7f99aecbfc300`, adapter `0x89b0987ffa8a0b2632896dab69251d3f4d70343b65e99dc517e526d7376a1d45`, `setPaused(true)` `0x4e4ef1f841aa207e604c162346a90f83900ce0e4c8161e6f1ca98ddd7e66f9d4`, `transferArbitrator` `0xcadc96eefc631ae59bfa398ad388041aed929058cb5563cda5055cb9f8127e8c`, `transferOwner` `0x842f7588ee4a9be58973c39196a50586ce247485f741b22c7bf2a0f05bf5b6c2` |
+| `adapterDeployBlock` for the network maps | `21153190` (from the forge receipt) |
+| Source verification | not yet: explorer.arc.io is still behind a Circle sign-in; Sourcify lists chain 5042 |
+| Deploy script | `contracts/script/DeployArcMainnet.s.sol` - addresses keyed by chain id, live registry and Safe probes before broadcasting, post-deploy `require`s on every role above. Simulated against mainnet state right before the broadcast |
+
+**Rehearsals before the broadcast.** `contracts/test/DeployArcMainnetFork.t.sol`
+ran the script unmodified against a fork of Arc mainnet. The same script then
+ran live on Arc testnet (escrow proxy `0x1b906153151B46f045Fc074b1ccD4B2Ed53949Af`,
+adapter `0xD74984D965F2aBf532605Fe57F735C82a7A5c13E`, not a frontend target)
+followed by `scripts/agent-proof-of-life.ts`: a bond bounty (bond refunded at
+submit, 0.99 USDC paid on approval) and a plain one both settled, and
+`uniquePosterCount` moved to 1, so the self-deployed escrow works with Arc's
+native USDC and the ERC-8004 registries on a real Arc chain.
+
+**Funding.** The deployer received USDC on Base with no ETH there;
+`scripts/bridge-base-to-arc.ts` moved it through Relay on a single EIP-3009
+signature (19.73 USDC in, 19.666 out on Arc) and topped the keeper
+(`0xF64d7C56bfA9a28166E2e4a3f85Af13F979855c4`) and agent
+(`0x6543555570aDf7F38e536B028D9DB5973A266115`) wallets up to 1 USDC of gas each.
+Those two transfers took the deployer's nonces 0 and 1, which is why the
+contracts sit where they do.
+
+### Arbitrator Safe (Arc mainnet)
+
+| Field | Value |
+|---|---|
+| Address | `0x74678c072Ca546f11466CD44eB7e21730a312a54` - the same address as BaseBounty's Safe |
+| Version | SafeL2 v1.4.1 - singleton `0x29fcB43b46531BcA003ddC8FCB67FFE91900C762`, fallback handler `0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99` |
+| Owners | `0xed733FC13B1413966cf056866B6d80eF7b490eEc`, `0x403A027b6c217C5E08cE4497A55732056067FD2D`, `0xC6B48f603C439B4a6b55462AfCae10594D31242A` |
+| Threshold | 2 of 3 (confirmed on-chain via `getOwners()` / `getThreshold()`) |
+| Created | 2026-09-16, block `21153067`, tx `0x29e35e4798766b7c348a3e3a5f2ecfa4ab069219efcae3b946370381fa85b872`, 305,811 gas |
+| How | `scripts/safe-create-arc.ts` - the Base Safe's exact initializer and salt 0 through the canonical `SafeProxyFactory`, whose proxy creation code hashes identically on Arc and Base, so it lands on the same address; the script refuses to broadcast unless it predicts that address |
+
 ## Arc Testnet (chain id `5042002`)
 
 ### BountyAdapter (V4.7 - live, current frontend target)

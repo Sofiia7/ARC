@@ -283,7 +283,7 @@ function BountyList({
   if (isError && items.length === 0) return (
     <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-soft)" }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>⚡</div>
-      <p style={{ marginBottom: 8 }}>Couldn&apos;t load the board - the public Arc Testnet RPC is rate-limiting us.</p>
+      <p style={{ marginBottom: 8 }}>Couldn&apos;t load the board - the public RPC is rate-limiting us.</p>
       <p style={{ marginBottom: 16, fontSize: 13, color: "var(--ink-mute)" }}>
         The bounties are on-chain and fine; this is a read problem on our side.
       </p>

@@ -1,4 +1,4 @@
-import { isAddress, type Address } from "viem";
+import type { Address } from "viem";
 
 // ─── Networks ────────────────────────────────────────────────────────────────
 
@@ -64,20 +64,8 @@ export type NetworkConfig = {
 };
 
 /**
- * Statically known networks.
- *
- * Two mainnets are deliberately absent, for different reasons:
- *
- * - **Arc mainnet** - Circle has not published its parameters yet (chain id,
- *   RPC, contract addresses; source of truth:
- *   https://docs.arc.io/arc/references/contract-addresses). Use
- *   `resolveNetwork("arc-mainnet")`, which builds the config from
- *   `ARC_MAINNET_*` environment variables and fails with a descriptive error
- *   while they are missing.
- * - **Base mainnet (8453)** - every *external* address is already known and
- *   verified (see `docs/INTEGRATION_NOTES.md`), but our own `AgenticCommerce`
- *   escrow and `BountyAdapter` are not deployed there yet. It gets a static
- *   entry in the same commit as the deploy, with the real addresses.
+ * Statically known networks - all four, since Arc mainnet opened on
+ * 2026-09-16 (parameters: https://docs.arc.io/arc/references/rpc-endpoints).
  *
  * Never hardcode guessed values here - an entry exists only once every
  * address in it has been confirmed on-chain.
@@ -97,7 +85,8 @@ export const NETWORKS = {
     // ERC-20 at 0x3600…0000 at 6 (USDC_DECIMALS below). See docs.arc.io,
     // "EVM differences".
     nativeCurrency: { symbol: "USDC", decimals: 18, isUsdc: true },
-    brand: { name: "ArcBounty", domain: "arcbounty.app" },
+    // arcbounty.app itself serves Arc mainnet since 2026-09-16.
+    brand: { name: "ArcBounty", domain: "testnet.arcbounty.app" },
     contracts: {
       AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583",
       IDENTITY_REGISTRY:   "0x8004A818BFB912233c491871b3d84c89A494BD9e",
@@ -109,6 +98,39 @@ export const NETWORKS = {
     adapterDeployBlock: 60_965_136,
     testnet: true,
     blocksPerDay: 86_400,
+  },
+  "arc-mainnet": {
+    chainId: 5_042,
+    name: "Arc",
+    caip2: "eip155:5042",
+    // Blockdaemon, not Circle's own rpc.mainnet.arc.io, though docs.arc.io
+    // lists both: Circle's node refuses eth_getLogs over 10,000 blocks, the
+    // chunk every log scan here uses, while Blockdaemon's public endpoint
+    // serves 100,000 with CORS open (both checked 2026-09-16).
+    rpcUrl: "https://rpc.blockdaemon.mainnet.arc.io",
+    // Circle's explorer. At launch it still sits behind a Circle sign-in, so
+    // links reach a login page until Circle opens it to the public.
+    explorerUrl: "https://explorer.arc.io",
+    explorerApiUrl: "https://explorer.arc.io/api",
+    explorerName: "Arc Explorer",
+    nativeCurrency: { symbol: "USDC", decimals: 18, isUsdc: true },
+    brand: { name: "ArcBounty", domain: "arcbounty.app" },
+    contracts: {
+      // Our own copy of the escrow (contracts/src/base/), exactly as on Base:
+      // Arc mainnet has no canonical ERC-8183 instance. Its upgrade authority
+      // is the arbitrator Safe, never a deployer key.
+      AGENTIC_COMMERCE:    "0x64cA39Fc57315D0D488acCaC07c37C6E841CD058",
+      // The 8004 team's mainnet registries: the same addresses and the same
+      // implementations as on Base mainnet, verified on chain 5042 itself.
+      IDENTITY_REGISTRY:   "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+      REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
+      USDC:                "0x3600000000000000000000000000000000000000",
+    },
+    // V4.7, 2026-09-16 (contracts/script/DeployArcMainnet.s.sol).
+    defaultBountyAdapter: "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D",
+    adapterDeployBlock: 21_153_190,
+    testnet: false,
+    blocksPerDay: 170_000, // ≈0.51s blocks, averaged over 100,000 blocks on 2026-09-16
   },
   "base-sepolia": {
     chainId: 84_532,
@@ -168,20 +190,6 @@ export const NETWORKS = {
   },
 } as const satisfies Record<string, NetworkConfig>;
 
-const MAINNET_DOCS_URL = "https://docs.arc.io/arc/references/contract-addresses";
-
-/** Required env vars for arc-mainnet, in the order they are reported. */
-const MAINNET_REQUIRED_VARS = [
-  "ARC_MAINNET_CHAIN_ID",
-  "ARC_MAINNET_RPC_URL",
-  "ARC_MAINNET_EXPLORER_URL",
-  "ARC_MAINNET_EXPLORER_API_URL",
-  "ARC_MAINNET_AGENTIC_COMMERCE",
-  "ARC_MAINNET_IDENTITY_REGISTRY",
-  "ARC_MAINNET_REPUTATION_REGISTRY",
-  "ARC_MAINNET_USDC",
-] as const;
-
 type Env = Record<string, string | undefined>;
 
 function readEnv(env: Env, key: string): string | undefined {
@@ -189,43 +197,20 @@ function readEnv(env: Env, key: string): string | undefined {
   return value ? value : undefined;
 }
 
-function requireAddress(vars: [name: string, value: string][]): void {
-  const invalid = vars.filter(([, value]) => !isAddress(value));
-  if (invalid.length > 0) {
-    throw new Error(
-      `resolveNetwork("arc-mainnet"): invalid address in environment variable(s): ` +
-      invalid.map(([name, value]) => `${name}="${value}"`).join(", ") +
-      `. Expected 0x-prefixed 20-byte addresses as published at ${MAINNET_DOCS_URL}.`,
-    );
-  }
-}
-
-function parseIntStrict(name: string, value: string, min = 1): number {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < min) {
-    throw new Error(
-      `resolveNetwork("arc-mainnet"): ${name}="${value}" is not an integer >= ${min}.`,
-    );
-  }
-  return parsed;
-}
-
 /**
- * Resolve a network name into a concrete {@link NetworkConfig}.
+ * Resolve a network name into a concrete {@link NetworkConfig}: a copy of the
+ * static {@link NETWORKS} entry, with that network's own RPC override applied
+ * if set. Each network reads only its own variable, so a testnet RPC left in
+ * a long-lived `.env` never reaches a mainnet run:
  *
- * - `"arc-testnet"` → the static {@link NETWORKS} entry. `ARC_RPC_URL` (if
- *   set) overrides `rpcUrl`, matching pre-0.5 behavior.
- * - `"base-sepolia"` → the static {@link NETWORKS} entry. `BASE_SEPOLIA_RPC_URL`
- *   (if set) overrides `rpcUrl` - the public `sepolia.base.org` node is rate
- *   limited, so a dedicated RPC is expected in CI and e2e runs.
- * - `"base-mainnet"` → the static {@link NETWORKS} entry (BaseBounty, live
- *   since 2026-08-14). `BASE_MAINNET_RPC_URL` (if set) overrides `rpcUrl`;
- *   the public `mainnet.base.org` node is rate limited and also load-balanced,
- *   so reads issued immediately after a receipt can hit a lagging node.
- * - `"arc-mainnet"` → built entirely from `ARC_MAINNET_*` environment
- *   variables. Circle has not published Arc mainnet parameters yet; until
- *   every required variable is set this throws a single error listing all
- *   missing ones. Source of truth once published: ${MAINNET_DOCS_URL}.
+ * - `"arc-testnet"` → `ARC_RPC_URL`, matching pre-0.5 behavior.
+ * - `"arc-mainnet"` → `ARC_MAINNET_RPC_URL`. The default (Blockdaemon) serves
+ *   the 10,000-block log ranges the SDK scans; an override must too.
+ * - `"base-sepolia"` → `BASE_SEPOLIA_RPC_URL` - the public `sepolia.base.org`
+ *   node is rate limited, so a dedicated RPC is expected in CI and e2e runs.
+ * - `"base-mainnet"` → `BASE_MAINNET_RPC_URL`; the public `mainnet.base.org`
+ *   node is rate limited and also load-balanced, so reads issued immediately
+ *   after a receipt can hit a lagging node.
  *
  * @param env Environment map to read from (defaults to `process.env`) -
  *   injectable for tests and non-Node runtimes.
@@ -234,6 +219,7 @@ export function resolveNetwork(name: NetworkName, env: Env = process.env): Netwo
   // Statically known networks, with a per-network RPC override env var.
   const STATIC_RPC_OVERRIDE = {
     "arc-testnet":  "ARC_RPC_URL",
+    "arc-mainnet":  "ARC_MAINNET_RPC_URL",
     "base-sepolia": "BASE_SEPOLIA_RPC_URL",
     "base-mainnet": "BASE_MAINNET_RPC_URL",
   } as const;
@@ -250,66 +236,9 @@ export function resolveNetwork(name: NetworkName, env: Env = process.env): Netwo
     };
   }
 
-  if (name === "arc-mainnet") {
-    const missing = MAINNET_REQUIRED_VARS.filter(key => readEnv(env, key) === undefined);
-    if (missing.length > 0) {
-      throw new Error(
-        `resolveNetwork("arc-mainnet"): Arc mainnet is not configured - missing environment ` +
-        `variable(s): ${missing.join(", ")}. Circle publishes the official chain parameters and ` +
-        `contract addresses at ${MAINNET_DOCS_URL} (source of truth) - never guess them. ` +
-        `Set the variables once published, or use network "arc-testnet" until then.`,
-      );
-    }
-
-    const chainId = parseIntStrict("ARC_MAINNET_CHAIN_ID", readEnv(env, "ARC_MAINNET_CHAIN_ID")!);
-    const agenticCommerce    = readEnv(env, "ARC_MAINNET_AGENTIC_COMMERCE")!;
-    const identityRegistry   = readEnv(env, "ARC_MAINNET_IDENTITY_REGISTRY")!;
-    const reputationRegistry = readEnv(env, "ARC_MAINNET_REPUTATION_REGISTRY")!;
-    const usdc               = readEnv(env, "ARC_MAINNET_USDC")!;
-    const bountyAdapter      = readEnv(env, "ARC_MAINNET_BOUNTY_ADAPTER");
-
-    requireAddress([
-      ["ARC_MAINNET_AGENTIC_COMMERCE",    agenticCommerce],
-      ["ARC_MAINNET_IDENTITY_REGISTRY",   identityRegistry],
-      ["ARC_MAINNET_REPUTATION_REGISTRY", reputationRegistry],
-      ["ARC_MAINNET_USDC",                usdc],
-      ...(bountyAdapter ? [["ARC_MAINNET_BOUNTY_ADAPTER", bountyAdapter] as [string, string]] : []),
-    ]);
-
-    const deployBlockRaw   = readEnv(env, "ARC_MAINNET_ADAPTER_DEPLOY_BLOCK");
-    const blocksPerDayRaw  = readEnv(env, "ARC_MAINNET_BLOCKS_PER_DAY");
-
-    return {
-      chainId,
-      name: "Arc",
-      caip2: `eip155:${chainId}`,
-      rpcUrl:         readEnv(env, "ARC_MAINNET_RPC_URL")!,
-      explorerUrl:    readEnv(env, "ARC_MAINNET_EXPLORER_URL")!,
-      explorerApiUrl: readEnv(env, "ARC_MAINNET_EXPLORER_API_URL")!,
-      explorerName: "ArcScan",
-      // USDC-as-native-gas is a property of Arc itself, not of its testnet.
-      nativeCurrency: { symbol: "USDC", decimals: 18, isUsdc: true },
-      brand: { name: "ArcBounty", domain: "arcbounty.app" },
-      contracts: {
-        AGENTIC_COMMERCE:    agenticCommerce as Address,
-        IDENTITY_REGISTRY:   identityRegistry as Address,
-        REPUTATION_REGISTRY: reputationRegistry as Address,
-        USDC:                usdc as Address,
-      },
-      ...(bountyAdapter ? { defaultBountyAdapter: bountyAdapter as Address } : {}),
-      ...(deployBlockRaw !== undefined
-        ? { adapterDeployBlock: parseIntStrict("ARC_MAINNET_ADAPTER_DEPLOY_BLOCK", deployBlockRaw, 0) }
-        : {}),
-      testnet: false,
-      blocksPerDay: blocksPerDayRaw !== undefined
-        ? parseIntStrict("ARC_MAINNET_BLOCKS_PER_DAY", blocksPerDayRaw)
-        : NETWORKS["arc-testnet"].blocksPerDay,
-    };
-  }
-
   throw new Error(
     `resolveNetwork: unknown network "${name as string}" ` +
-    `(expected "arc-testnet", "arc-mainnet" or "base-sepolia")`,
+    `(expected "arc-testnet", "arc-mainnet", "base-sepolia" or "base-mainnet")`,
   );
 }
 

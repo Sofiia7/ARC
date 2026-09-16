@@ -74,22 +74,28 @@ const ZERO_HASH = `0x${"0".repeat(64)}`;
  */
 const PASS_MESSAGE = "Verified on-chain. Nice work.";
 
+// The build's own domain: this route checks the chain its build targets, so
+// it must send people to that build - testnet.arcbounty.app for the testnet
+// quest, arcbounty.app for mainnet.
+const SITE = network.brand.domain;
+
 const NOT_YET: Record<Task, string> = {
   took_bounty:
-    "This wallet has not taken a bounty yet. Pick an open one at arcbounty.app, take it, then claim again.",
+    `This wallet has not taken a bounty yet. Pick an open one at ${SITE}, take it, then claim again.`,
   submitted_work:
-    "No submitted work found for this wallet. Take a bounty at arcbounty.app, submit your result, then claim again.",
+    `No submitted work found for this wallet. Take a bounty at ${SITE}, submit your result, then claim again.`,
   submitted_for_other:
-    "No submitted work found on a bounty posted by someone else. Bounties you posted yourself do not count - take one from another poster at arcbounty.app, submit your result, then claim again.",
+    `No submitted work found on a bounty posted by someone else. Bounties you posted yourself do not count - take one from another poster at ${SITE}, submit your result, then claim again.`,
   completed_bounty:
     "No bounty of yours has been approved and paid out yet. This one waits on the poster, so claim again once the payout lands.",
-  posted_bounty:
-    "No bounty posted from this wallet yet. Get free testnet USDC from Circle's faucet (pick Arc Testnet), post one at arcbounty.app/post, then claim again.",
+  posted_bounty: network.testnet
+    ? `No bounty posted from this wallet yet. Get free testnet USDC from Circle's faucet (pick ${network.name}), post one at ${SITE}/post, then claim again.`
+    : `No bounty posted from this wallet yet. Post one at ${SITE}/post, then claim again.`,
 };
 
 function notYetMessage(task: string | undefined): string {
   if (task && task in NOT_YET) return NOT_YET[task as Task];
-  return "No ArcBounty activity found for this wallet yet. Post or take a bounty at arcbounty.app, then claim again.";
+  return `No ${network.brand.name} activity found for this wallet yet. Post or take a bounty at ${SITE}, then claim again.`;
 }
 
 function corsHeaders(): Record<string, string> {

@@ -56,24 +56,9 @@ function activeNetworkOrigins() {
   }
 
   if (network === "arc-mainnet") {
-    const rpcUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_RPC_URL");
-    const explorerUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_EXPLORER_URL");
-    const explorerApiUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_EXPLORER_API_URL");
-    const missing = [
-      ["NEXT_PUBLIC_ARC_MAINNET_RPC_URL", rpcUrl],
-      ["NEXT_PUBLIC_ARC_MAINNET_EXPLORER_URL", explorerUrl],
-      ["NEXT_PUBLIC_ARC_MAINNET_EXPLORER_API_URL", explorerApiUrl],
-    ].filter(([, v]) => v === undefined).map(([name]) => name);
-    if (missing.length > 0) {
-      throw new Error(
-        `[arcbounty] next.config.mjs: NEXT_PUBLIC_ARC_NETWORK=arc-mainnet but missing ${missing.join(", ")}. ` +
-        "Arc mainnet parameters are published by Circle at https://docs.arc.io/arc/references/contract-addresses " +
-        "- see lib/networks.ts.",
-      );
-    }
-    // explorerApiUrl is same-origin as explorerUrl in practice, but derive it
-    // separately rather than assume that stays true.
-    return { rpc: originOf(rpcUrl), explorer: originOf(explorerUrl), explorerApi: originOf(explorerApiUrl) };
+    const rpcUrl = readEnv("NEXT_PUBLIC_ARC_MAINNET_RPC_URL") ?? "https://rpc.blockdaemon.mainnet.arc.io";
+    // Circle's explorer serves its own API on the same host, as ArcScan does.
+    return { rpc: originOf(rpcUrl), explorer: originOf("https://explorer.arc.io") };
   }
 
   throw new Error(`[arcbounty] next.config.mjs: NEXT_PUBLIC_ARC_NETWORK="${network}" is not a valid network.`);

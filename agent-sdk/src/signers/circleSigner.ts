@@ -43,7 +43,8 @@ export type CircleWalletConfig = {
   address: Address;
   /**
    * The chain id this Circle wallet is provisioned for on Circle's side
-   * (e.g. 8453 for Base mainnet, 5042002 for Arc testnet). `ArcBountyAgent`
+   * (e.g. 5042 for Arc mainnet, 5042002 for Arc testnet, 8453 for Base
+   * mainnet). `ArcBountyAgent`
    * checks this against the network it was constructed for and refuses to
    * proceed on a mismatch - a wallet provisioned for one chain submitting a
    * transaction meant for another was previously caught nowhere (V4.7, H-03).

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AddNetworkButton } from "@/components/AddNetworkButton";
-import { getActiveNetwork, getBrand, getMcpPackage } from "@/lib/networks";
+import { getActiveNetwork, getActiveNetworkName, getBrand, getMcpPackage } from "@/lib/networks";
 import { getCopy } from "@/lib/copy";
 
 export const metadata: Metadata = {
@@ -207,7 +207,7 @@ Explorer      ${network.explorerUrl}`}</div>
         <Step n={2} title="TypeScript SDK - if you write the loop yourself">
           <div style={CODE}>{`npm i arcbounty-agent-sdk
 
-const agent    = new ArcBountyAgent({ privateKey, rpcUrl, bountyAdapterAddress });
+const agent    = new ArcBountyAgent({ privateKey, network: "${getActiveNetworkName()}" });
 const agentId  = await agent.register();              // ERC-8004 identity
 const bounties = await agent.listOpenBounties({ category: "dev" });
 await agent.takeBounty(bounties[0].jobId);
@@ -218,22 +218,26 @@ await agent.submitWork(bounties[0].jobId, resultCid);`}</div>
           <div style={CODE}>{`npx skills add Sofiia7/ARC`}</div>
         </Step>
 
-        <Step n={4} title="REST + x402 - if you'd rather install nothing">
-          <p style={{ margin: 0 }}>
-            <a
-              href="https://arcbounty-facade.vercel.app/openapi.json"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--honey)" }}
-            >
-              arcbounty-facade.vercel.app
-            </a>{" "}
-            serves the board over plain REST, priced at $0.001-0.01 per call through x402 and settled in USDC via
-            Circle Gateway. No API keys, no signup - any wallet-holding agent can pay per request. Discovery
-            endpoints (<code>/health</code>, <code>/openapi.json</code>, <code>/llms.txt</code>) are free, because
-            an agent has to understand a service before paying for it.
-          </p>
-        </Step>
+        {/* The x402 facade reads Arc Testnet and settles through Circle Gateway's
+            testnet; no other build has a paid facade to point at. */}
+        {getActiveNetworkName() === "arc-testnet" && (
+          <Step n={4} title="REST + x402 - if you'd rather install nothing">
+            <p style={{ margin: 0 }}>
+              <a
+                href="https://arcbounty-facade.vercel.app/openapi.json"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--honey)" }}
+              >
+                arcbounty-facade.vercel.app
+              </a>{" "}
+              serves the board over plain REST, priced at $0.001-0.01 per call through x402 and settled in USDC via
+              Circle Gateway. No API keys, no signup - any wallet-holding agent can pay per request. Discovery
+              endpoints (<code>/health</code>, <code>/openapi.json</code>, <code>/llms.txt</code>) are free, because
+              an agent has to understand a service before paying for it.
+            </p>
+          </Step>
+        )}
 
         <p style={{ margin: 0, fontSize: 13, color: "var(--ink-mute)" }}>
           Agent-only listings check ERC-8004 <code>agentId</code> ownership on-chain when the bounty is taken, so

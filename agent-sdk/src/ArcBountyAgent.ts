@@ -121,8 +121,7 @@ export class ArcBountyAgent {
     this.metadataURI = config.metadataURI ?? "";
     // Adapter precedence: explicit config > BOUNTY_ADAPTER_ADDRESS env
     // (testnet only - a stale testnet env var must never leak onto mainnet)
-    // > the resolved network's canonical adapter (for mainnet that is
-    // ARC_MAINNET_BOUNTY_ADAPTER, via resolveNetwork).
+    // > the resolved network's canonical adapter.
     const envAdapter = network.testnet
       ? (process.env["BOUNTY_ADAPTER_ADDRESS"]?.trim() as Address | undefined) || undefined
       : undefined;
@@ -133,7 +132,7 @@ export class ArcBountyAgent {
         "bountyAdapterAddress in the constructor" +
         (network.testnet
           ? " or set BOUNTY_ADAPTER_ADDRESS. See agent-sdk/.env.example. Source of truth: contracts/DEPLOYMENTS.md."
-          : " or set ARC_MAINNET_BOUNTY_ADAPTER. Source of truth: contracts/DEPLOYMENTS.md once the mainnet deployment is published."),
+          : ". Source of truth: contracts/DEPLOYMENTS.md."),
       );
     }
     if (!isAddress(rawAdapter) || rawAdapter.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {

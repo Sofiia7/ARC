@@ -94,7 +94,7 @@ export default function OpengraphImage() {
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 24, color: "#f0b429" }}>arcbounty.app</div>
+          <div style={{ fontSize: 24, color: "#f0b429" }}>{getBrand().domain}</div>
         </div>
       </div>
     ),
