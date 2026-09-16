@@ -26,10 +26,8 @@ const TAG = `[${pkg.name}]`;
 //                               product under its own name, BaseBounty
 //                               (basebounty.app) - one package, one instance
 //                               per chain, brand read from the network.
-//                               arc-mainnet additionally requires the SDK's
-//                               ARC_MAINNET_* variables (see .env.example) -
-//                               resolveNetwork() throws a descriptive error
-//                               listing anything missing.
+//                               All four are configured inside the SDK;
+//                               arc-mainnet and base-mainnet move real USDC.
 //   AGENT_PRIVATE_KEY        - raw EOA private key, OR:
 //   CIRCLE_API_KEY / ENTITY_SECRET / CIRCLE_WALLET_ID / CIRCLE_WALLET_ADDRESS
 //                             - Circle developer-controlled wallet (no key
@@ -52,7 +50,10 @@ const TAG = `[${pkg.name}]`;
 //                               through this URL instead of ARC_MAINNET_RPC_URL).
 //                               The SDK's own BASE_MAINNET_RPC_URL /
 //                               BASE_SEPOLIA_RPC_URL do the same for the Base
-//                               entries; ARC_RPC_URL wins over both.
+//                               entries; ARC_RPC_URL wins over both. Because
+//                               it applies to any network, the server checks
+//                               the node's eth_chainId at startup and refuses
+//                               to run against a node on another chain.
 
 const KNOWN_NETWORKS = [
   "arc-testnet",
@@ -157,10 +158,8 @@ let agent: ArcBountyAgent | null;
 try {
   agent = buildAgent();
 } catch (err) {
-  // Thrown by the SDK constructor itself - most commonly resolveNetwork()
-  // rejecting ARC_NETWORK=arc-mainnet because the ARC_MAINNET_* variables
-  // aren't set yet (Circle hasn't published mainnet parameters). The SDK's
-  // error message already lists exactly what's missing.
+  // Thrown by the SDK constructor itself, e.g. a Circle wallet configured for
+  // another chain. The SDK's error message already says what is wrong.
   console.error(`${TAG} ${err instanceof Error ? err.message : String(err)}`);
   agent = null;
 }
@@ -184,7 +183,48 @@ const net = agent.network;
 const BRAND = net.brand.name;
 const server = createMcpServer({ agent, hasSigner, version: pkg.version });
 
+/**
+ * ARC_RPC_URL overrides the RPC for whatever ARC_NETWORK selects, and
+ * .env.example long shipped it set to the Arc testnet node. With
+ * ARC_NETWORK=arc-mainnet that pairing reads the testnet chain under the
+ * mainnet adapter's address - an empty board - and every signed write fails on
+ * the chain id. Ask the node which chain it is before serving anything. A node
+ * that does not answer is only a warning: the SDK retries, and the read tools
+ * surface a real error on first use.
+ */
+async function checkRpcChain(): Promise<void> {
+  const url = process.env["ARC_RPC_URL"]?.trim();
+  if (!url) return;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = (await res.json()) as { result?: string };
+    const chainId = body.result ? Number(BigInt(body.result)) : NaN;
+    if (Number.isNaN(chainId)) {
+      console.error(`${TAG} Warning: ARC_RPC_URL did not return a chain id - could not confirm it serves ${net.name}.`);
+      return;
+    }
+    if (chainId !== net.chainId) {
+      console.error(
+        `${TAG} ARC_RPC_URL points at chain ${chainId}, but ARC_NETWORK=${process.env["ARC_NETWORK"] ?? "arc-testnet"} ` +
+        `is ${net.name} (chain ${net.chainId}). Fix or unset ARC_RPC_URL - each network already has a default RPC. ` +
+        "Server will not start.",
+      );
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error(
+      `${TAG} Warning: could not reach ARC_RPC_URL to confirm its chain (${err instanceof Error ? err.message : String(err)}).`,
+    );
+  }
+}
+
 async function main() {
+  await checkRpcChain();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // console.error, never console.log - stdout is the JSON-RPC transport

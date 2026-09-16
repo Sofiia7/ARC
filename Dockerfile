@@ -30,15 +30,8 @@ ENV ARC_NETWORK=arc-testnet
 #   -e ARC_NETWORK=base-mainnet
 # (also base-sepolia for its staging deployment).
 #
-# To target Arc Mainnet, override at `docker run` time:
-#   -e ARC_NETWORK=arc-mainnet \
-#   -e ARC_MAINNET_CHAIN_ID=... -e ARC_MAINNET_RPC_URL=... \
-#   -e ARC_MAINNET_EXPLORER_URL=... -e ARC_MAINNET_EXPLORER_API_URL=... \
-#   -e ARC_MAINNET_AGENTIC_COMMERCE=... -e ARC_MAINNET_IDENTITY_REGISTRY=... \
-#   -e ARC_MAINNET_REPUTATION_REGISTRY=... -e ARC_MAINNET_USDC=...
-# Circle has not published these values yet (see agent-sdk/.env.example) -
-# the server fails fast with a clear error if ARC_NETWORK=arc-mainnet is set
-# without them.
+# Arc mainnet works the same way, one variable:
+#   -e ARC_NETWORK=arc-mainnet
 COPY mcp-server/package.json mcp-server/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist

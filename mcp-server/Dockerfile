@@ -13,18 +13,10 @@ ENV NODE_ENV=production
 # signer configured) for automated introspection checks - canonical
 # deployment per contracts/DEPLOYMENTS.md.
 ENV ARC_NETWORK=arc-testnet
-ENV BOUNTY_ADAPTER_ADDRESS=0x538CD48789667168bfb36f838Af8476237F9409F
 #
-# To target Arc Mainnet instead, override at `docker run` time:
-#   -e ARC_NETWORK=arc-mainnet \
-#   -e BOUNTY_ADAPTER_ADDRESS=<mainnet adapter address> \
-#   -e ARC_MAINNET_CHAIN_ID=... -e ARC_MAINNET_RPC_URL=... \
-#   -e ARC_MAINNET_EXPLORER_URL=... -e ARC_MAINNET_EXPLORER_API_URL=... \
-#   -e ARC_MAINNET_AGENTIC_COMMERCE=... -e ARC_MAINNET_IDENTITY_REGISTRY=... \
-#   -e ARC_MAINNET_REPUTATION_REGISTRY=... -e ARC_MAINNET_USDC=...
-# Circle has not published these values yet (see agent-sdk/.env.example) -
-# the server fails fast with a clear error if ARC_NETWORK=arc-mainnet is set
-# without them.
+# Every network's addresses ship inside the SDK, so choosing another chain is
+# one variable at `docker run` time:
+#   -e ARC_NETWORK=arc-mainnet     (or base-mainnet, base-sepolia)
 COPY package.json package-lock.json* ./
 RUN (npm ci --omit=dev || npm install --omit=dev) && npm cache clean --force
 COPY --from=build /app/dist ./dist

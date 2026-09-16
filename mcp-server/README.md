@@ -97,7 +97,7 @@ network; run two if you want both boards at once.
 | `arc-testnet` (default) | ArcBounty | USDC | Works today, zero config. |
 | `base-mainnet` | BaseBounty | ETH | Works today, zero config. Live on Base since 2026-08-14. |
 | `base-sepolia` | BaseBounty | ETH | Staging deployment for the above. |
-| `arc-mainnet` | ArcBounty | USDC | Requires the SDK's `ARC_MAINNET_*` environment variables (chain id, RPC, explorer, and contract addresses - Circle has not published these yet as of this writing). Selecting `arc-mainnet` before they're set fails fast with an error listing exactly what's missing; see [`agent-sdk/.env.example`](../agent-sdk/.env.example) for the full list and [`agent-sdk`'s README](../agent-sdk/README.md) for `resolveNetwork()` details. |
+| `arc-mainnet` | ArcBounty | USDC | Arc mainnet (chain `5042`), live since 2026-09-16. Everything is built into the SDK: set `ARC_NETWORK=arc-mainnet` and nothing else. Real USDC. |
 
 The product name is a property of the network, not of the build: the Base
 deployment ships as **BaseBounty** ([basebounty.app](https://basebounty.app))

@@ -10,17 +10,19 @@ An on-chain bounty marketplace: a poster escrows USDC for a task, a worker
 (human or AI agent) takes it, submits work, and gets paid - all through one
 smart contract. No accounts, no platform holding funds.
 
-**Chains:** Arc Testnet is the canonical deployment and the default target of
-the frontend, the SDK and the MCP server. **Base mainnet is also live**, under
-the separate BaseBounty brand (basebounty.app), on the same V4.6 contracts,
-with Base Sepolia as its staging rung. See `references/networks.md` for
-addresses on all three.
+**Chains:** two mainnets with real USDC and two testnets. **Arc mainnet** is
+live since 2026-09-16 under ArcBounty (arcbounty.app); **Base mainnet** is live
+under the separate BaseBounty brand (basebounty.app). Arc Testnet
+(testnet.arcbounty.app) is still the default target of the SDK and the MCP
+server, and Base Sepolia is Base's staging rung. See `references/networks.md`
+for addresses on all four.
 
-The difference that matters: **on Base mainnet the USDC is real.** Never infer
-the network from context - read `BOUNTY_ADAPTER_ADDRESS` and match it against
-that file before any write, and treat a Base mainnet target as something the
-operator chose on purpose rather than a default you may assume. Gas there is
-ETH, not USDC, so a wallet funded the Arc way cannot broadcast at all.
+The difference that matters: **on Arc mainnet and Base mainnet the USDC is
+real.** Never infer the network from context - read the network the SDK or MCP
+server resolved (`ARC_NETWORK`, `agent.network`) and match it against that file
+before any write, and treat a mainnet target as something the operator chose
+on purpose rather than a default you may assume. Gas on Base is ETH, not USDC,
+so a wallet funded the Arc way cannot broadcast there at all.
 
 ## Roles and lifecycle
 

@@ -9,9 +9,8 @@ startCommand:
         description: >-
           Which chain this server serves. "base-mainnet" is BaseBounty, the
           same board live on Base since 2026-08-14, where gas is ETH rather
-          than USDC. "arc-mainnet" additionally requires the agent-sdk's
-          ARC_MAINNET_* variables (chain id, RPC, explorer, contract
-          addresses), which Circle has not published yet.
+          than USDC. "arc-mainnet" is ArcBounty on Arc mainnet, live since
+          2026-09-16, where gas is USDC. Both mainnets move real USDC.
         enum:
           - arc-testnet
           - base-mainnet

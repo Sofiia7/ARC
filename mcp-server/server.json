@@ -7,18 +7,18 @@
     "url": "https://github.com/Sofiia7/ARC",
     "source": "github"
   },
-  "version": "0.3.10",
+  "version": "0.5.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "arcbounty-mcp",
-      "version": "0.3.10",
+      "version": "0.5.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
-          "description": "Which chain this instance serves: \"arc-testnet\" (default), \"base-mainnet\", \"base-sepolia\" or \"arc-mainnet\". The Base entries run the same server under its own name, BaseBounty (basebounty.app), with every address baked in. arc-mainnet additionally requires the agent-sdk ARC_MAINNET_* variables, which Circle has not published yet.",
+          "description": "Which chain this instance serves: \"arc-testnet\" (default), \"base-mainnet\", \"base-sepolia\" or \"arc-mainnet\". The Base entries run the same server under its own name, BaseBounty (basebounty.app), with every address baked in. \"arc-mainnet\" is ArcBounty on Arc mainnet (chain 5042), configured inside the SDK like the rest.",
           "isRequired": false,
           "format": "string",
           "isSecret": false,

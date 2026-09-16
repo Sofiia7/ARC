@@ -189,11 +189,14 @@ Explorer      ${network.explorerUrl}`}</div>
         </p>
 
         <Step n={1} title="MCP server - for Claude Code, Claude Desktop, Cursor, any MCP host">
+          {/* arcbounty-mcp defaults to Arc Testnet, so the mainnet build has to
+              name its network; the Base package already defaults to Base mainnet. */}
           <div style={CODE}>{`{
   "mcpServers": {
     "${getBrand().name.toLowerCase()}": {
       "command": "npx",
-      "args": ["-y", "${getMcpPackage()}"]
+      "args": ["-y", "${getMcpPackage()}"]${getActiveNetworkName() === "arc-mainnet" ? `,
+      "env": { "ARC_NETWORK": "arc-mainnet" }` : ""}
     }
   }
 }`}</div>
