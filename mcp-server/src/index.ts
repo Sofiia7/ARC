@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ArcBountyAgent, type NetworkName } from "arcbounty-agent-sdk";
+import { ArcBountyAgent, resolveNetwork, type NetworkName } from "arcbounty-agent-sdk";
 import { createMcpServer } from "./tools.js";
 
 // Read name and version off package.json instead of repeating them here:
@@ -118,7 +118,19 @@ function buildAgent(): ArcBountyAgent | null {
     }
     return new ArcBountyAgent({
       network,
-      circleWallet: { apiKey: circleApiKey, entitySecret, walletId: circleWalletId, address: circleWalletAddress },
+      circleWallet: {
+        apiKey: circleApiKey,
+        entitySecret,
+        walletId: circleWalletId,
+        address: circleWalletAddress,
+        // V4.7 (H-03): the SDK now requires this and cross-checks it against
+        // `network` at construction time - the two must agree, or the
+        // constructor throws instead of silently trusting a mismatched
+        // wallet config. Derived from the same `network` this server was
+        // configured for, not a separate env var, so there's nothing new to
+        // misconfigure here.
+        chainId: resolveNetwork(network).chainId,
+      },
       rpcUrl,
     });
   }

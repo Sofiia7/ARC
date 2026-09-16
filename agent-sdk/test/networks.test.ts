@@ -48,8 +48,8 @@ describe("resolveNetwork - arc-testnet", () => {
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x3600000000000000000000000000000000000000",
     });
-    expect(net.defaultBountyAdapter).toBe("0x538CD48789667168bfb36f838Af8476237F9409F");
-    expect(net.adapterDeployBlock).toBe(50_610_373);
+    expect(net.defaultBountyAdapter).toBe("0xeDf2c738915b042da97788b2b5499D4655FB1f20");
+    expect(net.adapterDeployBlock).toBe(60_965_136);
     expect(net.testnet).toBe(true);
     expect(net.blocksPerDay).toBe(86_400);
   });
@@ -299,7 +299,7 @@ describe("ArcBountyAgent constructor - network wiring", () => {
     expect(agent.network.chainId).toBe(5_042_002);
     expect(clientOf(agent).chain.id).toBe(5_042_002);
     expect((agent as unknown as { bountyAdapter: string }).bountyAdapter)
-      .toBe("0x538CD48789667168bfb36f838Af8476237F9409F");
+      .toBe("0xeDf2c738915b042da97788b2b5499D4655FB1f20");
   });
 
   it("keeps the testnet chain id when only rpcUrl is overridden", () => {

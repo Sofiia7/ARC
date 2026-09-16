@@ -131,27 +131,31 @@ contract MockAgenticCommerce {
         usdc.transfer(j.poster, j.budget); // refund client
     }
 
-    function refund(uint256 jobId, bytes calldata) external {
+    /// @dev Mirrors the real AC's permissionless claimRefund(uint256): anyone
+    ///      may call this once the job's deadline has passed, for a job that's
+    ///      Funded or Submitted (i.e. even if work was already submitted).
+    function claimRefund(uint256 jobId) external {
         Job storage j = jobs[jobId];
-        require(j.status == S.REJECTED, "wrong status");
-        // no-op (already refunded on reject)
-        jobId;
-    }
-
-    function expire(uint256 jobId, bytes calldata) external {
-        Job storage j = jobs[jobId];
+        require(j.status == S.FUNDED || j.status == S.SUBMITTED, "wrong status");
+        require(block.timestamp >= j.deadline, "wrong status");
         j.status = S.EXPIRED;
+        if (j.budget > 0) {
+            usdc.transfer(j.poster, j.budget); // refund goes to the client (the adapter)
+        }
     }
 
     function getJob(uint256 jobId) external view returns (IAgenticCommerce.Job memory) {
         Job storage j = jobs[jobId];
         return IAgenticCommerce.Job({
-            poster: j.poster,
+            id: jobId,
+            client: j.poster,
             provider: j.provider,
             evaluator: j.evaluator,
-            deadline: j.deadline,
+            description: "",
+            budget: j.budget,
+            expiredAt: j.deadline,
             status: IAgenticCommerce.JobStatus(uint8(j.status)),
-            deliverable: j.deliverable
+            hook: address(0)
         });
     }
 }
@@ -183,7 +187,7 @@ contract MockIdentityRegistry {
 contract MockReputationRegistry {
     struct FeedbackCall {
         uint256 agentId;
-        uint256 score;
+        int256 score; // V4.7: signed — _maybePenalize now writes negative values.
         bytes32 feedbackHash;
     }
     FeedbackCall[] public feedbackCalls;
@@ -198,9 +202,8 @@ contract MockReputationRegistry {
         string calldata,
         bytes32 h
     ) external {
-        // casting is safe: BountyAdapter only ever passes a uint8 score/penalty (0-255).
-        // forge-lint: disable-next-line(unsafe-typecast)
-        feedbackCalls.push(FeedbackCall(a, uint256(uint128(value)), h));
+        // Widening, sign-preserving cast — int128 always fits in int256.
+        feedbackCalls.push(FeedbackCall(a, int256(value), h));
     }
 
     function getSummary(uint256, address[] calldata clients, string calldata, string calldata)
@@ -477,7 +480,7 @@ contract BountyAdapterTest is Test {
         vm.prank(poster);
         adapter.approveBounty(jobId, 95);
         assertEq(reputation.getFeedbackCount(), 1);
-        (uint256 a, uint256 s,) = reputation.feedbackCalls(0);
+        (uint256 a, int256 s,) = reputation.feedbackCalls(0);
         assertEq(a, agentId);
         assertEq(s, 95);
     }
@@ -1098,7 +1101,7 @@ contract BountyAdapterTest is Test {
         vm.warp(block.timestamp + 14 days + 1);
         adapter.autoApprove(jobId);
         assertEq(reputation.getFeedbackCount(), 1);
-        (uint256 a, uint256 s,) = reputation.feedbackCalls(0);
+        (uint256 a, int256 s,) = reputation.feedbackCalls(0);
         assertEq(a, agentId);
         assertEq(s, 80);
     }

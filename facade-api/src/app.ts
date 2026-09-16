@@ -266,7 +266,12 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
         return res.status(400).json({ error: `this facade instance supports chain=${config.network} only` });
       }
       const limit = Math.min(Number(q["limit"] ?? 50) || 50, 100);
-      const offset = Math.max(Number(q["offset"] ?? 0) || 0, 0);
+      // M-12: upper-bounded too, not just floored at 0. listCache keys on
+      // `${category}:${offset}:${limit}` (see bounties.ts) with no eviction
+      // of its own before this fix - an unbounded offset let a caller mint
+      // unboundedly many distinct cache keys. 100,000 is far past anything
+      // totalBounties() could plausibly reach for this board.
+      const offset = Math.min(Math.max(Number(q["offset"] ?? 0) || 0, 0), 100_000);
 
       const { value, stale } = await reader.listOpen({
         category: typeof q["category"] === "string" ? q["category"] : undefined,
@@ -328,14 +333,22 @@ export function buildApp(config: FacadeConfig = loadConfig()) {
     }
   });
 
-  app.post("/v1/bounties/prepare", gate.paid(PRICES.prepareBounty), (req, res) => {
-    const parsed = prepareBountySchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "validation failed", issues: parsed.error.issues });
+  app.post("/v1/bounties/prepare", gate.paid(PRICES.prepareBounty), async (req, res, next) => {
+    try {
+      const parsed = prepareBountySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "validation failed", issues: parsed.error.issues });
+      }
+      // M-10: now async - it reads the deployment's live maxBountyAmount
+      // on-chain rather than trusting a hardcoded ceiling. An RPC failure
+      // here falls through to the same catch below as every other route's
+      // chain read, surfacing as the usual 503 rather than a false pass.
+      const semanticError = await validatePrepare(parsed.data, config, reader);
+      if (semanticError) return res.status(400).json({ error: semanticError });
+      res.json(buildPrepareResponse(parsed.data, config));
+    } catch (err) {
+      next(err);
     }
-    const semanticError = validatePrepare(parsed.data, config);
-    if (semanticError) return res.status(400).json({ error: semanticError });
-    res.json(buildPrepareResponse(parsed.data, config));
   });
 
   // ─── Errors ────────────────────────────────────────────────────────────────

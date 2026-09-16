@@ -6,7 +6,45 @@ overwritten or out of date.
 
 ## Arc Testnet (chain id `5042002`)
 
-### BountyAdapter (V4.4 - live, current frontend target)
+### BountyAdapter (V4.7 - live, current frontend target)
+
+| Field | Value |
+|---|---|
+| Address | `0xeDf2c738915b042da97788b2b5499D4655FB1f20` |
+| RPC | `https://rpc.testnet.arc.network` |
+| Source | `src/BountyAdapter.sol` (at V4.7) |
+| Features | V4.6 (pull-payment `_payOrPark` fallback) plus the 2026-09-07 internal audit fixes: `takeBounty` now reverts on a `resolved` job (C-01 - a cancelled bounty could otherwise be taken again, funding AC from whatever other bounty's deposit was currently pooled in the adapter); AC jobs are created with `expiredAt = deadline + AC_EXPIRY_BUFFER` (90 days) instead of the bounty's own deadline, plus a new permissionless `reconcileExpiredEscrow(jobId)` safety net (C-02 - AC's own permissionless `claimRefund` could previously fire while the adapter's dispute/approval windows were still legitimately open, up to ~46 days past the bounty deadline, permanently desyncing the two contracts); `_maybePenalize` now writes reputation penalties as negative values (M-01 - a positive-100 penalty was previously indistinguishable from a perfect score in the unfiltered `getSummary` average); new owner-only `paused`/`setPaused(bool)` circuit breaker blocking only `createBounty`/`takeBounty`, every exit path stays open (M-08 - `maxBountyAmount` alone was never a real pause); `IAgenticCommerce` realigned to match the real `AgenticCommerce` contract exactly (M-07 - the previous interface had a fictional `ASSIGNED` status and `refund()`/`expire()` functions that don't exist on-chain; dead surface before this version, but `reconcileExpiredEscrow` is the first real caller of `getJob`/`claimRefund` and needed it correct). Full detail in the V4.7 changelog comment at the top of `src/BountyAdapter.sol`. |
+| Deploy script | `contracts/script/Deploy.s.sol` - hardened same pass (M-09): `EXPECTED_CHAIN_ID` guard (Arc mainnet's id isn't published yet, so this can't be a hardcoded constant the way Base's script uses one), USDC `code.length`/`symbol()`/`decimals()` check, AC-to-USDC wiring check (`AgenticCommerce.paymentToken() == usdc`), live registry probes (`name() == "AgentIdentity"` on identity, `getSummary` reverting with a reason on reputation), post-deploy `owner()`/`arbitrator()` == deployer assertions. |
+| Fee | 100 bps (1%) |
+| Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` |
+| Owner / arbitrator (pre-handshake) | deployer `0xde427f3967cc7a0BF7A9F891195760cCffC82edA` - **not yet transferred to the Safe on this deployment**, do that before treating this as more than a fix-verification deployment. |
+| Deployed | 2026-09-07, via `forge script script/Deploy.s.sol:Deploy --broadcast` from this repo - all deploy-script guards passed against real Arc testnet infra. |
+| **Live regression check (2026-09-07, real chain, not a local test):** `createBounty` (1 USDC, jobId `185535`) → `cancelBounty` (succeeded, full refund) → `takeBounty` on the same jobId **reverted with `"resolved"`** - confirms the C-01 fix against the real, freshly-deployed contract, not just Foundry's local EVM. Full lifecycle beyond this (dispute/timeout paths, the C-02 buffer/reconcile path) is covered by the 118-test Foundry suite (`forge test`) against the real `AgenticCommerce` implementation via proxy, not exercised again live here - the 90-day buffer makes a live end-to-end repro of C-02's reconcile path impractical to run in real time. |
+| Verified | Not yet submitted to ArcScan for source verification - do that before pointing real users at this address. |
+
+> **Superseded same-day redeploy (2026-09-07).** The first V4.7 deploy
+> (`0xeE27CF074e37d0e8c030eeAE6f05D5B04674C47D`, jobId `185529` in the same
+> live check above) had its own bugs: an independent code-review pass on
+> `reconcileExpiredEscrow` (run right after that deploy, before any real use)
+> found it ignored `meta.rejectedAt` entirely - paying the worker in full
+> even when the poster had correctly rejected the work and the worker simply
+> never challenged - and that its disputed branch always did a neutral
+> 50/50 split even when one side never responded, instead of mirroring
+> `claimDefaultRuling`'s full-payout-to-the-non-silent-party in that case.
+> Both were confirmed via throwaway Foundry PoCs before being fixed, then
+> pinned down as permanent regression tests
+> (`testRegression_ReconcileRejectedNeverChallengedRefundsPoster`,
+> `testRegression_ReconcileDisputeNoResponsePosterWinsWhenWorkerSilent`,
+> `testRegression_ReconcileDisputeNoResponseWorkerWinsWhenPosterSilent` in
+> `contracts/test/MainnetAudit20260907.t.sol`). Caught and fixed before the
+> first deploy saw any real use - if you have a copy of this repo pointed at
+> the superseded address, redeploy. This is the exact reason a from-scratch
+> review pass on new money-handling code is worth running even after the
+> author's own tests pass.
+
+> **Not yet done, follow-up before this address is a real launch candidate (not just a fix-verification deploy):** ArcScan source verification; `transferArbitrator`/`acceptArbitrator` to the Safe (`0x4892232f0dD235cC1B92a3A87fc8990553691BC6`, matching the V4.4 handshake below); reclaim the 14 open V4.4 listings via `scripts/reclaim-bounties.ts` and reseed this address via `scripts/seed-bounties.ts` (`SEED_DEADLINE_DAYS=60`, matching every prior redeploy's pattern); update `BOUNTY_ADAPTER_ADDRESS`/`NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` in Vercel env (done in the local `.env` as part of this fix pass, not yet in Vercel).
+
+### BountyAdapter (V4.4 - superseded 2026-09-07, audit findings C-01/C-02/M-01/M-07/M-08 fixed in V4.7)
 
 | Field | Value |
 |---|---|
@@ -204,7 +242,7 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
 | maxBountyAmount | `500000000` (500 USDC, atomic) |
 | Owner (`setMaxBountyAmount` admin) | deployer `0x6abc2b575eC66701c17DAD96dDA97F22b837849E` - fresh mainnet key, never used on testnet |
 | AgenticCommerce admin (upgrade key) | deployer - verified on-chain `hasRole(DEFAULT_ADMIN_ROLE, deployer) == true` |
-| Arbitrator | ✅ the Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54` - two-step handshake complete 2026-08-14. `transferArbitrator` from the deployer (tx `0xf285578a8c21745994169beaa0f837c6ad933a300ec9778f080a3f3105158326`, block `49964879`), then `acceptArbitrator()` executed **from the Safe** with 2 of 3 signatures (`0xed733FC1…` + `0xC6B48f60…`, executed by the latter) via app.safe.global - tx `0x6df88b7ecfb79e3771b4b6e86d5d3132c34fc85f1e6629f4fc048e0419398a99`, block `49965922`. Confirmed on-chain: `arbitrator()` returns the Safe, `pendingArbitrator()` is zero. |
+| Arbitrator | ⚠️ **CORRECTED 2026-09-07 - this row was stale.** It previously claimed "two-step handshake complete 2026-08-14," which described the *first* Base mainnet deployment (superseded the same day the registries turned out wrong, see below) and was never updated after the 2026-08-28 redeploy reset the role to a fresh pending state. **Live `cast call` against this address, 2026-09-07: `arbitrator()` returns the deployer EOA `0x6abc2b575eC66701c17DAD96dDA97F22b837849E`, `pendingArbitrator()` returns the Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54`.** The transfer was started (`transferArbitrator` from the deployer, tx `0x068ad70e0fde3bbdca4d4a67dd382e03e24a924e7160031996c0198dd15c3fea`, block `50601182`, per the "Arbitrator: ⏳ handover half done" note further down this file) but `acceptArbitrator()` has never been executed from the Safe. **A single EOA can currently rule any dispute on this deployment.** |
 | Deployed | 2026-08-14, block `49964666`, gas 7,272,443 across 3 txs (impl 258,837 + proxy 2,127,457 + adapter 4,886,149) at ~0.01 gwei ≈ 0.0000366 ETH actually spent |
 | Deploy txs | impl `0xd1b104b8a3239948323ad8bec5d2ef9ba357cb87a7c6914e2b2d8a0c2ecc45cf`, proxy `0x3720c5a95c4403e9ccaa41dadf558fb0be5470857dc18e391c6602bfe12c64e4`, adapter `0x4a0b161934b9861d7fdde03c0329c4f2b0bfdee589602a1c5ed3461edbba0f0e` |
 | `adapterDeployBlock` for the network maps | `50576208` (recorded from the `forge` output at deploy time, per the Sepolia lesson below) |
@@ -270,6 +308,15 @@ Cancelled and reposted:
 | Reposted | jobIds **6-9**, 1 USDC each, `SEED_DEADLINE_DAYS=90` → deadlines 2026-11-25. Txs `0xd37a274b…20d8`, `0xadb9c5e6…4a71`, `0xfbd084fa…6eaa`, `0x36d8116c…3f78` |
 | Balances after | seeder 1.39 USDC, adapter escrow exactly 4.00 USDC, gas for the whole exercise ~0.0000185 ETH |
 | Verified | `getOpenBounties` returns 4, and both the REST facade and the hosted MCP endpoint report them |
+
+> **Stale as of 2026-09-07 - live state has moved on.** Fresh `cast call` against
+> this address today: `totalBounties()` = `7`, `getOpenBounties("",0,50)` =
+> `[]` (empty), adapter USDC balance = `0`. Whatever happened to jobIds 5-9
+> between the reseed above and today isn't reconstructed here - the point of
+> this note is just that the "4.00 USDC / 4 open" snapshot above is **not
+> current state**, not a claim about what changed. Do not treat this file's
+> historical balance snapshots as live truth for risk assessment; re-check
+> on-chain before relying on either the fund-exposure or open-listing count.
 
 Seed Base with `SEED_DEADLINE_DAYS` set, always. `scripts/reclaim-bounties.ts`
 now walks the **live** adapter as well as superseded ones, which is what makes

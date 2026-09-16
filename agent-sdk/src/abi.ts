@@ -193,6 +193,37 @@ export const BOUNTY_ADAPTER_ABI = [
     inputs: [{ name: "jobId", type: "uint256" }],
     outputs: [],
   },
+  {
+    // V4.6: claim USDC a failed direct payout parked for the caller (see
+    // `pendingWithdrawals` below). The only place a settlement amount can
+    // still revert, and only ever against the caller's own funds.
+    name: "withdraw",
+    type: "function" as const,
+    stateMutability: "nonpayable" as const,
+    inputs: [],
+    outputs: [{ name: "amount", type: "uint256" }],
+  },
+  {
+    // V4.7: permissionless recovery if AC's own claimRefund fired despite
+    // AC_EXPIRY_BUFFER (something left unresolved for 90+ days). See the
+    // contract's V4.7 changelog note for the payout policy this applies.
+    name: "reconcileExpiredEscrow",
+    type: "function" as const,
+    stateMutability: "nonpayable" as const,
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    // V4.7: owner-only circuit breaker - blocks new createBounty/takeBounty
+    // calls only, every exit path stays open. Not exposed to write-tool
+    // callers by anything else in this SDK; included for completeness and
+    // for admin tooling.
+    name: "setPaused",
+    type: "function" as const,
+    stateMutability: "nonpayable" as const,
+    inputs: [{ name: "p", type: "bool" }],
+    outputs: [],
+  },
   // ── Read ──
   {
     // Public array getter - needed to scan the full bounty set (expireStale,
@@ -329,6 +360,24 @@ export const BOUNTY_ADAPTER_ABI = [
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    // V4.6: USDC parked for `payee` after a failed direct payout - see
+    // `withdraw()`. A nonzero balance here means a settlement completed but
+    // the money hasn't reached the payee's own balance yet.
+    name: "pendingWithdrawals",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [{ name: "payee", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    // V4.7: true when new createBounty/takeBounty calls are blocked.
+    name: "paused",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
   // ── Events ──
   {
     name: "BountyCreated",
@@ -431,6 +480,104 @@ export const BOUNTY_ADAPTER_ABI = [
       { name: "poster", type: "address", indexed: true  },
       { name: "amount", type: "uint256", indexed: false },
     ],
+  },
+  // V4.7 (M-04): the events below existed on the contract already but were
+  // missing from this file (some were present in frontend/lib/contracts.ts
+  // instead, which had drifted from this file in the other direction too -
+  // reconciled here so both ABIs carry the full event set).
+  {
+    name: "BountyAutoApproved",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",    type: "uint256", indexed: true },
+      { name: "provider", type: "address", indexed: true },
+    ],
+  },
+  {
+    name: "BountyCancelled",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true  },
+      { name: "reason", type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "BountyExpired",
+    type: "event" as const,
+    inputs: [{ name: "jobId", type: "uint256", indexed: true }],
+  },
+  {
+    name: "ProtocolFeePaid",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",     type: "uint256", indexed: true  },
+      { name: "recipient", type: "address", indexed: true  },
+      { name: "amount",    type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "RejectionProposed",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",      type: "uint256", indexed: true  },
+      { name: "poster",     type: "address", indexed: true  },
+      { name: "reasonHash", type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "RejectionFinalized",
+    type: "event" as const,
+    inputs: [{ name: "jobId", type: "uint256", indexed: true }],
+  },
+  {
+    name: "RejectionChallenged",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",      type: "uint256", indexed: true  },
+      { name: "worker",     type: "address", indexed: true  },
+      { name: "reasonHash", type: "string",  indexed: false },
+    ],
+  },
+  {
+    name: "RejectionWithdrawn",
+    type: "event" as const,
+    inputs: [{ name: "jobId", type: "uint256", indexed: true }],
+  },
+  {
+    // V4.6: a direct payout failed and was credited to pendingWithdrawals
+    // instead - see the `withdraw`/`pendingWithdrawals` entries above.
+    name: "PayoutParked",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",  type: "uint256", indexed: true  },
+      { name: "payee",  type: "address", indexed: true  },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "WithdrawalClaimed",
+    type: "event" as const,
+    inputs: [
+      { name: "payee",  type: "address", indexed: true  },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    // V4.7: emitted by reconcileExpiredEscrow - see its natspec above.
+    name: "ExternalRefundReconciled",
+    type: "event" as const,
+    inputs: [
+      { name: "jobId",        type: "uint256", indexed: true  },
+      { name: "poster",       type: "address", indexed: true  },
+      { name: "worker",       type: "address", indexed: true  },
+      { name: "posterAmount", type: "uint256", indexed: false },
+      { name: "workerAmount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "PausedSet",
+    type: "event" as const,
+    inputs: [{ name: "paused", type: "bool", indexed: false }],
   },
 ] as const;
 

@@ -8,7 +8,17 @@ const network = getActiveNetwork();
 const ADD_CHAIN_PARAMS = {
   chainId: `0x${network.chainId.toString(16)}`,
   chainName: network.name,
-  nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
+  // H-05: built from the active network's own nativeCurrency (lib/networks.ts)
+  // instead of a hardcoded USDC entry. This button today only ever renders for
+  // Arc (see needsWalletSetup below - Base wallets already have Base built
+  // in), where USDC-as-native-currency happens to be correct, but a
+  // hardcoded value here would silently be wrong the day a network with a
+  // non-USDC native currency (e.g. Base, gas paid in ETH) reuses it.
+  nativeCurrency: {
+    name: network.nativeCurrency.isUsdc ? "USD Coin" : network.nativeCurrency.symbol,
+    symbol: network.nativeCurrency.symbol,
+    decimals: network.nativeCurrency.decimals,
+  },
   rpcUrls: [network.rpcUrl],
   blockExplorerUrls: [network.explorerUrl],
 };

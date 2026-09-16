@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
 import { FaucetBanner } from "@/components/FaucetBanner";
+import { WithdrawBanner } from "@/components/WithdrawBanner";
 import { BackgroundShader } from "@/components/BackgroundShader";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="page">
             <Navbar />
             <FaucetBanner />
+            <WithdrawBanner />
             <main>{children}</main>
           </div>
           <Toaster position="bottom-right" theme="dark" richColors />

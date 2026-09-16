@@ -2,7 +2,7 @@
 
 Operational TypeScript helpers that run outside the contracts/frontend/SDK packages.
 All of them read the same env (root `.env`): `PRIVATE_KEY`, `ARC_TESTNET_RPC_URL`,
-`BOUNTY_ADAPTER_ADDRESS` (Testnet: `0x538CD48789667168bfb36f838Af8476237F9409F` -
+`BOUNTY_ADAPTER_ADDRESS` (Testnet: `0xeDf2c738915b042da97788b2b5499D4655FB1f20` -
 canonical source: `../contracts/DEPLOYMENTS.md`), `PINATA_JWT` where noted.
 
 Run any of them from this directory after `npm install`:

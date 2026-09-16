@@ -41,6 +41,17 @@ export type CircleWalletConfig = {
   walletId: string;
   /** The wallet's on-chain address - fetch once via `getWallet({ id })` and store it; avoids an extra round-trip on every agent startup. */
   address: Address;
+  /**
+   * The chain id this Circle wallet is provisioned for on Circle's side
+   * (e.g. 8453 for Base mainnet, 5042002 for Arc testnet). `ArcBountyAgent`
+   * checks this against the network it was constructed for and refuses to
+   * proceed on a mismatch - a wallet provisioned for one chain submitting a
+   * transaction meant for another was previously caught nowhere (V4.7, H-03).
+   * This is a caller-declared value, not independently re-verified against
+   * Circle's API here - confirm it matches the wallet's real Circle-side
+   * chain via the Console/API when setting this up.
+   */
+  chainId: number;
   /** Override Circle's API base URL (defaults to https://api.circle.com). */
   baseUrl?: string;
 };

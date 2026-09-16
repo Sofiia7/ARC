@@ -22,6 +22,18 @@ const GATEWAYS = [
 const GATEWAY_TIMEOUT_MS = 8_000;
 export const IPFS_CACHE_TTL_SEC = 31_536_000; // 1 year - CIDs are content-addressed, immutable
 
+/**
+ * M-05: hard cap on a single gateway response. This route accepts *any*
+ * public IPFS CID - not just ones this app pinned - so an unbounded read
+ * could buffer an arbitrarily large body into memory via `res.arrayBuffer()`.
+ * Mirrors the upload-side cap in pin-file/route.ts's `MAX_BYTES` (25 MB) -
+ * kept as its own constant here rather than imported, since that one lives in
+ * a route file, not a shared module. Enforced against actual bytes read (see
+ * the streaming loop below), not just a Content-Length header, which can be
+ * absent or wrong - same pattern as agent-sdk/src/ipfs.ts's own M-05 fix.
+ */
+const MAX_RESPONSE_BYTES = 25 * 1024 * 1024;
+
 export type IpfsFetchResult = { bytes: ArrayBuffer; contentType: string };
 
 export async function fetchIpfsServerCached(cid: string): Promise<IpfsFetchResult> {
@@ -34,9 +46,46 @@ export async function fetchIpfsServerCached(cid: string): Promise<IpfsFetchResul
         next: { revalidate: IPFS_CACHE_TTL_SEC },
       });
       if (!res.ok) throw new Error(`gateway ${gateway} responded ${res.status}`);
-      const bytes = await res.arrayBuffer();
+
       const contentType = res.headers.get("content-type") ?? "application/octet-stream";
-      return { bytes, contentType };
+
+      const declaredLength = res.headers.get("content-length");
+      if (declaredLength && Number(declaredLength) > MAX_RESPONSE_BYTES) {
+        throw new Error(`gateway ${gateway} declares ${declaredLength} bytes, exceeding the ${MAX_RESPONSE_BYTES}-byte cap`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        // No streaming body available (unusual) - fall back, still bounded
+        // by the Content-Length check above (best-effort if that header was
+        // absent or understated).
+        const bytes = await res.arrayBuffer();
+        if (bytes.byteLength > MAX_RESPONSE_BYTES) {
+          throw new Error(`gateway ${gateway} response exceeds the ${MAX_RESPONSE_BYTES}-byte cap`);
+        }
+        return { bytes, contentType };
+      }
+
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_RESPONSE_BYTES) {
+          await reader.cancel().catch(() => {});
+          controller.abort();
+          throw new Error(`gateway ${gateway} response exceeds the ${MAX_RESPONSE_BYTES}-byte cap`);
+        }
+        chunks.push(value);
+      }
+      const combined = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combined.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return { bytes: combined.buffer, contentType };
     } finally {
       clearTimeout(timer);
     }

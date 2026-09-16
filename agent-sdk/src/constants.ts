@@ -100,8 +100,9 @@ export const NETWORKS = {
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x3600000000000000000000000000000000000000",
     },
-    defaultBountyAdapter: "0x538CD48789667168bfb36f838Af8476237F9409F",
-    adapterDeployBlock: 50_610_373,
+    // V4.7 (2026-09-07): audit fixes C-01/C-02/M-01/M-07/M-08 - see contracts/DEPLOYMENTS.md.
+    defaultBountyAdapter: "0xeDf2c738915b042da97788b2b5499D4655FB1f20",
+    adapterDeployBlock: 60_965_136,
     testnet: true,
     blocksPerDay: 86_400,
   },

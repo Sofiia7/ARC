@@ -4,17 +4,72 @@ function cidFromUri(uriOrCid: string): string {
   return uriOrCid.replace(/^ipfs:\/\//, "");
 }
 
+/** Per-gateway request timeout (V4.7, M-05). A hanging gateway used to stall
+ *  every other gateway in the same round behind it, since they were tried
+ *  strictly one after another with no timeout at all. */
+const GATEWAY_TIMEOUT_MS = 8_000;
+
+/** Hard cap on a single gateway response (V4.7, M-05). Bounty descriptions
+ *  and result hashes are small text/JSON documents, not arbitrary files -
+ *  10 MB is generous headroom, not a target. Enforced against actual bytes
+ *  read, not just a (spoofable, sometimes absent) Content-Length header. */
+const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+
+async function fetchOneGateway(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GATEWAY_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`gateway responded ${res.status}`);
+
+    const declaredLength = res.headers.get("content-length");
+    if (declaredLength && Number(declaredLength) > MAX_RESPONSE_BYTES) {
+      throw new Error(`response declares ${declaredLength} bytes, exceeding the ${MAX_RESPONSE_BYTES}-byte cap`);
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) return await res.text(); // no streaming body available - fall back, still timeout-guarded above
+
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_RESPONSE_BYTES) {
+        await reader.cancel().catch(() => {});
+        throw new Error(`response exceeds the ${MAX_RESPONSE_BYTES}-byte cap`);
+      }
+      chunks.push(value);
+    }
+    const combined = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return new TextDecoder().decode(combined);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Read text back out of IPFS, trying each gateway in turn and re-trying the
- * whole list before giving up.
+ * Read text back out of IPFS, racing every gateway within a round and
+ * re-trying the whole list (with backoff) before giving up.
  *
- * The retry is not defensive padding. Content pinned seconds ago is routinely
- * unreachable through every public gateway at once while providers propagate -
- * measured on Base mainnet: a CID pinned weeks earlier served 200 from ipfs.io
- * while one pinned minutes earlier 504'd on all of pinata/ipfs.io/cloudflare
- * /dweb/w3s/4everland. A single pass therefore fails exactly when a poster
- * opens a submission right after the worker delivered it, which reads as the
- * worker having submitted nothing.
+ * The multi-round retry is not defensive padding. Content pinned seconds ago
+ * is routinely unreachable through every public gateway at once while
+ * providers propagate - measured on Base mainnet: a CID pinned weeks earlier
+ * served 200 from ipfs.io while one pinned minutes earlier 504'd on all of
+ * pinata/ipfs.io/cloudflare/dweb/w3s/4everland. A single pass therefore fails
+ * exactly when a poster opens a submission right after the worker delivered
+ * it, which reads as the worker having submitted nothing.
+ *
+ * V4.7 (M-05): gateways within a round are now raced concurrently (each with
+ * its own timeout) rather than tried strictly one after another - previously
+ * one hanging gateway (no timeout existed at all) stalled every other
+ * gateway in the same round behind it.
  */
 export async function fetchIpfsText(
   uriOrCid: string,
@@ -26,13 +81,12 @@ export async function fetchIpfsText(
   const sleep    = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
 
   for (let round = 0; round < attempts; round++) {
-    for (const gateway of IPFS_GATEWAYS) {
-      try {
-        const res = await fetch(`${gateway}${cid}`);
-        if (res.ok) return res.text();
-      } catch {
-        // try next gateway
-      }
+    try {
+      return await Promise.any(IPFS_GATEWAYS.map(gateway => fetchOneGateway(`${gateway}${cid}`)));
+    } catch {
+      // every gateway in this round failed (Promise.any rejects with an
+      // AggregateError only once all of them have) - fall through to the
+      // backoff and try the whole list again.
     }
     // Back off between rounds: propagation is the thing being waited on, and
     // hammering the same three gateways immediately does not help it along.

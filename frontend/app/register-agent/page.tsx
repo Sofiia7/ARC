@@ -94,6 +94,13 @@ export default function RegisterAgentPage() {
         args: [metadataCid],
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      // waitForTransactionReceipt resolves for a reverted-but-mined tx too
+      // (it only rejects on timeout/not-found) - without this check a revert
+      // here still looked like a successful registration (H-04). Throwing
+      // routes it through the catch block below, same as any other failure.
+      if (receipt.status === "reverted") {
+        throw new Error("Transaction reverted on-chain");
+      }
 
       // Decode Transfer event to get the agentId
       let agentId: bigint | null = null;

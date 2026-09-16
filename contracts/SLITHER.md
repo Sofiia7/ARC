@@ -99,18 +99,37 @@ Everything else (high/medium correctness detectors, unchecked transfers,
 arbitrary-send, etc.) remains a hard CI failure. `SafeERC20` is used for every
 token movement, so unchecked-transfer cannot fire.
 
-## `src/base/` is filtered out entirely, not triaged
+## `src/base/` (V4.7: included, no longer filtered out)
 
-`src/base/AgenticCommerce.sol` (added for the Base deployment, V4.5) is
-excluded from the Slither gate the same way `lib/` is - it is a byte-for-byte
-copy of the exact contract Arc itself already deployed and has run in
-production for months (verified against ArcScan's source for
-`0x0747EEf0706327138c69792bF28Cd525089e4583`; see
-`docs/INTEGRATION_NOTES.md`), vendored only because Base has no canonical
-ERC-8183 deployment of any kind to point at instead. It is not code this
-project wrote or is claiming custody-path ownership of - the $12k external
-audit (grant Milestone 2) is scoped to `BountyAdapter` (~590 LOC), not this
-escrow. Findings here (a handful of `reentrancy-no-eth` on hook callbacks that
-are always `address(0)` in our deployment, and one `arbitrary-send-erc20` on
-the standard escrow `transferFrom`) are Arc's own accepted design, not ours to
-triage.
+`src/base/AgenticCommerce.sol` used to be excluded from the Slither gate the
+same way `lib/` is, on the reasoning that it's Arc's own accepted design, not
+ours to triage. That held for Arc — an external, Arc-team-deployed and
+Arc-team-upgradeable contract this project only reads — but not for Base:
+Base's copy is self-deployed under this project's own admin key, with this
+project holding the UUPS upgrade authority, so it is very much ours to triage
+there. The source stays a deliberate byte-for-byte match of Arc's variant
+(see `docs/INTEGRATION_NOTES.md`) for compatibility, kept unmodified — only
+the Slither exclusion changed. (This note previously referenced a "$12k
+external audit, grant Milestone 2" as the reason `BountyAdapter` alone was in
+scope — that audit was cancelled 2026-08-09 and never happened; don't restore
+that framing.)
+
+Findings surfaced by including it:
+
+- **`arbitrary-send-erc20`** on `AgenticCommerce.fund`'s
+  `paymentToken.safeTransferFrom(job.client, address(this), job.budget)`.
+  False positive: `fund()` requires `msg.sender == job.client` on the line
+  immediately above, so `from` can never diverge from the caller. Slither's
+  detector doesn't trace that guard back to the transfer — same class of
+  false positive already accepted project-wide via `reentrancy-benign`/
+  `reentrancy-no-eth` above.
+- **`missing-inheritance`**: `AgenticCommerce` doesn't formally
+  `is IAgenticCommerce`. Deliberate — the file is pinned as an exact match of
+  the external reference implementation and Arc's own verified on-chain
+  source; adding an inheritance declaration is a source-level change with no
+  bytecode effect, left out to keep the file a literal, unmodified copy.
+
+`reentrancy-no-eth` findings on this file's hook callbacks (always
+`address(0)` in our deployment) would fall under the same globally-excluded
+detector and accepted reasoning as this project's own `reentrancy-no-eth`
+triage above, if any surface once that detector is ever re-enabled.

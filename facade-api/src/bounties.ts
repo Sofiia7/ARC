@@ -22,10 +22,41 @@ import type { FacadeConfig } from "./config.js";
 const RPC_GAP_MS = 300;
 const RATE_LIMIT_RETRIES = 2;
 
+/**
+ * `maxBountyAmount()` (V4.5+) isn't in the SDK's bundled BOUNTY_ADAPTER_ABI -
+ * that snapshot predates the getter. Minimal local fragment for this one
+ * read, rather than waiting on an SDK bump for a single-function view call.
+ */
+const MAX_BOUNTY_AMOUNT_ABI = [
+  {
+    type: "function",
+    name: "maxBountyAmount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
+/**
+ * `paused()` (V4.7+) isn't in the SDK's bundled BOUNTY_ADAPTER_ABI either -
+ * same reason as MAX_BOUNTY_AMOUNT_ABI above (that snapshot predates it).
+ */
+const PAUSED_ABI = [
+  {
+    type: "function",
+    name: "paused",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
+
 export class BountyReader {
   private readonly client: PublicClient;
   private readonly listCache: TtlCache<bigint[]>;
   private readonly bountyCache: TtlCache<BountyMeta>;
+  private readonly maxBountyCache: TtlCache<bigint>;
+  private readonly pausedCache: TtlCache<boolean>;
   private gate: Promise<void> = Promise.resolve();
 
   constructor(private readonly config: FacadeConfig) {
@@ -46,6 +77,13 @@ export class BountyReader {
     // handful of times over days, while the open-id set changes on every
     // take/create. 3× list TTL keeps repeat listings nearly RPC-free.
     this.bountyCache = new TtlCache<BountyMeta>(config.cacheTtlMs * 3);
+    // maxBountyAmount is an owner-settable knob that changes rarely if ever
+    // (see setMaxBountyAmount) - long TTL, single key in practice.
+    this.maxBountyCache = new TtlCache<bigint>(config.cacheTtlMs * 3);
+    // paused is an emergency circuit breaker - unlike maxBountyAmount, this
+    // needs to be noticed quickly if it's ever flipped on, so it gets the
+    // short default TTL rather than maxBountyAmount's long one.
+    this.pausedCache = new TtlCache<boolean>(config.cacheTtlMs);
   }
 
   /** Serialize every RPC read through one paced lane, retrying -32011. */
@@ -119,6 +157,42 @@ export class BountyReader {
 
   async get(jobId: bigint): Promise<{ value: BountyMeta; stale: boolean }> {
     return this.bountyCache.getOrFetch(jobId.toString(), () => this.readMeta(jobId));
+  }
+
+  /**
+   * Live createBounty reward cap for this deployment, 0 = uncapped. M-10:
+   * this must be read from chain, not hardcoded - it is owner-settable
+   * per-deployment (BountyAdapter.setMaxBountyAmount) and genuinely differs
+   * by network: Base mainnet's default is 500 USDC atomic
+   * (contracts/script/DeployBaseMainnet.s.sol), Arc ships uncapped (0).
+   * Cached like maxBountyCache's constructor comment explains - this knob
+   * changes rarely, so a long TTL keeps prepare's extra read nearly free.
+   */
+  async maxBountyAmount(): Promise<bigint> {
+    const { value } = await this.maxBountyCache.getOrFetch("maxBountyAmount", () =>
+      this.paced(() =>
+        this.client.readContract({
+          address: this.config.bountyAdapterAddress,
+          abi: MAX_BOUNTY_AMOUNT_ABI,
+          functionName: "maxBountyAmount",
+        }),
+      ),
+    );
+    return value;
+  }
+
+  /** V4.7: true when the owner has paused new createBounty/takeBounty calls. */
+  async paused(): Promise<boolean> {
+    const { value } = await this.pausedCache.getOrFetch("paused", () =>
+      this.paced(() =>
+        this.client.readContract({
+          address: this.config.bountyAdapterAddress,
+          abi: PAUSED_ABI,
+          functionName: "paused",
+        }),
+      ),
+    );
+    return value;
   }
 
   /**

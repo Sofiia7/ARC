@@ -5,6 +5,142 @@ Arc mainnet itself has not launched yet (publicly confirmed for summer 2026)
 checklist for everything that needs to happen **before that becomes
 possible**, split by who has to act.
 
+## Base mainnet: V4.7 migration checklist (prepared 2026-09-08, not yet run)
+
+Base mainnet already exists and is already live on the buggy V4.6 adapter -
+this is a separate, more urgent track than the Arc-mainnet section below.
+Script is ready (`contracts/script/MigrateBaseMainnet.s.sol`), compiles
+clean, but **has not been run**. Nothing here executes until you say go on
+the specific broadcast step.
+
+**Preconditions confirmed 2026-09-07 (re-verify immediately before running -
+this is a snapshot, not a standing guarantee):** live adapter
+`0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c` held 0 USDC and 0 open
+bounties - this migration is a clean cutover to an empty board, not a
+live-funds migration. `arbitrator()` was still the deployer EOA
+(`0x6abc2b575eC66701c17DAD96dDA97F22b837849E`); the Safe transfer was
+started 2026-08-29 but never accepted.
+
+1. **Re-verify the preconditions above right before running anything** -
+   `cast call 0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c "totalBounties()(uint256)" --rpc-url https://mainnet.base.org`
+   and check the USDC balance / `getOpenBounties` haven't changed since this
+   was written.
+
+2. **Decide on the deployer key before broadcasting anything.**
+   `BASE_MAINNET_DEPLOYER_KEY` still sits in plaintext in the local `.env`
+   (same key that already deployed/owns the live V4.6 adapter). Using it one
+   more time for this migration is the path of least friction; migrating to
+   a hardware-wallet-derived key *before* this deploy is the safer one, at
+   the cost of real setup time. Either way, this key should move to secure
+   custody **after** this migration if it hasn't already - don't let "we're
+   migrating anyway" become a reason to defer that further.
+
+3. **Dry-run first, without `--broadcast`**, to catch a config problem before
+   spending real gas:
+   ```bash
+   cd contracts
+   forge script script/MigrateBaseMainnet.s.sol:MigrateBaseMainnet \
+     --rpc-url https://mainnet.base.org
+   ```
+   All the require() guards (chain id, USDC/AC/registry wiring) run even
+   without `--broadcast` - a clean dry-run with no reverts means the actual
+   run is very likely to succeed too.
+
+4. **Broadcast** (needs your explicit go-ahead at this exact step - this is
+   the irreversible one):
+   ```bash
+   forge script script/MigrateBaseMainnet.s.sol:MigrateBaseMainnet \
+     --rpc-url https://mainnet.base.org --broadcast --verify
+   ```
+   Deploys ONLY a new `BountyAdapter`, reusing the existing, already-live
+   AgenticCommerce proxy (`0x6D9317eC0Fca3aFd5439d539064DBA94197c4AC4`) - see
+   the script's own header comment for why AC itself doesn't need to move.
+   **Deploys paused** (`setPaused(true)` in the same script) - new
+   `createBounty`/`takeBounty` calls will revert until step 7 unpauses it.
+
+5. **Record the new address** in `contracts/DEPLOYMENTS.md` (mark the old
+   V4.6 entry superseded, matching the Arc V4.4→V4.7 entry from this same
+   audit pass as the template) and in `agent-sdk/src/constants.ts` /
+   `frontend/lib/networks.ts`'s `base-mainnet.defaultBountyAdapter` +
+   `adapterDeployBlock` (same two files this pass already updated for the
+   Arc testnet redeploy - same pattern, different network entry). Then:
+   ```bash
+   npx tsx scripts/check-consistency.ts
+   ```
+   to confirm nothing was missed (it will fail loudly on a stale address).
+
+6. **Smoke-test while still paused** - `cast call` the new address for
+   `owner()`, `arbitrator()`, `agenticCommerce()`, `paused()` and confirm
+   each is what you expect before anyone else can interact with it.
+
+7. **Arbitrator handoff for the NEW adapter** (independent of, and needed in
+   addition to, anything done for the old one - the role resets to the
+   deployer on every fresh deploy, exactly like every Arc redeploy needed
+   its own handshake): `transferArbitrator(0x74678c072Ca546f11466CD44eB7e21730a312a54)`
+   from the deployer, then `acceptArbitrator()` executed **from the Safe**
+   (2 of 3, via app.safe.global) - same Safe as the old adapter used.
+
+8. **`setPaused(false)`** once steps 5-7 are done and you're satisfied - this
+   is what actually opens the new adapter to real use.
+
+9. **Update Vercel env** for the Base build with the new adapter address (the
+   local `.env`/constants updates in step 5 cover local dev; production
+   still needs the Vercel-side env var updated and redeployed separately).
+
+10. **Reseed the board** via `scripts/seed-bounties.ts` whenever you're ready
+    for it to look live again - optional, not required for the migration
+    itself to be complete.
+
+11. Decide what (if anything) to do with the superseded V4.6 adapter. Since
+    it holds 0 USDC as of the last check, there's nothing to reclaim - just
+    document it as superseded, same as the Arc history in `DEPLOYMENTS.md`.
+
+> **Status update (2026-09-07, seventh pass).** This doc predates the Base
+> deployment (BaseBounty went live on Base mainnet 2026-08-14, well after
+> this file's last edit) and item 6 below ("procure the external audit") is
+> now stale in a different way: **the external audit was never procured and
+> the plan was cancelled 2026-08-09** - no paid auditor is coming. What
+> happened instead: an internal self-audit (2026-09-07, commit `6d7247b`)
+> found two P0 fund-locking bugs (cancelled-bounty-retaken; a permissionless
+> external AC refund desyncing the adapter for up to ~46 days past a
+> bounty's deadline) plus five P1s and twelve P2s, spanning both Arc and Base
+> deployments (Base was live at the time, not just a future target). Fixes
+> shipped the same day as **V4.7**: `takeBounty` now rejects an already-
+> `resolved` job; AC jobs are created with a 90-day expiry buffer past the
+> bounty deadline plus a new permissionless `reconcileExpiredEscrow` safety
+> net; reputation penalties now write negative instead of positive; a real
+> `paused`/`setPaused` circuit breaker was added (none existed before);
+> `IAgenticCommerce` was realigned to the real deployed contract; plus fixes
+> across `agent-sdk`, `frontend`, `facade-api`, `mcp-server`, and CI. Full
+> detail in `contracts/DEPLOYMENTS.md`'s V4.7 entry and the contract's own
+> V4.7 changelog comment.
+>
+> **Because `BountyAdapter` is not upgradeable, this does not fix the
+> already-live Base mainnet adapter** (`0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c`)
+> - shipping V4.7 there needs a fresh deploy and migration, same as every
+> past Arc redeploy documented below. As of this pass: Arc testnet has been
+> redeployed to V4.7 (`0xeDf2c738915b042da97788b2b5499D4655FB1f20` - a
+> same-day redeploy of the first attempt, after an independent review pass
+> caught two real bugs in `reconcileExpiredEscrow`'s first draft; see
+> `contracts/DEPLOYMENTS.md`'s V4.7 entry) and the fix verified live
+> (create → cancel → attempt-retake reverted with `"resolved"`, on the real
+> chain, not just Foundry's local EVM) - Base
+> mainnet has **not** been touched; it needs its own deploy and a decision on
+> migrating whatever's live there. Also still true on Base mainnet, confirmed
+> by a fresh `cast call` the same day: the arbitrator role is **still a bare
+> EOA**, not the Safe - `transferArbitrator` was sent 2026-08-29 but
+> `acceptArbitrator()` was never executed from the Safe (this doc's item 5
+> below describes the Arc-side handshake as done; the equivalent Base-side
+> step is not).
+>
+> **Not attempted as part of this pass, on purpose:** broadcasting anything
+> to Base mainnet, touching `BASE_MAINNET_DEPLOYER_KEY` in `.env`, or asking
+> the Base Safe signers to act - those need explicit sign-off first, given
+> they're irreversible/shared-system actions on a deployment that (per a
+> fresh on-chain read the same day) currently holds 0 USDC and 0 open
+> bounties, so there is no live fund-theft urgency forcing an immediate
+> emergency transaction.
+
 > **Status update (2026-07-10, sixth pass).** The board now runs **V4.4** at
 > `0x538CD48789667168bfb36f838Af8476237F9409F` (source-verified on ArcScan):
 > on top of V4.3's reputation-registry fix, V4.4 removes the protocol fee

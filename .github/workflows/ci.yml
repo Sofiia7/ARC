@@ -12,8 +12,8 @@ jobs:
   consistency:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
         with: { node-version: "20" }
       - name: Address & docs consistency
         run: npx -y tsx scripts/check-consistency.ts
@@ -21,9 +21,9 @@ jobs:
   gitleaks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
         with: { fetch-depth: 0 }
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2 (resolved 2026-09-07, M-11)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -31,9 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: contracts } }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
         with: { submodules: recursive }
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1 (resolved 2026-09-07, M-11)
         # Pinned, not `stable`. `stable` is a moving target, and a Foundry
         # release that changes gas accounting turns every entry in
         # .gas-snapshot into a diff, failing CI on whatever commit happens to
@@ -55,7 +55,7 @@ jobs:
             echo "::warning::no .gas-snapshot yet - run forge snapshot locally and commit it"
           fi
       - name: slither (config-gated, triaged in SLITHER.md)
-        uses: crytic/slither-action@v0.4.0
+        uses: crytic/slither-action@f197989dea5b53e986d0f88c60a034ddd77ec9a8 # v0.4.0 (resolved 2026-09-07, M-11)
         with:
           target: contracts/
           slither-config: contracts/slither.config.json
@@ -67,9 +67,9 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     defaults: { run: { working-directory: contracts } }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
         with: { submodules: recursive }
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1 (resolved 2026-09-07, M-11)
         # Pinned, not `stable`. `stable` is a moving target, and a Foundry
         # release that changes gas accounting turns every entry in
         # .gas-snapshot into a diff, failing CI on whatever commit happens to
@@ -91,8 +91,8 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: frontend } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
         with: { node-version: "20", cache: "npm", cache-dependency-path: frontend/package-lock.json }
       # npm install (not ci): the lockfile is generated on Windows, and porto's
       # platform-specific optional deps make `npm ci`'s strict tree match fail
@@ -102,14 +102,16 @@ jobs:
       - name: build
         env:
           NEXT_PUBLIC_ARC_NETWORK: "arc-testnet"
-          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0x538CD48789667168bfb36f838Af8476237F9409F"
+          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0xeDf2c738915b042da97788b2b5499D4655FB1f20" # V4.7, 2026-09-07
           NEXT_PUBLIC_RPC_URL: "https://rpc.testnet.arc.network"
         run: npm run build
-      # Informational only (continue-on-error): next@14 already carries known,
-      # reviewed-and-accepted findings pending the next@16 migration (see
-      # GRANT_APPLICATION.md "Known risks") - this must not block CI on those.
-      # It exists so *new* advisories in other deps surface in the log instead
-      # of relying on someone running `npm audit` by hand.
+      # Informational only (continue-on-error): reviewed-and-accepted findings
+      # (currently qs/express/body-parser, see GRANT_APPLICATION.md "Known
+      # risks") must not block CI. It exists so *new* advisories in other deps
+      # surface in the log instead of relying on someone running `npm audit`
+      # by hand. (V4.7, M-11: this comment used to say "next@14... pending the
+      # next@16 migration" - the repo has been on next@15.5.24 for a while;
+      # that framing was stale, not a live migration plan.)
       - name: npm audit (report only)
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
@@ -118,8 +120,8 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: agent-sdk } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
         with: { node-version: "20" }
       - run: npm install
       - run: npm run typecheck
@@ -132,17 +134,18 @@ jobs:
   mcp-server:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
         with: { node-version: "20" }
-      # mcp-server depends on arcbounty-agent-sdk via a local file: reference
-      # (so in-repo SDK changes are exercised before an npm release) - build
-      # it first so its dist/ types & JS actually exist for the install below.
-      - name: build agent-sdk (local dependency)
-        working-directory: agent-sdk
-        run: |
-          npm install
-          npm run build
+      # V4.7 (M-11): mcp-server depends on the PUBLISHED arcbounty-agent-sdk
+      # (a semver range against the npm registry, not a local file: link) -
+      # this used to build agent-sdk locally first on the theory that
+      # in-repo SDK changes would be exercised here before an npm release,
+      # but nothing ever wired that local build into mcp-server's install;
+      # `npm install` below always pulled from the registry regardless. This
+      # job now verifies what mcp-server actually ships with; a source-level
+      # SDK change needs its own publish (see the `sdk` job above for
+      # in-repo verification instead).
       - name: install mcp-server
         working-directory: mcp-server
         run: npm install
@@ -161,8 +164,8 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: facade-api } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
         with: { node-version: "20" }
       - run: npm install
       - run: npm run typecheck

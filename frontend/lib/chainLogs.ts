@@ -18,9 +18,9 @@ import { getActiveNetwork } from "./networks";
 // Primary path instead: ArcScan's Blockscout API (etherscan-compatible
 // `module=logs&action=getLogs`), which serves an address+topic0 filter over
 // the full range in ONE request and sends `Access-Control-Allow-Origin: *`.
-// Caveat: it returns at most ~1,000 records per call - far beyond testnet
-// scale; by the time that limit matters the indexer (grant milestone 6)
-// replaces this file entirely.
+// The underlying API returns at most ~1,000 records per call (M-12): paged
+// via its own `page`/`offset` params below, up to MAX_PAGES, rather than
+// silently truncating at the first page.
 //
 // Fallback path (Blockscout down): chunked RPC scan, bounded to the most
 // recent MAX_LOOKBACK blocks so a degraded mode can't hammer the RPC for
@@ -33,28 +33,40 @@ const BLOCKSCOUT_API = network.explorerApiUrl;
 const CHUNK = 10_000n;
 const CONCURRENCY = 10;
 const MAX_LOOKBACK = network.maxLookbackBlocks; // fallback only
+const PAGE_SIZE = 1_000; // matches the API's own per-call cap (see comment above)
+const MAX_PAGES = 20; // bound worst-case work - revisit once the indexer (grant milestone 6) replaces this file
 
 export type ScannedLog = { args: unknown; blockNumber?: bigint };
 
-// Once the explorer API has refused us, it will refuse every subsequent call
-// for the same reason (unsupported chain, no key, CORS). Retrying it per scan
-// only buys a wasted round-trip and a console error before the same fallback
-// runs - so remember the refusal for the rest of the session.
-let explorerUnavailable = false;
+// M-12: a transient explorer failure (a blip, a deploy, a rate limit) used to
+// permanently downgrade this whole serverless instance to the bounded RPC
+// fallback for the rest of its lifetime - a warm instance can live for hours,
+// so one bad response could mean hours of under-counted (MAX_LOOKBACK-bounded)
+// results afterward even once the explorer recovered. Track the last-failure
+// timestamp instead of a one-way flag, and retry the explorer path again
+// after a cooldown.
+const EXPLORER_RETRY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+let explorerUnavailableSince: number | null = null;
+
+function explorerInCooldown(): boolean {
+  return explorerUnavailableSince !== null && Date.now() - explorerUnavailableSince < EXPLORER_RETRY_COOLDOWN_MS;
+}
 
 export async function getLogsChunked(
   client: PublicClient,
   params: { address: `0x${string}`; event: AbiEvent },
   fromBlock: bigint,
 ): Promise<ScannedLog[]> {
-  if (!explorerUnavailable) {
+  if (!explorerInCooldown()) {
     try {
-      return await blockscoutLogs(params.address, params.event, fromBlock);
+      const result = await blockscoutLogs(params.address, params.event, fromBlock);
+      explorerUnavailableSince = null; // recovered - clear any prior failure
+      return result;
     } catch (err) {
-      explorerUnavailable = true;
+      explorerUnavailableSince = Date.now();
       console.warn(
-        "[chainLogs] explorer log API unavailable, using the bounded RPC scan for the rest "
-        + `of this session (most recent ${MAX_LOOKBACK} blocks only):`,
+        "[chainLogs] explorer log API unavailable, using the bounded RPC scan for the next "
+        + `${EXPLORER_RETRY_COOLDOWN_MS / 60_000} minute(s) (most recent ${MAX_LOOKBACK} blocks only):`,
         err,
       );
     }
@@ -78,17 +90,29 @@ async function blockscoutLogs(
   // single multichain endpoint keyed by `?chainid=…` - appending another `?`
   // produced a URL the API rejects outright ("Missing or unsupported chainid").
   const sep = BLOCKSCOUT_API.includes("?") ? "&" : "?";
-  const url =
+  const baseUrl =
     `${BLOCKSCOUT_API}${sep}module=logs&action=getLogs`
     + `&fromBlock=${fromBlock}&toBlock=latest&address=${address}&topic0=${topic0}`;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`blockscout ${res.status}`);
-  const json = await res.json() as { result?: unknown };
-  // "No records found" still returns result: [] - only a non-array is an error.
-  if (!Array.isArray(json.result)) throw new Error("blockscout: unexpected response shape");
+  // M-12: the underlying API caps each call at ~PAGE_SIZE records - loop
+  // through subsequent pages (bounded by MAX_PAGES) until a short page (or
+  // an empty one) signals we've reached the end, instead of silently
+  // returning only the first page's worth of history.
+  const all: BlockscoutLog[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const url = `${baseUrl}&page=${page}&offset=${PAGE_SIZE}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`blockscout ${res.status}`);
+    const json = await res.json() as { result?: unknown };
+    // "No records found" still returns result: [] - only a non-array is an error.
+    if (!Array.isArray(json.result)) throw new Error("blockscout: unexpected response shape");
 
-  return (json.result as BlockscoutLog[]).map(raw => {
+    const pageResult = json.result as BlockscoutLog[];
+    all.push(...pageResult);
+    if (pageResult.length < PAGE_SIZE) break; // short page - this was the last one
+  }
+
+  return all.map(raw => {
     // Blockscout pads the topics array with nulls for unused topic slots.
     const topics = raw.topics.filter((t): t is Hex => t !== null);
     const decoded = decodeEventLog({

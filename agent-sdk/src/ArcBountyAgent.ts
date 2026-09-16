@@ -7,6 +7,7 @@ import {
   type Address,
   type Hash,
   type PublicClient,
+  type TransactionReceipt,
 } from "viem";
 import {
   BOUNTY_ADAPTER_ABI,
@@ -88,9 +89,31 @@ export class ArcBountyAgent {
     this.chain = defineChain({
       id: network.chainId,
       name: network.name,
-      nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
+      // V4.7 (H-05): read from the resolved network instead of hardcoding
+      // Arc's USDC-as-gas model. Arc's native currency really is 6-decimal
+      // USDC, but Base's is 18-decimal ETH - hardcoding this fed wrong
+      // decimals/symbol into anything that reads `this.chain.nativeCurrency`
+      // (wallet UIs, viem's own formatting) the moment this SDK talked to Base.
+      nativeCurrency: {
+        name: network.nativeCurrency.isUsdc ? "USD Coin" : network.nativeCurrency.symbol,
+        symbol: network.nativeCurrency.symbol,
+        decimals: network.nativeCurrency.decimals,
+      },
       rpcUrls: { default: { http: [rpcUrl] } },
     });
+
+    // V4.7 (H-03): catches the most common CircleSigner misconfiguration -
+    // reusing a wallet config provisioned for one network on an agent
+    // constructed for another. This only checks internal consistency of the
+    // config passed here; it cannot verify which chain the Circle wallet is
+    // actually bound to on Circle's own side (see CircleWalletConfig.chainId).
+    if (config.circleWallet && config.circleWallet.chainId !== network.chainId) {
+      throw new Error(
+        `ArcBountyAgent: circleWallet.chainId (${config.circleWallet.chainId}) does not match ` +
+        `network "${network.name}" (chain id ${network.chainId}). Confirm which chain this Circle ` +
+        "wallet is actually provisioned for via the Circle Console/API before proceeding.",
+      );
+    }
 
     this.signer = config.circleWallet
       ? new CircleSigner(config.circleWallet)
@@ -188,7 +211,10 @@ export class ArcBountyAgent {
 
     // Decode the agentId straight from the registration receipt - authoritative
     // and avoids a wide getLogs scan that public RPCs reject on long chains.
-    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    // V4.7 (H-04): routed through _waitForTx - this used to call
+    // waitForTransactionReceipt directly, with no timeout and no check that
+    // the transaction didn't revert.
+    const receipt = await this._waitForTx(hash);
     const agentId = agentIdFromReceiptLogs(receipt.logs, this.network.contracts.IDENTITY_REGISTRY, this.signer.address);
     if (agentId === null) throw new Error("Registration succeeded but agentId not found in events");
 
@@ -368,7 +394,10 @@ export class ArcBountyAgent {
       }],
     });
 
-    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    // V4.7 (H-04): routed through _waitForTx - this used to call
+    // waitForTransactionReceipt directly, with no timeout and no check that
+    // the transaction didn't revert.
+    const receipt = await this._waitForTx(hash);
     let jobId: bigint | undefined;
     for (const log of receipt.logs) {
       if (log.address.toLowerCase() !== this.bountyAdapter.toLowerCase()) continue;
@@ -498,6 +527,35 @@ export class ArcBountyAgent {
   /** Permissionless expiry after deadline. Refunds poster if no submission. */
   async expireBounty(jobId: bigint): Promise<TxResult> {
     return this._writeAdapter("expireBounty", [jobId]);
+  }
+
+  /**
+   * V4.6/V4.7 (M-04). Read how much USDC a failed direct payout parked for
+   * `address` (defaults to this agent's own wallet) - a nonzero result means
+   * a settlement completed but the money hasn't reached that balance yet.
+   */
+  async getPendingWithdrawal(address: Address = this.address): Promise<bigint> {
+    return this.publicClient.readContract({
+      address: this.bountyAdapter,
+      abi: BOUNTY_ADAPTER_ABI,
+      functionName: "pendingWithdrawals",
+      args: [address],
+    });
+  }
+
+  /** Claim USDC parked by a failed direct payout - see `getPendingWithdrawal`. */
+  async withdraw(): Promise<TxResult> {
+    return this._writeAdapter("withdraw", []);
+  }
+
+  /**
+   * V4.7 (C-02 safety net). Permissionless recovery for a job whose AC escrow
+   * was force-refunded by AC's own `claimRefund` despite `AC_EXPIRY_BUFFER` -
+   * meaning it sat unresolved for 90+ days. See the contract's V4.7 changelog
+   * note for exactly how funds are attributed.
+   */
+  async reconcileExpiredEscrow(jobId: bigint): Promise<TxResult> {
+    return this._writeAdapter("reconcileExpiredEscrow", [jobId]);
   }
 
   /** Arbitrator-only ruling. `payProvider` true → worker wins, false → refund. */
@@ -795,14 +853,29 @@ export class ArcBountyAgent {
     ]);
 
     const now = BigInt(Math.floor(Date.now() / 1000));
-    const mine = await this.getMyBounties();
+    // V4.7 (M-03): merged with posted bounties. getPostedBounties() already
+    // existed and worked correctly, but nothing called it, so a poster could
+    // miss a dispute the worker opened against them (and lose by default via
+    // claimDefaultRuling) or miss their own claimArbitratorTimeout - this only
+    // ever scanned the worker/assigned side.
+    const [assigned, posted] = await Promise.all([this.getMyBounties(), this.getPostedBounties()]);
+    const seen = new Set<string>();
+    const mine: BountyMeta[] = [];
+    for (const meta of [...assigned, ...posted]) {
+      const key = meta.jobId.toString();
+      if (seen.has(key)) continue; // same wallet acting as both poster and worker
+      seen.add(key);
+      mine.push(meta);
+    }
     const actions: PendingAction[] = [];
 
     for (const meta of mine) {
       if (meta.resolved) continue;
+      const isWorker = meta.assignedProvider.toLowerCase() === this.address.toLowerCase();
 
-      // 1. Pending rejection, still within the challenge window, not yet challenged.
-      if (meta.rejectedAt > 0n && !meta.inDispute && now <= meta.rejectedAt + rejectionWindow) {
+      // 1. Pending rejection, still within the challenge window, not yet
+      //    challenged - only the worker being rejected can act on this.
+      if (isWorker && meta.rejectedAt > 0n && !meta.inDispute && now <= meta.rejectedAt + rejectionWindow) {
         actions.push({
           kind: "rejection_pending", jobId: meta.jobId, meta,
           message: `Bounty #${meta.jobId}: poster rejected your submission - challenge it within the window or it finalizes against you.`,
@@ -810,7 +883,10 @@ export class ArcBountyAgent {
         continue;
       }
 
-      // 2. Dispute open, raised by the OTHER party, this agent hasn't responded.
+      // 2. Dispute open, raised by the OTHER party, this agent hasn't
+      //    responded. Role-agnostic by construction (compares against
+      //    disputeInitiator, not a fixed poster/worker assumption) - catches
+      //    a poster missing a worker-raised dispute just as well.
       if (
         meta.inDispute
         && meta.disputeResponseHash.length === 0
@@ -932,9 +1008,10 @@ export class ArcBountyAgent {
    * hash, so the transaction can be looked up or resent, and it names the
    * cause, because "set a dedicated RPC" is the actual fix.
    */
-  private async _waitForTx(hash: Hash): Promise<void> {
+  private async _waitForTx(hash: Hash): Promise<TransactionReceipt> {
+    let receipt: TransactionReceipt;
     try {
-      await this.publicClient.waitForTransactionReceipt({ hash, timeout: TX_RECEIPT_TIMEOUT_MS });
+      receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: TX_RECEIPT_TIMEOUT_MS });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(
@@ -945,6 +1022,18 @@ export class ArcBountyAgent {
         `load balanced. Underlying error: ${msg}`,
       );
     }
+    // V4.7 (H-04): a transaction can be mined and still have reverted -
+    // `waitForTransactionReceipt` resolves either way, it does not throw on
+    // revert. Every caller here previously treated "a receipt arrived" as
+    // success, so a reverted approve/settlement was reported back as if it
+    // had gone through.
+    if (receipt.status === "reverted") {
+      throw new Error(
+        `Transaction ${hash} was mined but reverted on ${this.network.name}. Check the hash on the ` +
+        "explorer for the revert reason before retrying.",
+      );
+    }
+    return receipt;
   }
 
   /**

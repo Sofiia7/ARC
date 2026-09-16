@@ -54,7 +54,15 @@ export function useTx() {
       });
 
       toast.loading("Waiting for confirmation…", { id: toastId });
-      await publicClient?.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient?.waitForTransactionReceipt({ hash });
+      // viem resolves this promise for a reverted-but-mined tx too - it only
+      // rejects on timeout/not-found. Without this check, a revert still
+      // showed a success toast and handed the caller a truthy hash as if the
+      // on-chain call had actually gone through (H-04). Throwing here routes
+      // it through the existing catch block below, same as any other failure.
+      if (receipt?.status === "reverted") {
+        throw new Error("Transaction reverted on-chain");
+      }
 
       toast.success(labels.success ?? "Transaction confirmed!", { id: toastId });
       return hash;

@@ -101,10 +101,49 @@ export class QuestVerifier {
   private readonly lastCounts = new Map<string, QuestStatus["counts"]>();
   private readonly negatives = new Map<string, { at: number; status: QuestStatus }>();
 
+  /**
+   * M-12: all three maps above are keyed by any syntactically-valid address
+   * string a caller sends (see parseAddress - no on-chain existence check),
+   * and `lastCounts` in particular was written unconditionally for every
+   * address ever verified and never deleted, so a flood of distinct
+   * random-but-valid addresses grew it without bound (earned is naturally
+   * smaller - only addresses with >=1 real earned task are stored there -
+   * and negatives self-clears on a full earn, but neither is actually
+   * bounded either).
+   *
+   * Fixed with one insertion-ordered ledger of tracked keys, shared across
+   * all three maps since they're always read/written together by the same
+   * key - evicting from just one would let them drift out of sync. Same
+   * "size cap over setInterval sweep" reasoning as TtlCache (see cache.ts):
+   * this runs as a Vercel function as often as a long-lived process, so a
+   * background timer is the wrong tool.
+   */
+  private static readonly MAX_TRACKED_ADDRESSES = 10_000;
+  private readonly addressOrder = new Set<string>();
+
   constructor(
     private readonly reader: BountyReader,
     private readonly config: FacadeConfig,
   ) {}
+
+  /** Marks `key` as most-recently-used and evicts the oldest tracked address
+   * from all three maps once the cap is exceeded. Call on every path that
+   * reads OR writes earned/lastCounts/negatives for a key, so a hot,
+   * frequently-re-verified address (the common case - a platform polling the
+   * same real user until they finish a task) doesn't get evicted ahead of
+   * addresses nobody has asked about in a while. */
+  private touch(key: string): void {
+    this.addressOrder.delete(key);
+    this.addressOrder.add(key);
+    while (this.addressOrder.size > QuestVerifier.MAX_TRACKED_ADDRESSES) {
+      const oldest = this.addressOrder.values().next().value;
+      if (oldest === undefined) break;
+      this.addressOrder.delete(oldest);
+      this.earned.delete(oldest);
+      this.lastCounts.delete(oldest);
+      this.negatives.delete(oldest);
+    }
+  }
 
   /** Normalises whatever the platform sent us into a checksum-free lower-case
    * address, or null if it is not an address at all. Galxe can be configured
@@ -126,11 +165,13 @@ export class QuestVerifier {
     // re-verification takes, and it costs no RPC at all - which is what keeps
     // a campaign burst from queueing behind the reader's paced lane.
     if (done && done.size === QUEST_TASKS.length) {
+      this.touch(key);
       return this.fromEarned(address, done, this.lastCounts.get(key));
     }
 
     const cachedNegative = this.negatives.get(key);
     if (cachedNegative && Date.now() - cachedNegative.at < NEGATIVE_TTL_MS) {
+      this.touch(key);
       return cachedNegative.status;
     }
 
@@ -163,13 +204,46 @@ export class QuestVerifier {
       }
       try {
         const { value } = await this.reader.get(jobId);
-        const hasSubmission = /[1-9a-f]/i.test(value.submittedResultHash.slice(2));
+        // M-02: this used to be `/[1-9a-f]/i.test(value.submittedResultHash.slice(2))`
+        // - an accidental non-empty-string check that happened to work only
+        // because it was never fed a string starting with all-zero hex. It
+        // treated `submittedResultHash` as a `0x`-prefixed hex value (hence
+        // `.slice(2)`), but it is an IPFS hash string, not hex - a real
+        // emptiness check is both correct and simpler.
+        const hasSubmission = value.submittedResultHash.length > 0;
         if (hasSubmission) submitted++;
         if (hasSubmission && value.poster.toLowerCase() !== address.toLowerCase()) submittedForOther++;
-        // `resolved` covers both the approved and the disputed-then-paid path;
-        // pairing it with a submission is what makes it "this worker was paid"
-        // rather than "the poster cancelled it".
-        if (value.resolved && hasSubmission) completed++;
+        // M-02: `resolved && hasSubmission` alone is ambiguous and was a
+        // permanent false-positive - finalizeRejection (rejectBounty, never
+        // challenged, then finalized) and a lost dispute ALSO leave
+        // resolved=true with submittedResultHash still set, but pay the
+        // *poster* back via _rejectAndRefund, never the worker. This can't
+        // just ask "did BountyCompleted fire for this jobId" via a log scan
+        // to settle it directly - see the "one eth_call, no log scan" note
+        // on BountyReader.assignedJobs() in bounties.ts: the same 5s Galxe
+        // budget that rules out getLogs there applies to every job read in
+        // this loop too. Instead this narrows using fields already in hand
+        // from the same eth_call:
+        //   - rejectedAt == 0 && disputeRaisedAt == 0: the ONLY way to reach
+        //     resolved+submitted without ever touching the rejection or
+        //     dispute machinery is approveBounty/autoApprove - worker paid,
+        //     unambiguous.
+        //   - rejectedAt != 0 && disputeRaisedAt == 0: rejectBounty ran and
+        //     was never challenged, so the only path to `resolved` from
+        //     there is finalizeRejection - refunded to poster, unambiguous.
+        //   - disputeRaisedAt != 0 (rejected-then-challenged, or a direct
+        //     disputeBounty call either way): resolveDispute/
+        //     claimDefaultRuling/claimArbitratorTimeout all set resolved=true
+        //     without persisting which side was paid (payProvider only ever
+        //     reaches an event, never a BountyMeta field) - genuinely
+        //     ambiguous from meta alone. Known, accepted tradeoff: a worker
+        //     who WON a dispute is not credited as completed_bounty here
+        //     (undercounts that one narrow case) - preferred over the
+        //     previous bug, which overcounted the far more common
+        //     rejected/lost-dispute case as paid.
+        if (value.resolved && hasSubmission && value.rejectedAt === 0n && value.disputeRaisedAt === 0n) {
+          completed++;
+        }
       } catch {
         truncated = true;
         break;
@@ -206,6 +280,7 @@ export class QuestVerifier {
   }
 
   private remember(key: string, status: QuestStatus): void {
+    this.touch(key);
     const set = this.earned.get(key) ?? new Set<QuestTask>();
     for (const task of QUEST_TASKS) {
       if (status[task] === 1) set.add(task);

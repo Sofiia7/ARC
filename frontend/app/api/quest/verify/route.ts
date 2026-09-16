@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, http, isAddress, type Address } from "viem";
+import { createPublicClient, http, isAddress, type Address, type AbiEvent } from "viem";
 import { activeChain } from "@/lib/wagmi";
-import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+import { CONTRACTS, BOUNTY_ADAPTER_ABI, BOUNTY_ADAPTER_DEPLOY_BLOCK } from "@/lib/contracts";
 import { getActiveNetwork } from "@/lib/networks";
 import { clientKey, consumeAsync } from "@/lib/rate-limit";
+import { getLogsChunked } from "@/lib/chainLogs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -142,6 +143,67 @@ function parseAddress(raw: unknown): Address | null {
   return isAddress(candidate) ? (candidate.toLowerCase() as Address) : null;
 }
 
+function evt(name: string): AbiEvent {
+  const found = BOUNTY_ADAPTER_ABI.find(e => e.type === "event" && e.name === name);
+  // Loud failure beats a silent `!` - see useProtocolStats.ts, which uses the
+  // exact same helper for the exact same reason.
+  if (!found) throw new Error(`[quest/verify] event ${name} missing from BOUNTY_ADAPTER_ABI`);
+  return found as unknown as AbiEvent;
+}
+
+/**
+ * M-02: jobIds proven PAID to the worker by an on-chain event - as opposed to
+ * `resolved`, which is also true for a rejected submission or a dispute the
+ * worker lost (refunded to the poster, not paid). Two event types prove a
+ * full payout:
+ *  - `BountyCompleted` - fires on `approveBounty` and `autoApprove`.
+ *  - `DisputeResolved` with `payProvider === true` - fires on `resolveDispute`
+ *    and `claimDefaultRuling` when the arbitrator (or the default ruling)
+ *    sides with the worker. Neither of these emits `BountyCompleted` itself
+ *    (confirmed by reading contracts/src/BountyAdapter.sol directly).
+ * `claimArbitratorTimeout` (a neutral 50/50 split when the arbitrator never
+ * rules) is deliberately EXCLUDED - it only emits `ArbitratorTimeoutClaimed`,
+ * and the worker was only ever made partially whole, so counting it as a
+ * full "completed_bounty" would overclaim relative to a real approval.
+ *
+ * Cached and merge-only (a jobId, once proven paid, is paid forever) rather
+ * than re-scanned on every single verify() call: Galxe/Zealy can hit this
+ * endpoint from a tight IP range at real volume, and re-running a full
+ * event-history scan per request would only get slower as the contract's
+ * history grows - risking the 5-second ceiling Galxe's own claim-checker
+ * enforces (see the file-level comment above). A once-a-minute refresh is
+ * still far tighter than a quest platform's own poll/claim cadence, and a
+ * scan failure here simply propagates to verify()'s existing caller, which
+ * already knows how to fall back to previously-cached earned tasks.
+ */
+let paidJobIdsCache: { ids: Set<string>; fetchedAt: number } = { ids: new Set(), fetchedAt: 0 };
+const PAID_CACHE_REFRESH_MS = 60_000;
+
+async function paidJobIds(): Promise<Set<string>> {
+  const now = Date.now();
+  if (now - paidJobIdsCache.fetchedAt < PAID_CACHE_REFRESH_MS) return paidJobIdsCache.ids;
+
+  const address = CONTRACTS.BOUNTY_ADAPTER;
+  const from = BOUNTY_ADAPTER_DEPLOY_BLOCK;
+  const [completedLogs, disputeLogs] = await Promise.all([
+    getLogsChunked(client, { address, event: evt("BountyCompleted") }, from),
+    getLogsChunked(client, { address, event: evt("DisputeResolved") }, from),
+  ]);
+
+  const next = new Set(paidJobIdsCache.ids); // merge-only - see doc comment above
+  for (const log of completedLogs as Array<{ args: unknown }>) {
+    const a = log.args as { jobId: bigint };
+    next.add(a.jobId.toString());
+  }
+  for (const log of disputeLogs as Array<{ args: unknown }>) {
+    const a = log.args as { jobId: bigint; payProvider: boolean };
+    if (a.payProvider) next.add(a.jobId.toString());
+  }
+
+  paidJobIdsCache = { ids: next, fetchedAt: now };
+  return next;
+}
+
 async function verify(address: Address) {
   const [assigned, posted] = await Promise.all([
     client.readContract({
@@ -165,26 +227,34 @@ async function verify(address: Address) {
   if (assigned.length > 0) {
     // One aggregated eth_call for every bounty this address took, however many
     // that is. allowFailure keeps a single unreadable job from voiding the
-    // whole verification.
-    const metas = await client.multicall({
-      allowFailure: true,
-      contracts: assigned.map(jobId => ({
-        address: CONTRACTS.BOUNTY_ADAPTER,
-        abi: BOUNTY_ADAPTER_ABI,
-        functionName: "getBountyMeta" as const,
-        args: [jobId] as const,
-      })),
-    });
+    // whole verification. paidJobIds() is independent of this multicall (an
+    // event-log scan, not a per-job eth_call) and runs alongside it.
+    const [metas, paid] = await Promise.all([
+      client.multicall({
+        allowFailure: true,
+        contracts: assigned.map(jobId => ({
+          address: CONTRACTS.BOUNTY_ADAPTER,
+          abi: BOUNTY_ADAPTER_ABI,
+          functionName: "getBountyMeta" as const,
+          args: [jobId] as const,
+        })),
+      }),
+      paidJobIds(),
+    ]);
 
     for (const entry of metas) {
       if (entry.status !== "success") continue;
-      const meta = entry.result as { submittedResultHash: string; resolved: boolean; poster: string };
+      const meta = entry.result as { jobId: bigint; submittedResultHash: string; resolved: boolean; poster: string };
       const hasSubmission = meta.submittedResultHash !== ZERO_HASH;
       if (hasSubmission) submitted++;
       if (hasSubmission && meta.poster.toLowerCase() !== address) submittedForOther++;
-      // `resolved` alone would also count a bounty the poster cancelled;
-      // pairing it with a submission is what makes it "this worker was paid".
-      if (hasSubmission && meta.resolved) completed++;
+      // M-02: `resolved` alone (even paired with hasSubmission) is NOT proof
+      // the worker was paid - it's ALSO true for a rejected submission
+      // (finalizeRejection) or a dispute the worker lost (resolveDispute /
+      // claimDefaultRuling with payProvider=false), both of which refund the
+      // poster instead. Proof is one of the specific on-chain events that
+      // only fire on a paid-worker path - see paidJobIds() above.
+      if (hasSubmission && paid.has(meta.jobId.toString())) completed++;
     }
   }
 

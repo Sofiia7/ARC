@@ -7,18 +7,22 @@ import { fetchIpfsServerCached } from "@/lib/ipfsServer";
 export const runtime = "nodejs";
 
 const MAX_TEXT_BYTES = 1 * 1024 * 1024; // 1 MB
+// M-06: this route spends real quota (Pinata pin volume) on every accepted
+// request, so a Redis outage must fail closed rather than silently widen the
+// effective cap to capacity x warm-instance-count - see
+// `failClosedOnRedisError` in lib/rate-limit.ts.
 // Wallet-scoped: generous enough for a real user. Wallet creation is free, so
 // this alone doesn't bound a determined attacker - the IP-only bucket below
 // is what actually caps "spin up N wallets from one machine" abuse.
-const WALLET_RATE = { capacity: 10, refillPerSecond: 10 / 60 }; // 10 / min per wallet
+const WALLET_RATE = { capacity: 10, refillPerSecond: 10 / 60, failClosedOnRedisError: true }; // 10 / min per wallet
 // IP-only: independent of wallet identity, catches many-wallets-one-IP abuse
 // that a wallet-only bucket can't see (a fresh EOA always starts with a full
 // wallet bucket).
-const IP_RATE = { capacity: 20, refillPerSecond: 20 / 60 }; // 20 / min per IP, any wallet
+const IP_RATE = { capacity: 20, refillPerSecond: 20 / 60, failClosedOnRedisError: true }; // 20 / min per IP, any wallet
 // Daily volume cap per wallet - bounds sustained abuse even from a client
 // that paces requests just under the per-minute limits.
 const DAILY_BYTES_PER_WALLET = 20 * 1024 * 1024; // 20 MB / day
-const DAILY_RATE = { capacity: DAILY_BYTES_PER_WALLET, refillPerSecond: DAILY_BYTES_PER_WALLET / 86_400 };
+const DAILY_RATE = { capacity: DAILY_BYTES_PER_WALLET, refillPerSecond: DAILY_BYTES_PER_WALLET / 86_400, failClosedOnRedisError: true };
 
 function tooBig(s: string): boolean {
   return new TextEncoder().encode(s).byteLength > MAX_TEXT_BYTES;

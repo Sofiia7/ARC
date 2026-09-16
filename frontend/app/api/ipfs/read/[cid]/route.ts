@@ -20,6 +20,32 @@ export const runtime = "nodejs";
 // of arbitrary CIDs through our server" abuse, not normal browsing.
 const IP_RATE = { capacity: 120, refillPerSecond: 120 / 60 };
 
+// ─── H-01: Content-Type allowlist on the way out ────────────────────────────
+//
+// This route proxies whatever CID a caller asks for - including public IPFS
+// content this app never pinned - and previously forwarded the upstream
+// gateway's own Content-Type verbatim, with no Content-Disposition. A pinned
+// HTML or SVG file then rendered INLINE, same-origin as the real app (full
+// script execution), the moment anyone followed a link to it (e.g. an
+// `ipfs://` link the markdown sanitizer allows through, rewritten to this
+// route by IPFSMarkdownClient's rewriteUrl()) - stored XSS via IPFS content.
+//
+// Fix: only ever emit a Content-Type from this small safe allowlist. Anything
+// else - including text/html and image/svg+xml, both script-capable - is
+// forced to application/octet-stream with Content-Disposition: attachment,
+// so the browser downloads it instead of rendering it. Allowlisted types get
+// Content-Disposition: inline (harmless for images/PDF/JSON/plain text - a
+// browser can't execute script by rendering a naked text/plain body inline).
+const SAFE_INLINE_CONTENT_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "application/json",
+  "text/plain",
+]);
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ cid: string }> }) {
   const { cid } = await params;
   if (!cid || cid.length > 200) {
@@ -33,10 +59,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cid:
 
   try {
     const { bytes, contentType } = await fetchIpfsServerCached(cid);
+
+    // Strip any `; charset=...` parameter before checking - the allowlist is
+    // keyed on the bare MIME type.
+    const normalizedType = contentType.split(";")[0]!.trim().toLowerCase();
+    const safe = SAFE_INLINE_CONTENT_TYPES.has(normalizedType);
+
     return new NextResponse(bytes, {
       status: 200,
       headers: {
-        "content-type": contentType,
+        "content-type": safe ? contentType : "application/octet-stream",
+        "content-disposition": safe ? "inline" : "attachment",
         "cache-control": `public, max-age=${IPFS_CACHE_TTL_SEC}, immutable`,
       },
     });

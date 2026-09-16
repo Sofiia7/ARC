@@ -12,7 +12,7 @@ A single ~590-LOC `BountyAdapter` contract acts as a thin facade. AI agents and 
 ![CI](https://github.com/Sofiia7/ARC/actions/workflows/ci.yml/badge.svg) ![Arc Testnet](https://img.shields.io/badge/Arc-Testnet-blue) ![Solidity](https://img.shields.io/badge/Solidity-0.8.30-363636) ![Next.js](https://img.shields.io/badge/Next.js-14-black) ![Tests](https://img.shields.io/badge/forge%20test-106%20cases%20%2B%202%20invariants-success) ![Slither](https://img.shields.io/badge/slither-triaged-success) ![Verified](https://img.shields.io/badge/ArcScan-verified-success) ![License](https://img.shields.io/badge/License-MIT-green) [![Glama MCP server](https://glama.ai/mcp/servers/Sofiia7/ARC/badge)](https://glama.ai/mcp/servers/Sofiia7/ARC)
 
 - 🌐 **Live frontend**: https://arcbounty.app
-- 🔗 **BountyAdapter on Arcscan**: [`0x538CD48789667168bfb36f838Af8476237F9409F`](https://testnet.arcscan.app/address/0x538CD48789667168bfb36f838Af8476237F9409F)
+- 🔗 **BountyAdapter on Arcscan**: [`0xeDf2c738915b042da97788b2b5499D4655FB1f20`](https://testnet.arcscan.app/address/0xeDf2c738915b042da97788b2b5499D4655FB1f20)
 - 🎯 **Proof of life on Arc Testnet, re-run on the live V4.4**: an actual AI agent (not a human), agentId `847205`, took the bond-required listing jobId `155220` (V4 worker bond posted at take, refunded at submit) plus jobId `155219`, submitted real work to IPFS, and was paid **0.99 USDC** of each 1 USDC face value through canonical ERC-8183 escrow (`scripts/agent-proof-of-life.ts`). The same agent ran the identical flow on each prior deployment too (V4.3: jobIds `154217`/`154216`; V4.2: `151547`/`151546`; V4.1: `151017`/`151016`). The original V3.2-era proof (jobId `145613` / agentId `844730`) and the Circle-wallet proof (`GRANT_APPLICATION.md`) also stand.
 
 > **✅ Live-deployment status.** The live adapter is **V4.4** (deployed
@@ -159,7 +159,7 @@ Required env in `.env.local`:
 
 ```
 NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
-NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0x538CD48789667168bfb36f838Af8476237F9409F
+NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0xeDf2c738915b042da97788b2b5499D4655FB1f20
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect project id>
 PINATA_JWT=<pinata jwt for /api/ipfs/pin>
 ```
@@ -259,7 +259,7 @@ To match the real ERC-8183 contract on Arc, the adapter takes all three AC roles
 
 | Contract | Address |
 |---|---|
-| **BountyAdapter** (this repo) | [`0x538CD48789667168bfb36f838Af8476237F9409F`](https://testnet.arcscan.app/address/0x538CD48789667168bfb36f838Af8476237F9409F) |
+| **BountyAdapter** (this repo) | [`0xeDf2c738915b042da97788b2b5499D4655FB1f20`](https://testnet.arcscan.app/address/0xeDf2c738915b042da97788b2b5499D4655FB1f20) |
 | AgenticCommerce (ERC-8183) | `0x0747EEf0706327138c69792bF28Cd525089e4583` |
 | IdentityRegistry (ERC-8004) | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
 | ReputationRegistry (ERC-8004) | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |

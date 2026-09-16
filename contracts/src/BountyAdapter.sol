@@ -111,6 +111,52 @@ import "./interfaces/IReputationRegistry.sol";
 ///    Two-step transfer, mirroring the existing arbitrator/feeRecipient
 ///    pattern.
 ///
+/// V4.7 changes vs V4.6 (2026-09-07 internal audit findings):
+///  - takeBounty now reverts once a job is `resolved` (C-01). Previously only
+///    `isTaken` and the deadline were checked, so a poster who cancelled their
+///    own bounty (refunded, `resolved=true`, `isTaken` left false) could take
+///    it again — `fund()` then pulls `meta.reward` from the adapter's pooled
+///    USDC balance, which by that point belongs to whichever other bounty is
+///    still open. Fixed by latching `takeBounty` on `resolved` too.
+///  - AC jobs are now created with `expiredAt = deadline + AC_EXPIRY_BUFFER`,
+///    not the bounty's own `deadline` (C-02). AC's own `claimRefund` is
+///    permissionless and fires once `block.timestamp >= expiredAt`, refunding
+///    straight back to the adapter and marking the AC job Expired — including
+///    for a job whose work was already submitted. Since the adapter's own
+///    dispute/approval windows legitimately run up to ~46 days past the
+///    bounty deadline, an external `claimRefund` could previously fire while
+///    the adapter still considered the job live, permanently desyncing the
+///    two state machines (every subsequent complete()/reject() on that AC job
+///    reverts, and the adapter has no record the money already came back).
+///    The buffer (90 days, ~2x the worst case) makes that unreachable in any
+///    normal lifecycle.
+///  - reconcileExpiredEscrow(jobId): a permissionless safety net for the
+///    residual case where an AC job still hits Expired anyway (something left
+///    unresolved for 90+ days — e.g. a dead arbitrator role). Attributes the
+///    already-returned funds via `pendingWithdrawals`, mirroring the payout
+///    default of whichever adapter path would otherwise have applied
+///    (autoApprove/expireBounty/claimArbitratorTimeout), with no protocol fee
+///    — the same rationale as V4.4's arbitrator-timeout fee waiver: don't tax
+///    users for the protocol's own liveness failure.
+///  - _maybePenalize now writes reputation penalties as a negative value.
+///    Previously a dispute-loss penalty (`bounty_failed` tag) was written as
+///    `int128(uint128(penalty))` — always positive — and getAgentReputation's
+///    getSummary call averages every feedback value with no tag filter, so
+///    the maximum penalty (100) was recorded as the maximum possible score.
+///  - paused / setPaused(bool): an owner-controlled circuit breaker that
+///    blocks only createBounty and takeBounty (the two entry points that
+///    create new obligations). Every exit path — submitWork, approveBounty,
+///    autoApprove, cancelBounty, expireBounty, disputes, withdraw — keeps
+///    working while paused, so no one already in a bounty is trapped.
+///    `maxBountyAmount` alone was never a real pause: 0 means uncapped, and
+///    nothing it gates blocks takeBounty on an already-open bounty.
+///  - IAgenticCommerce realigned to match the real AgenticCommerce contract
+///    exactly (enum order, Job struct shape, function set) — the previous
+///    interface had a fictional ASSIGNED status and refund()/expire()
+///    functions that don't exist on-chain. Dead surface before this version
+///    (nothing called getJob/refund/expire through it), but
+///    reconcileExpiredEscrow is the first caller and needs it correct.
+///
 /// V4.6 changes vs V4.5 (external report, 2026-08-09 — credit: `researchzero`
 /// on Reddit, who spotted that the "no hooks, no fee-on-transfer" framing does
 /// not cover USDC's blacklist):
@@ -157,6 +203,11 @@ contract BountyAdapter is ReentrancyGuard {
     address public pendingOwner;
     uint256 public maxBountyAmount;
 
+    /// @notice V4.7: real circuit breaker. Blocks only createBounty/takeBounty
+    ///         (new obligations) — every exit path stays open. See the V4.7
+    ///         changelog note above for why `maxBountyAmount` alone wasn't one.
+    bool public paused;
+
     uint256 public constant DISPUTE_RESPONSE_WINDOW = 48 hours;
     uint256 public constant REJECTION_CHALLENGE_WINDOW = 48 hours;
     /// @notice After this period from submitWork, anyone may call autoApprove
@@ -169,6 +220,23 @@ contract BountyAdapter is ReentrancyGuard {
     ///         unresponsive or compromised arbitrator from freezing funds
     ///         forever — the one liveness gap in V3.2.
     uint256 public constant ARBITRATOR_TIMEOUT = 30 days;
+
+    /// @notice V4.7: buffer added to a bounty's own deadline when creating the
+    ///         underlying AC job's `expiredAt`. Must exceed the adapter's own
+    ///         worst-case post-deadline lifecycle — APPROVAL_TIMEOUT (14d) +
+    ///         REJECTION_CHALLENGE_WINDOW (2d) + ARBITRATOR_TIMEOUT (30d) =
+    ///         46d — so AC's permissionless claimRefund can never fire while
+    ///         the adapter still considers the job live. See the V4.7
+    ///         changelog note above.
+    /// @dev This assumes `block.timestamp` tracks real wall-clock time closely
+    ///      enough that "46d worst case, 90d buffer" stays a real 2x margin.
+    ///      A chain whose clock runs measurably faster than real time (Arc
+    ///      Testnet has been observed doing this) shrinks that margin in wall
+    ///      time even though the on-chain math is unaffected — acceptable on
+    ///      a testnet with no real funds, but re-verify this assumption
+    ///      against the actual chain before relying on it for a mainnet
+    ///      deployment with a similarly fast clock.
+    uint256 public constant AC_EXPIRY_BUFFER = 90 days;
 
     // String length bounds — keep storage cheap and SSTORE refunds predictable.
     uint256 public constant MAX_CID_LEN = 96; // CIDv1 + ipfs:// prefix
@@ -308,6 +376,10 @@ contract BountyAdapter is ReentrancyGuard {
     event OwnerTransferStarted(address indexed previous, address indexed pending);
     event OwnerTransferred(address indexed previous, address indexed next);
     event MaxBountyAmountUpdated(uint256 previous, uint256 next);
+    event PausedSet(bool paused);
+    event ExternalRefundReconciled(
+        uint256 indexed jobId, address indexed poster, address indexed worker, uint256 posterAmount, uint256 workerAmount
+    );
     event ArbitratorTimeoutClaimed(uint256 indexed jobId, uint256 posterAmount, uint256 providerAmount);
     event WorkerBondPosted(uint256 indexed jobId, address indexed worker, uint256 amount);
     event WorkerBondRefunded(uint256 indexed jobId, address indexed worker, uint256 amount);
@@ -346,6 +418,7 @@ contract BountyAdapter is ReentrancyGuard {
     // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
     function createBounty(CreateParams calldata p) external nonReentrant returns (uint256 jobId) {
+        require(!paused, "paused");
         require(p.reward >= MIN_REWARD, "reward too low");
         require(maxBountyAmount == 0 || p.reward <= maxBountyAmount, "reward exceeds maxBountyAmount");
         require(p.deadline > block.timestamp, "deadline in past");
@@ -365,7 +438,12 @@ contract BountyAdapter is ReentrancyGuard {
         usdc.safeTransferFrom(msg.sender, address(this), p.reward);
 
         // Fee is NOT charged here — only on successful payout.
-        jobId = agenticCommerce.createJob(address(this), address(this), p.deadline, p.ipfsDescHash, address(0));
+        // V4.7: AC's expiredAt is the deadline plus a large buffer, not the
+        // bounty deadline itself — see AC_EXPIRY_BUFFER natspec / the V4.7
+        // changelog note (closes C-02).
+        jobId = agenticCommerce.createJob(
+            address(this), address(this), p.deadline + AC_EXPIRY_BUFFER, p.ipfsDescHash, address(0)
+        );
         agenticCommerce.setBudget(jobId, p.reward, bytes(""));
 
         BountyMeta storage meta = _bounties[jobId];
@@ -389,9 +467,14 @@ contract BountyAdapter is ReentrancyGuard {
     }
 
     function takeBounty(uint256 jobId, uint256 agentId) external nonReentrant {
+        require(!paused, "paused");
         BountyMeta storage meta = _bounties[jobId];
         require(meta.poster != address(0), "bounty not found");
         require(!meta.isTaken, "already taken");
+        // V4.7 (C-01): without this, a cancelled-and-refunded bounty (isTaken
+        // still false) could be taken again, funding AC from whatever other
+        // bounty's deposit currently sits in the adapter's pooled balance.
+        require(!meta.resolved, "resolved");
         require(block.timestamp <= meta.deadline, "bounty expired");
         if (meta.requireWorkerBond) {
             // V4.2 residual-honeypot guard — see MIN_BOND_TAKE_WINDOW natspec.
@@ -634,14 +717,121 @@ contract BountyAdapter is ReentrancyGuard {
             // Worker took the bounty, posted a bond, then vanished without
             // submitting — forfeit the bond to the poster whose listing was
             // blocked for the bounty's whole duration.
-            if (bond > 0) {
-                _payOrPark(jobId, meta.poster, bond);
-                emit WorkerBondForfeited(jobId, meta.poster, bond);
-            }
+            _forfeitBondToPoster(jobId, meta.poster, bond);
         } else {
             _payOrPark(jobId, meta.poster, meta.reward);
         }
         emit BountyExpired(jobId);
+    }
+
+    /// @dev Forfeits a posted worker bond to the poster (take-and-vanish
+    ///      case) — shared by expireBounty and reconcileExpiredEscrow so the
+    ///      "forfeited bond -> poster, no fee, same event" rule can't drift
+    ///      between the two callers. No-op (and no event) when there's no
+    ///      bond to forfeit.
+    function _forfeitBondToPoster(uint256 jobId, address poster, uint256 bond) internal {
+        if (bond == 0) return;
+        _payOrPark(jobId, poster, bond);
+        emit WorkerBondForfeited(jobId, poster, bond);
+    }
+
+    /// @notice V4.7 (C-02 safety net). Permissionless recovery for the case
+    ///         where AC's own `claimRefund` fired despite AC_EXPIRY_BUFFER —
+    ///         meaning this job sat unresolved for 90+ days (e.g. a dead
+    ///         arbitrator role). The refunded USDC already sits in this
+    ///         contract's balance (AC's `claimRefund` pays it to `job.client`,
+    ///         which is this adapter); this replays whichever normal
+    ///         resolution path would have applied had someone called it in
+    ///         time, crediting via `pendingWithdrawals` instead of a fresh AC
+    ///         settlement (AC already closed the job, so `complete`/`reject`
+    ///         can no longer be called on it) — with no protocol fee, same
+    ///         rationale as claimArbitratorTimeout's V4.4 fee waiver: don't
+    ///         charge users for the protocol's own liveness failure.
+    /// @dev Branch order matters: `rejectedAt` is NOT cleared by
+    ///      `challengeRejection`, so a rejected-then-challenged job has both
+    ///      `rejectedAt > 0` and `inDispute == true` — checking `inDispute`
+    ///      first correctly routes that case through dispute-default logic
+    ///      (claimDefaultRuling/claimArbitratorTimeout), not a plain
+    ///      finalizeRejection refund.
+    function reconcileExpiredEscrow(uint256 jobId) external nonReentrant {
+        BountyMeta storage meta = _bounties[jobId];
+        require(meta.poster != address(0), "bounty not found");
+        require(!meta.resolved, "resolved");
+        require(agenticCommerce.getJob(jobId).status == IAgenticCommerce.JobStatus.Expired, "AC job not expired");
+
+        uint256 reward = meta.reward;
+        address poster = meta.poster;
+        address worker = meta.assignedProvider;
+        bool submitted = bytes(meta.submittedResultHash).length > 0;
+        bool wasRejected = meta.rejectedAt > 0;
+        bool wasDisputed = meta.inDispute;
+        bool responded = bytes(meta.disputeResponseHash).length > 0;
+        address initiator = meta.disputeInitiator;
+        uint256 bond = meta.workerBond;
+
+        meta.resolved = true;
+        meta.inDispute = false; // every other terminal path clears this; a job
+                                 // resolved here must not read as "in dispute" forever.
+        meta.workerBond = 0;
+
+        uint256 posterAmt = 0;
+        uint256 workerAmt = 0;
+        bool workerAutoApproved = false;
+
+        if (!submitted) {
+            // Mirrors expireBounty: nothing was ever delivered.
+            posterAmt = reward;
+            _forfeitBondToPoster(jobId, poster, bond);
+        } else if (wasDisputed) {
+            if (responded) {
+                // Mirrors claimArbitratorTimeout: both sides engaged, the
+                // arbitrator never ruled — neutral split, no reputation write.
+                (posterAmt, workerAmt) = _splitEvenly(reward);
+            } else if (initiator == worker) {
+                // Mirrors claimDefaultRuling: worker-initiated, poster
+                // (respondent) never replied — worker wins by default.
+                workerAmt = reward;
+            } else {
+                // Mirrors claimDefaultRuling: poster-initiated (including a
+                // rejected-then-challenged job, where the worker is the
+                // respondent), worker never replied — poster wins by default.
+                posterAmt = reward;
+            }
+        } else if (wasRejected) {
+            // Mirrors finalizeRejection: poster rejected, worker never
+            // challenged before the (long since closed, 90 days on)
+            // challenge window — refund poster.
+            posterAmt = reward;
+        } else {
+            // Submitted, never rejected, never disputed — poster simply went
+            // silent past the approval window. Mirrors autoApprove fully,
+            // including its reputation write and unique-poster accounting.
+            workerAmt = reward;
+            workerAutoApproved = true;
+        }
+
+        // _payOrPark no-ops on a zero amount, so no need to guard these calls.
+        _payOrPark(jobId, poster, posterAmt);
+        _payOrPark(jobId, worker, workerAmt);
+
+        if (workerAutoApproved) {
+            _recordUniquePoster(meta);
+            if (meta.agentId > 0) {
+                try reputationRegistry.giveFeedback(
+                    meta.agentId,
+                    80,
+                    0,
+                    "bounty_auto_approved",
+                    "",
+                    "",
+                    "",
+                    keccak256(abi.encodePacked("auto_approved", jobId))
+                ) {}
+                    catch {}
+            }
+        }
+
+        emit ExternalRefundReconciled(jobId, poster, worker, posterAmt, workerAmt);
     }
 
     // ─── Disputes ──────────────────────────────────────────────────────────────
@@ -760,11 +950,15 @@ contract BountyAdapter is ReentrancyGuard {
 
     function _maybePenalize(BountyMeta storage meta, bool payProvider, uint8 penalty) internal {
         if (payProvider || meta.agentId == 0 || penalty == 0) return;
-        // feedbackType = 1 → "negative". Non-blocking: a dispute resolution must
-        // settle funds even if the live registry rejects the feedback write.
+        // V4.7 (M-01): written negative — getAgentReputation's getSummary call
+        // averages every feedback value with no tag filter, so a positive
+        // penalty value previously pulled the average score UP, and the
+        // maximum penalty (100) was indistinguishable from a perfect score.
+        // Non-blocking: a dispute resolution must settle funds even if the
+        // live registry rejects the feedback write.
         try reputationRegistry.giveFeedback(
             meta.agentId,
-            int128(uint128(penalty)),
+            -int128(uint128(penalty)),
             0,
             "bounty_failed",
             "",
@@ -848,10 +1042,17 @@ contract BountyAdapter is ReentrancyGuard {
         uint256 received = usdc.balanceOf(address(this)) - before;
         if (received == 0) return (0, 0);
 
-        amountA = received / 2;
-        amountB = received - amountA; // remainder (if received is odd) goes to payeeB
+        (amountA, amountB) = _splitEvenly(received);
         if (amountA > 0) _payOrPark(jobId, payeeA, amountA);
         if (amountB > 0) _payOrPark(jobId, payeeB, amountB);
+    }
+
+    /// @dev Shared halving convention (remainder, if any, goes to `b`) so
+    ///      `_completeAndSplit` and `reconcileExpiredEscrow` can't drift on
+    ///      how a neutral 50/50 split rounds an odd amount.
+    function _splitEvenly(uint256 total) internal pure returns (uint256 a, uint256 b) {
+        a = total / 2;
+        b = total - a;
     }
 
     /// @dev Pulls received USDC from AC and refunds poster — NO fee charged.
@@ -929,6 +1130,16 @@ contract BountyAdapter is ReentrancyGuard {
         require(msg.sender == owner, "only owner");
         emit MaxBountyAmountUpdated(maxBountyAmount, next);
         maxBountyAmount = next;
+    }
+
+    /// @notice V4.7. Blocks only createBounty/takeBounty — every exit path
+    ///         (submit/approve/autoApprove/cancel/expire/disputes/withdraw)
+    ///         keeps working while paused, so no one already in a bounty is
+    ///         trapped by an emergency stop.
+    function setPaused(bool p) external {
+        require(msg.sender == owner, "only owner");
+        paused = p;
+        emit PausedSet(p);
     }
 
     // ─── Views ─────────────────────────────────────────────────────────────────

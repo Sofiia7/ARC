@@ -8,10 +8,12 @@ export class ViemSigner implements Signer {
   private readonly walletClient;
   private readonly publicClient;
   private readonly account: ReturnType<typeof privateKeyToAccount>;
+  private readonly chain: Chain;
 
   constructor(privateKey: `0x${string}`, chain: Chain, rpcUrl: string) {
     this.account = privateKeyToAccount(privateKey);
     this.address = this.account.address;
+    this.chain = chain;
     this.walletClient = createWalletClient({ account: this.account, chain, transport: http(rpcUrl) });
     this.publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
   }
@@ -42,10 +44,21 @@ export class ViemSigner implements Signer {
     // goes through _writeAdapter, which awaits its receipt before returning -
     // so there is never an in-flight transaction of ours that a too-high nonce
     // would strand.
-    const [latest, pending] = await Promise.all([
+    // V4.7 (H-03): fetched alongside the nonce, not as an afterthought - a
+    // wrong-network RPC endpoint must fail loudly here, not silently sign
+    // and broadcast against whatever chain actually answered.
+    const [latest, pending, rpcChainId] = await Promise.all([
       this.publicClient.getTransactionCount({ address: this.address, blockTag: "latest" }),
       this.publicClient.getTransactionCount({ address: this.address, blockTag: "pending" }),
+      this.publicClient.getChainId(),
     ]);
+    if (rpcChainId !== this.chain.id) {
+      throw new Error(
+        `ViemSigner: RPC endpoint reports chain id ${rpcChainId}, but this signer is configured ` +
+        `for chain id ${this.chain.id} (${this.chain.name}). Refusing to sign - a mismatched RPC ` +
+        "was previously accepted silently here (see the audit's H-03 finding).",
+      );
+    }
     const nonce = Math.max(latest, pending);
 
     return this.walletClient.writeContract({
@@ -53,7 +66,10 @@ export class ViemSigner implements Signer {
       abi: params.abi as never,
       functionName: params.functionName as never,
       args: params.args as never,
-      chain: null,
+      // V4.7 (H-03): was `null`, which is viem's documented way to DISABLE
+      // its own check that the wallet client's chain matches the chain being
+      // written to. Passing the real chain restores that protection.
+      chain: this.chain,
       account: this.account,
       nonce,
       ...(params.gas !== undefined ? { gas: params.gas } : {}),

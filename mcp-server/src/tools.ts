@@ -324,14 +324,75 @@ export function createMcpServer({
         }
       },
     );
+
+    // -- Time-boxed worker defenses (V4.7, M-03) ---------------------------------
+    //
+    // get_pending_actions can report "rejection_pending" or
+    // "dispute_needs_response" - both mean this wallet loses by default if it
+    // does nothing before a 48h window closes. Before this fix, an MCP client
+    // could detect either but had no tool to act on it: challengeRejection and
+    // respondToDispute existed on the SDK but were never registered here. This
+    // was an oversight, not the deliberate exclusion the comment below still
+    // describes for the other, genuinely judgment-call methods - these two are
+    // narrow, worker-side, time-boxed self-defense, not a poster/arbitrator
+    // ruling on someone else's work.
+
+    server.registerTool(
+      "challenge_rejection",
+      {
+        description:
+          "Challenge a poster's rejection of this wallet's submitted work, within the 48h challenge window " +
+          "(REJECTION_CHALLENGE_WINDOW). This turns the rejection into a dispute for the arbitrator to rule on. " +
+          "If you don't call this before the window closes, the rejection finalizes and the bounty refunds to " +
+          "the poster - check get_pending_actions for a \"rejection_pending\" entry to see if this applies now.",
+        inputSchema: z.object({
+          jobId: z.string(),
+          text: z.string().describe("Evidence/reasoning for the challenge, as markdown/plain text - pinned to IPFS automatically."),
+        }),
+      },
+      async ({ jobId, text }) => {
+        try {
+          const result = await agent.challengeRejection(BigInt(jobId), { text });
+          return json({ txHash: result.hash });
+        } catch (err) {
+          return errorResult(err);
+        }
+      },
+    );
+
+    server.registerTool(
+      "respond_to_dispute",
+      {
+        description:
+          "Respond to a dispute the other party opened against this wallet, within the 48h response window " +
+          "(DISPUTE_RESPONSE_WINDOW). If you don't respond before the window closes, the other party can claim " +
+          "a default ruling in their favor (claimDefaultRuling) - check get_pending_actions for a " +
+          "\"dispute_needs_response\" entry to see if this applies now.",
+        inputSchema: z.object({
+          jobId: z.string(),
+          text: z.string().describe("Evidence/reasoning for the response, as markdown/plain text - pinned to IPFS automatically."),
+        }),
+      },
+      async ({ jobId, text }) => {
+        try {
+          const result = await agent.respondToDispute(BigInt(jobId), { text });
+          return json({ txHash: result.hash });
+        } catch (err) {
+          return errorResult(err);
+        }
+      },
+    );
   }
 
   // Intentionally NOT exposed in v0: approveBounty/rejectBounty/disputeBounty/
-  // respondToDispute/resolveDispute/claimDefaultRuling/claimArbitratorTimeout/
-  // cancelBounty. Those are poster- or arbitrator-side judgment calls (rejecting
-  // real work, ruling on evidence) that shouldn't be one blind tool call away
-  // from an arbitrary MCP client - they belong in the full SDK or the dashboard
-  // until there's a concrete case for exposing them here too.
+  // resolveDispute/claimDefaultRuling/claimArbitratorTimeout/cancelBounty.
+  // Those are poster- or arbitrator-side judgment calls (rejecting real work,
+  // ruling on evidence, opening a dispute in the first place) that shouldn't
+  // be one blind tool call away from an arbitrary MCP client - they belong in
+  // the full SDK or the dashboard until there's a concrete case for exposing
+  // them here too. challengeRejection/respondToDispute moved out of this list
+  // (V4.7, M-03): both are narrow, time-boxed, worker-side self-defense, not a
+  // judgment call about someone else's work - see the tools above.
 
 
   return server;

@@ -133,7 +133,8 @@ export const NETWORKS = {
       REPUTATION_REGISTRY: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
       USDC:                "0x3600000000000000000000000000000000000000",
     },
-    adapterDeployBlock: 50_610_373n,
+    // V4.7 (2026-09-07): audit fixes C-01/C-02/M-01/M-07/M-08 - see contracts/DEPLOYMENTS.md.
+    adapterDeployBlock: 60_965_136n,
     multicall3: true,
     testnet: true,
     blocksPerDay: 86_400n,

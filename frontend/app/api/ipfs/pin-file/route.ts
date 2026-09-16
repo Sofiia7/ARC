@@ -7,15 +7,19 @@ import { fetchIpfsServerCached } from "@/lib/ipfsServer";
 export const runtime = "nodejs";
 
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+// M-06: this route spends real quota (Pinata pin volume) and bandwidth on
+// every accepted request, so a Redis outage must fail closed rather than
+// silently widen the effective cap to capacity x warm-instance-count - see
+// `failClosedOnRedisError` in lib/rate-limit.ts.
 // Wallet-scoped: see pin/route.ts for why this alone isn't sufficient - wallet
 // creation is free, so a determined attacker isn't bounded by this bucket.
-const WALLET_RATE = { capacity: 5, refillPerSecond: 5 / 60 }; // 5 uploads / min per wallet
+const WALLET_RATE = { capacity: 5, refillPerSecond: 5 / 60, failClosedOnRedisError: true }; // 5 uploads / min per wallet
 // IP-only: independent dimension that catches many-wallets-one-IP abuse.
-const IP_RATE = { capacity: 15, refillPerSecond: 15 / 60 }; // 15 uploads / min per IP, any wallet
+const IP_RATE = { capacity: 15, refillPerSecond: 15 / 60, failClosedOnRedisError: true }; // 15 uploads / min per IP, any wallet
 // Daily volume cap per wallet - bounds sustained abuse paced under the
 // per-minute limits (25 MB files x a handful/day would otherwise be legal).
 const DAILY_BYTES_PER_WALLET = 100 * 1024 * 1024; // 100 MB / day
-const DAILY_RATE = { capacity: DAILY_BYTES_PER_WALLET, refillPerSecond: DAILY_BYTES_PER_WALLET / 86_400 };
+const DAILY_RATE = { capacity: DAILY_BYTES_PER_WALLET, refillPerSecond: DAILY_BYTES_PER_WALLET / 86_400, failClosedOnRedisError: true };
 
 const ALLOWED_MIME_PREFIXES = [
   "image/",
@@ -27,16 +31,30 @@ const ALLOWED_MIME_PREFIXES = [
 
 function isAllowedMime(mime: string): boolean {
   if (!mime) return false;
-  // Block obvious executables outright.
+  const base = mime.split(";")[0]!.trim().toLowerCase();
+  // Block obvious executables, and (H-01) anything that can execute script
+  // or markup when served back out through /api/ipfs/read/[cid] - defense in
+  // depth alongside that route's own Content-Type allowlist. Without this,
+  // "image/" and "text/" below (both prefix matches) would happily accept
+  // image/svg+xml and text/html, either of which renders as live script if
+  // ever opened directly.
   const denied = [
     "application/x-msdownload",
     "application/x-msdos-program",
     "application/x-executable",
     "application/x-sh",
     "application/x-shockwave-flash",
+    "text/html",
+    "application/xhtml+xml",
+    "image/svg+xml",
+    "text/javascript",
+    "application/javascript",
+    "application/x-javascript",
+    "text/ecmascript",
+    "application/ecmascript",
   ];
-  if (denied.includes(mime)) return false;
-  return ALLOWED_MIME_PREFIXES.some(p => mime === p || mime.startsWith(p));
+  if (denied.includes(base)) return false;
+  return ALLOWED_MIME_PREFIXES.some(p => base === p || base.startsWith(p));
 }
 
 // Client-supplied Content-Type is trivially spoofable (it's just a form-field
