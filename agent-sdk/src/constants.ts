@@ -92,7 +92,11 @@ export const NETWORKS = {
     explorerApiUrl: "https://testnet.arcscan.app/api",
     explorerName: "ArcScan",
     // Arc's native gas token IS USDC - that is the whole point of the chain.
-    nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
+    // 18 decimals, not 6: USDC on Arc has two interfaces over one balance, the
+    // native one (eth_getBalance, gas, what a wallet shows) at 18 and the
+    // ERC-20 at 0x3600…0000 at 6 (USDC_DECIMALS below). See docs.arc.io,
+    // "EVM differences".
+    nativeCurrency: { symbol: "USDC", decimals: 18, isUsdc: true },
     brand: { name: "ArcBounty", domain: "arcbounty.app" },
     contracts: {
       AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583",
@@ -284,7 +288,7 @@ export function resolveNetwork(name: NetworkName, env: Env = process.env): Netwo
       explorerApiUrl: readEnv(env, "ARC_MAINNET_EXPLORER_API_URL")!,
       explorerName: "ArcScan",
       // USDC-as-native-gas is a property of Arc itself, not of its testnet.
-      nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
+      nativeCurrency: { symbol: "USDC", decimals: 18, isUsdc: true },
       brand: { name: "ArcBounty", domain: "arcbounty.app" },
       contracts: {
         AGENTIC_COMMERCE:    agenticCommerce as Address,

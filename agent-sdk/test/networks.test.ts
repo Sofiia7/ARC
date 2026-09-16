@@ -102,9 +102,11 @@ describe("resolveNetwork - base-sepolia", () => {
     expect(resolveNetwork("base-sepolia", {}).nativeCurrency)
       .toEqual({ symbol: "ETH", decimals: 18, isUsdc: false });
     // Arc's native token IS USDC; anything prompting a user to fund a wallet
-    // must branch on this rather than assume one model.
+    // must branch on this rather than assume one model. Natively it has 18
+    // decimals (eth_getBalance), 6 only through the ERC-20 interface - and
+    // MetaMask refuses wallet_addEthereumChain with anything but 18.
     expect(resolveNetwork("arc-testnet", {}).nativeCurrency)
-      .toEqual({ symbol: "USDC", decimals: 6, isUsdc: true });
+      .toEqual({ symbol: "USDC", decimals: 18, isUsdc: true });
   });
 
   it("lets BASE_SEPOLIA_RPC_URL override only the RPC URL", () => {

@@ -18,9 +18,10 @@ const rpcUrl = network.rpcUrl;
 export const activeChain = defineChain({
   id: network.chainId,
   name: network.name,
-  // Arc's native gas token IS USDC (6 decimals) - that's the whole point of
-  // that network; Base pays gas in ETH (18). Must match agent-sdk's chain
-  // definition exactly, or wallets render balances off by 10^12.
+  // Arc's native gas token IS USDC - that's the whole point of that network;
+  // Base pays gas in ETH. Both are 18 decimals natively: Arc's 6 belongs to
+  // its USDC ERC-20 interface, not to eth_getBalance. With 6 here, wallets
+  // render native balances off by 10^12 and MetaMask rejects the chain.
   nativeCurrency: {
     name: network.nativeCurrency.isUsdc ? "USD Coin" : "Ether",
     symbol: network.nativeCurrency.symbol,

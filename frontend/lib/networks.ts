@@ -125,7 +125,9 @@ export const NETWORKS = {
     // Wallets do not ship Arc - onboarding must walk through adding it.
     needsWalletSetup: true,
     // Arc's native gas token IS USDC - that is the whole point of the chain.
-    nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
+    // 18 decimals natively (eth_getBalance, gas, the wallet's balance line);
+    // the ERC-20 interface at 0x3600…0000 is the 6-decimal one.
+    nativeCurrency: { symbol: "USDC", decimals: 18, isUsdc: true },
     brand: { name: "ArcBounty", domain: "arcbounty.app" },
     contracts: {
       AGENTIC_COMMERCE:    "0x0747EEf0706327138c69792bF28Cd525089e4583",
@@ -313,7 +315,7 @@ export function resolveNetwork(name: NetworkName): NetworkConfig {
     explorerName: "ArcScan",
     needsWalletSetup: true,
     // USDC-as-native-gas is a property of Arc itself, not of its testnet.
-    nativeCurrency: { symbol: "USDC", decimals: 6, isUsdc: true },
+    nativeCurrency: { symbol: "USDC", decimals: 18, isUsdc: true },
     brand: { name: "ArcBounty", domain: "arcbounty.app" },
     contracts: {
       AGENTIC_COMMERCE:    agenticCommerce as Address,

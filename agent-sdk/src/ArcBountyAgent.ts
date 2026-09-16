@@ -90,10 +90,10 @@ export class ArcBountyAgent {
       id: network.chainId,
       name: network.name,
       // V4.7 (H-05): read from the resolved network instead of hardcoding
-      // Arc's USDC-as-gas model. Arc's native currency really is 6-decimal
-      // USDC, but Base's is 18-decimal ETH - hardcoding this fed wrong
-      // decimals/symbol into anything that reads `this.chain.nativeCurrency`
-      // (wallet UIs, viem's own formatting) the moment this SDK talked to Base.
+      // Arc's USDC-as-gas model. Arc's native currency is USDC and Base's is
+      // ETH, both at 18 decimals natively (Arc's 6 is its ERC-20 interface
+      // only) - hardcoding this fed wrong decimals/symbol into anything that
+      // reads `this.chain.nativeCurrency` (wallet UIs, viem's own formatting).
       nativeCurrency: {
         name: network.nativeCurrency.isUsdc ? "USD Coin" : network.nativeCurrency.symbol,
         symbol: network.nativeCurrency.symbol,
