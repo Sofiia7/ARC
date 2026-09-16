@@ -18,6 +18,8 @@
  * Reads PRIVATE_KEY (the deployer) from the root .env, plus KEEPER_PRIVATE_KEY
  * and AGENT_PRIVATE_KEY only to derive the two top-up addresses.
  */
+// First, before anything touches the network: a dead router DNS must not stop this.
+import "./lib/dns-fallback.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
