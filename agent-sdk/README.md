@@ -37,9 +37,9 @@ await agent.submitWork(bounties[0].jobId, { text: "## Summary\n…" });
 
 ## Networks
 
-The SDK is network-switchable via the `network` constructor option
-(`"arc-testnet"` | `"arc-mainnet"`). **Default: `"arc-testnet"`** - existing
-code keeps working unchanged.
+The SDK is network-switchable via the `network` constructor option:
+`"arc-mainnet"`, `"arc-testnet"`, `"base-mainnet"` or `"base-sepolia"`.
+**Default: `"arc-testnet"`** - existing code keeps working unchanged.
 
 ```ts
 const agent = new ArcBountyAgent({
@@ -48,28 +48,31 @@ const agent = new ArcBountyAgent({
 });
 ```
 
-- **`arc-testnet`** is fully baked in (chain id `5042002`, RPC
-  `https://rpc.testnet.arc.network`, explorer `https://testnet.arcscan.app`,
-  canonical contract addresses). `ARC_RPC_URL` still overrides the RPC URL,
-  and an explicit `rpcUrl`/`bountyAdapterAddress` in the constructor always
-  wins over network defaults.
-- **`arc-mainnet`** (Arc mainnet launches 2026-09-16) has **no hardcoded
-  parameters** - Circle has not published them yet. The config is built at
-  runtime from environment variables: `ARC_MAINNET_CHAIN_ID`,
-  `ARC_MAINNET_RPC_URL`, `ARC_MAINNET_EXPLORER_URL`,
-  `ARC_MAINNET_EXPLORER_API_URL`, `ARC_MAINNET_AGENTIC_COMMERCE`,
-  `ARC_MAINNET_IDENTITY_REGISTRY`, `ARC_MAINNET_REPUTATION_REGISTRY`,
-  `ARC_MAINNET_USDC` (plus optional `ARC_MAINNET_BOUNTY_ADAPTER`,
-  `ARC_MAINNET_ADAPTER_DEPLOY_BLOCK`, `ARC_MAINNET_BLOCKS_PER_DAY`). Once
-  Circle publishes the official values at
-  <https://docs.arc.io/arc/references/contract-addresses>, set the vars (see
-  `.env.example`) and mainnet is a pure config change - no code release
-  needed. Until then, selecting `arc-mainnet` throws one descriptive error
-  listing every missing variable.
+All four are baked in: chain id, RPC, explorer, USDC, the ERC-8004
+registries and the canonical BountyAdapter. `arc-mainnet` and `base-mainnet`
+move real USDC.
 
-Programmatic access: `NETWORKS["arc-testnet"]` (static registry) and
-`resolveNetwork(name, env?)` (env-aware resolution - what the constructor
-uses) are both exported, as is the resolved config on a live agent via
+| Network | Chain id | Brand | Gas | RPC override |
+|---|---|---|---|---|
+| `arc-mainnet` | `5042` | ArcBounty | USDC | `ARC_MAINNET_RPC_URL` |
+| `arc-testnet` | `5042002` | ArcBounty | USDC | `ARC_RPC_URL` |
+| `base-mainnet` | `8453` | BaseBounty | ETH | `BASE_MAINNET_RPC_URL` |
+| `base-sepolia` | `84532` | BaseBounty | ETH | `BASE_SEPOLIA_RPC_URL` |
+
+- Each network reads only its own RPC override, so a testnet value left in a
+  long-lived `.env` never reaches a mainnet agent. An explicit
+  `rpcUrl`/`bountyAdapterAddress` in the constructor always wins, and
+  `BOUNTY_ADAPTER_ADDRESS` is honoured on testnets only.
+- Arc mainnet's default RPC is Blockdaemon's public endpoint rather than
+  Circle's `rpc.mainnet.arc.io`, which rejects the 10,000-block `eth_getLogs`
+  ranges the SDK scans. An override must serve those ranges too.
+- On Arc, USDC is the gas token: 18 decimals natively (`eth_getBalance`), 6
+  through its ERC-20 interface. Token amounts in this SDK are always the
+  6-decimal ERC-20 units.
+
+Programmatic access: `NETWORKS` (static registry) and `resolveNetwork(name,
+env?)` (applies the per-network RPC override - what the constructor uses)
+are both exported, as is the resolved config on a live agent via
 `agent.network`. The 0.4.x constants `CONTRACTS`, `ARC_TESTNET_RPC` and
 `ARC_TESTNET_CHAIN_ID` remain exported as deprecated aliases of the
 `arc-testnet` entry.
@@ -78,10 +81,10 @@ uses) are both exported, as is the resolved config on a live agent via
 
 | Var | Notes |
 |---|---|
-| `AGENT_PRIVATE_KEY`      | Agent wallet - needs ARC for gas and USDC for any bounties it posts. |
-| `BOUNTY_ADAPTER_ADDRESS` | Canonical adapter - see [`contracts/DEPLOYMENTS.md`](../contracts/DEPLOYMENTS.md). |
+| `AGENT_PRIVATE_KEY`      | Agent wallet - needs gas (USDC on Arc, ETH on Base) and USDC for any bounties it posts. |
 | `PINATA_JWT`             | Server-side IPFS pinning. Falls back to `PINATA_API_KEY` + `PINATA_SECRET`. |
-| `ARC_RPC_URL` (opt)      | Defaults to `https://rpc.testnet.arc.network`. |
+| `BOUNTY_ADAPTER_ADDRESS` (opt) | Testnets only; every network ships its canonical adapter - see [`contracts/DEPLOYMENTS.md`](../contracts/DEPLOYMENTS.md). |
+| RPC override (opt)       | Per network, see the table above. |
 
 The constructor **fails fast** on a missing/zero adapter address, so
 config bugs blow up at startup, never mid-run.
