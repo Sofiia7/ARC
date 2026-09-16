@@ -16,3 +16,20 @@ build/
 # Contracts build output - irrelevant to the frontend deploy.
 contracts/out/
 contracts/cache/
+
+# Secrets. The CLI's built-in ignores cover only .env.local and .env.*.local,
+# so until 2026-09-16 a deploy from this repo root could upload the root .env,
+# private keys included, into the deployment source. Nothing here reads them
+# at build time: Next.js loads env files from frontend/, and production values
+# live in the Vercel project settings.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Local-only material with no place in a frontend deploy.
+*.pptx
+*.pdf
+docs/security/
+contracts/lib/
+contracts/broadcast/
