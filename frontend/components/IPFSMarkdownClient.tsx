@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { Schema } from "hast-util-sanitize";
@@ -41,11 +41,35 @@ function rewriteUrl(raw: string | undefined): string {
   return raw;
 }
 
+// react-markdown's defaultUrlTransform lets only http(s), mailto and a few other
+// schemes through, and it runs before rehype-sanitize and before COMPONENTS: every
+// ipfs:// link and image in a submission reached them as "", so attachments showed
+// as broken images and dead links on every bounty page. ipfs:// is rewritten to the
+// read-through endpoint here; anything else still takes the default transform.
+function urlTransform(url: string): string {
+  return url.startsWith("ipfs://") ? rewriteUrl(url) : defaultUrlTransform(url);
+}
+
+function textOf(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  return "";
+}
+
+// A download from the read endpoint is named after the CID, with no extension, so
+// a submitted .zip would not open with a double click. When the link text is a
+// file name, it rides along for the Content-Disposition header.
+const FILE_NAME = /^[\w .-]{1,96}\.[A-Za-z0-9]{1,8}$/;
+function withFileName(href: string, label: string): string {
+  if (!href.startsWith("/api/ipfs/read/") || !FILE_NAME.test(label)) return href;
+  return `${href}?filename=${encodeURIComponent(label)}`;
+}
+
 const COMPONENTS: Components = {
   a: ({ node: _node, href, children, ...props }) => (
     <a
       {...props}
-      href={rewriteUrl(href)}
+      href={withFileName(rewriteUrl(href), textOf(children).trim())}
       target="_blank"
       rel="noopener noreferrer nofollow"
       className="text-blue-300 hover:text-blue-200 underline"
@@ -106,6 +130,7 @@ export function IPFSMarkdownClient({ cid }: Props) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeSanitize, SCHEMA]]}
+        urlTransform={urlTransform}
         components={COMPONENTS}
       >
         {content}

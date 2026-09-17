@@ -65,11 +65,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cid:
     const normalizedType = contentType.split(";")[0]!.trim().toLowerCase();
     const safe = SAFE_INLINE_CONTENT_TYPES.has(normalizedType);
 
+    // Optional download name from IPFSMarkdownClient (the link text, e.g.
+    // "source_bundle.zip"), so a saved attachment keeps its extension. Reduced to a
+    // plain file name before it goes near a header: no quotes, no path, no CR/LF.
+    const requested = req.nextUrl.searchParams.get("filename") ?? "";
+    const fileName = /^[\w .-]{1,96}\.[A-Za-z0-9]{1,8}$/.test(requested) ? requested : null;
+    const disposition = safe ? "inline" : "attachment";
+
     return new NextResponse(bytes, {
       status: 200,
       headers: {
         "content-type": safe ? contentType : "application/octet-stream",
-        "content-disposition": safe ? "inline" : "attachment",
+        "content-disposition": fileName ? `${disposition}; filename="${fileName}"` : disposition,
         "cache-control": `public, max-age=${IPFS_CACHE_TTL_SEC}, immutable`,
       },
     });
