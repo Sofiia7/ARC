@@ -1,9 +1,10 @@
-name: Arc mainnet alerts
+name: Bounty alerts
 
-# Telegram alerts for ArcBounty on Arc mainnet: new bounties, takes, submitted
-# work, disputes and payouts (scripts/arc-telegram-notify.mjs). Scheduled runs
-# can start late when GitHub is busy; the script reports everything since the
-# last block it saw, so a late run only delays alerts, it never drops them.
+# Telegram alerts for ArcBounty on Arc mainnet and BaseBounty on Base mainnet:
+# new bounties, takes, submitted work, disputes and payouts
+# (scripts/arc-telegram-notify.mjs, one step per network). Scheduled runs can
+# start late when GitHub is busy; each network reports everything since the
+# last block it saw, so a late run delays alerts and never drops them.
 on:
   schedule:
     - cron: "*/10 * * * *"
@@ -24,7 +25,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
         with: { node-version: "20" }
-      - name: Restore the last reported block
+      - name: Restore the last reported blocks
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (resolved 2026-09-17)
         with:
           path: .notify-state
@@ -37,15 +38,25 @@ jobs:
           mkdir -p "$RUNNER_TEMP/notify"
           npm install --prefix "$RUNNER_TEMP/notify" --no-save --no-audit --no-fund viem@2.55.19
           cp scripts/arc-telegram-notify.mjs "$RUNNER_TEMP/notify/"
-      - name: Send alerts
+      - name: ArcBounty on Arc mainnet
         env:
+          NETWORK: arc-mainnet
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_BOT_CHAT: ${{ secrets.TG_BOT_CHAT }}
-          STATE_FILE: .notify-state/state.json
         run: node "$RUNNER_TEMP/notify/arc-telegram-notify.mjs"
-      - name: Save the last reported block
-        # No file yet means nothing was reported (secrets missing): saving would fail.
-        if: success() && hashFiles('.notify-state/state.json') != ''
+      # always(): a failing Arc RPC must not silence Base, and the reverse.
+      - name: BaseBounty on Base mainnet
+        if: always()
+        env:
+          NETWORK: base-mainnet
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_BOT_CHAT: ${{ secrets.TG_BOT_CHAT }}
+        run: node "$RUNNER_TEMP/notify/arc-telegram-notify.mjs"
+      - name: Save the last reported blocks
+        # Each network writes its file only after a clean run, so saving after a
+        # failed step keeps the other network's progress without skipping events.
+        # No file at all means nothing was reported yet (secrets missing).
+        if: always() && hashFiles('.notify-state/*.json') != ''
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (resolved 2026-09-17)
         with:
           path: .notify-state

@@ -1,7 +1,9 @@
 /**
- * Telegram alerts for ArcBounty on Arc mainnet. .github/workflows/arc-telegram-notify.yml
- * runs this every 10 minutes: new bounties, takes, submitted work (the event a
- * human has to act on, with the payout command), rejections, disputes, payouts.
+ * Telegram alerts for the bounty boards: ArcBounty on Arc mainnet and BaseBounty on
+ * Base mainnet (NETWORK=arc-mainnet | base-mainnet, one run per network).
+ * .github/workflows/arc-telegram-notify.yml runs both every 10 minutes: new
+ * bounties, takes, submitted work (the event a human has to act on, with the
+ * payout command), rejections, disputes, payouts.
  *
  * Why it exists: on launch day an outside agent delivered four jobs, posted a
  * bounty asking a human to chase us for the payout twenty minutes after its first
@@ -12,31 +14,54 @@
  * run starts ~25 minutes back, so history is never replayed into the chat.
  *
  * Env: TG_BOT_TOKEN and TG_BOT_CHAT (without them it reports nothing and keeps
- * its state), STATE_FILE (default .notify-state/state.json), ARC_MAINNET_RPC_URL.
+ * its state), NETWORK (default arc-mainnet), STATE_FILE (default
+ * .notify-state/<network>.json), ARC_MAINNET_RPC_URL, BASE_MAINNET_RPC_URL.
  *
  * Local dry run, prints instead of sending and saves no state:
  *   node scripts/arc-telegram-notify.mjs --dry-run --from-block 21153190
+ *   NETWORK=base-mainnet node scripts/arc-telegram-notify.mjs --dry-run --from-block <block>
  */
 import { createPublicClient, http, parseAbi, formatUnits } from "viem";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-const ADAPTER = "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D";
-const OUR_POSTER = "0xde427f3967cc7a0bf7a9f891195760ccffc82eda";
-const RPC = process.env.ARC_MAINNET_RPC_URL || "https://rpc.blockdaemon.mainnet.arc.io";
-const SITE = "https://arcbounty.app";
-const TX = "https://arcexplorer.org/tx/";
+// Our own poster wallet per chain: its submissions come with the payout command.
+const NETWORKS = {
+  "arc-mainnet": {
+    brand: "ArcBounty",
+    adapter: "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D",
+    poster: "0xde427f3967cc7a0bf7a9f891195760ccffc82eda",
+    rpc: process.env.ARC_MAINNET_RPC_URL || "https://rpc.blockdaemon.mainnet.arc.io",
+    site: "https://arcbounty.app",
+    tx: "https://arcexplorer.org/tx/",
+    chunk: 90_000n, // Blockdaemon serves eth_getLogs up to 100k blocks
+    firstRunLookback: 3_000n, // ~25 minutes at ~2 blocks a second
+    maxCatchUp: 360_000n, // ~2 days
+    payCommand: () => "cd /d C:\\Server\\ARC\\scripts && npx tsx review-mainnet-submissions.ts",
+  },
+  "base-mainnet": {
+    brand: "BaseBounty",
+    adapter: "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c",
+    poster: "0x6abc2b575ec66701c17dad96dda97f22b837849e",
+    rpc: process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org",
+    site: "https://basebounty.app",
+    tx: "https://basescan.org/tx/",
+    chunk: 2_000n, // mainnet.base.org refuses eth_getLogs over 2,000 blocks
+    firstRunLookback: 900n, // ~30 minutes at 2 s blocks
+    maxCatchUp: 43_200n, // ~1 day, 22 requests on the public RPC
+    payCommand: jobId => `cd /d C:\\Server\\ARC\\scripts && set "ARC_NETWORK=base-mainnet" && set "ALLOW_MAINNET=yes" && npx tsx --env-file=..\\.env approve-bounty.ts ${jobId} 95`,
+  },
+};
+const NETWORK = process.env.NETWORK?.trim() || "arc-mainnet";
+const net = NETWORKS[NETWORK];
+if (!net) throw new Error(`NETWORK must be one of ${Object.keys(NETWORKS).join(", ")}, got "${NETWORK}"`);
 const GATEWAYS = ["https://dweb.link/ipfs/", "https://gateway.pinata.cloud/ipfs/", "https://w3s.link/ipfs/"];
 const APPROVAL_TIMEOUT_S = 14 * 86_400;
-const CHUNK = 90_000n; // Blockdaemon serves eth_getLogs up to 100k blocks
-const FIRST_RUN_LOOKBACK = 3_000n; // ~25 minutes at ~2 blocks a second
-const MAX_CATCH_UP = 360_000n; // ~2 days; a longer gap is skipped with a note
-const PAY_COMMAND = "cd /d C:\\Server\\ARC\\scripts && npx tsx review-mainnet-submissions.ts";
 
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes("--dry-run");
 const fromArg = args.includes("--from-block") ? BigInt(args[args.indexOf("--from-block") + 1]) : null;
-const STATE_FILE = process.env.STATE_FILE || ".notify-state/state.json";
+const STATE_FILE = process.env.STATE_FILE || `.notify-state/${NETWORK}.json`;
 const TOKEN = process.env.TG_BOT_TOKEN?.trim();
 const CHAT = process.env.TG_BOT_CHAT?.trim();
 
@@ -54,8 +79,9 @@ const EVENTS = parseAbi([
   "event DisputeResolved(uint256 indexed jobId, bool payProvider, string rulingHash, bool defaultRuling)",
   "event PayoutParked(uint256 indexed jobId, address indexed payee, uint256 amount)",
 ]);
+// getBountyMeta: the getter the SDK reads on every network (V4.6 on Base, V4.7 on Arc).
 const META_ABI = [{
-  type: "function", name: "bounties", stateMutability: "view", inputs: [{ type: "uint256" }],
+  type: "function", name: "getBountyMeta", stateMutability: "view", inputs: [{ type: "uint256" }],
   outputs: [{ type: "tuple", components: [
     { name: "jobId", type: "uint256" }, { name: "poster", type: "address" }, { name: "reward", type: "uint256" },
     { name: "deadline", type: "uint256" }, { name: "ipfsDescHash", type: "string" }, { name: "category", type: "string" },
@@ -69,7 +95,7 @@ const META_ABI = [{
   ] }],
 }];
 
-const pub = createPublicClient({ transport: http(RPC, { retryCount: 3 }) });
+const pub = createPublicClient({ transport: http(net.rpc, { retryCount: 3 }) });
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const short = a => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const usdc = v => formatUnits(v, 6);
@@ -95,7 +121,7 @@ const metaCache = new Map();
 async function bounty(jobId) {
   const key = jobId.toString();
   if (!metaCache.has(key)) {
-    const meta = await pub.readContract({ address: ADAPTER, abi: META_ABI, functionName: "bounties", args: [jobId] });
+    const meta = await pub.readContract({ address: net.adapter, abi: META_ABI, functionName: "getBountyMeta", args: [jobId] });
     metaCache.set(key, { meta, title: await ipfsTitle(meta.ipfsDescHash) });
   }
   return metaCache.get(key);
@@ -104,21 +130,21 @@ async function bounty(jobId) {
 async function render(log) {
   const a = log.args;
   const { meta, title } = await bounty(a.jobId);
-  const head = `<b>#${a.jobId}</b> ${esc(title ?? meta.category)} (${usdc(meta.reward)} USDC)`;
-  const page = `${SITE}/bounty/${a.jobId}`;
-  const tx = `<a href="${TX}${log.transactionHash}">tx</a>`;
+  const head = `<b>${net.brand} #${a.jobId}</b> ${esc(title ?? meta.category)} (${usdc(meta.reward)} USDC)`;
+  const page = `${net.site}/bounty/${a.jobId}`;
+  const tx = `<a href="${net.tx}${log.transactionHash}">tx</a>`;
   const worker = who => `${short(who)}${meta.agentId > 0n ? `, агент #${meta.agentId}` : ""}`;
   switch (log.eventName) {
     case "BountyCreated":
-      return `🆕 Новое баунти ${head}\nразместил ${a.poster.toLowerCase() === OUR_POSTER ? "наш кошелёк" : short(a.poster)}\n${page} · ${tx}`;
+      return `🆕 Новое баунти ${head}\nразместил ${a.poster.toLowerCase() === net.poster ? "наш кошелёк" : short(a.poster)}\n${page} · ${tx}`;
     case "BountyTaken":
       return `🤝 Взяли ${head}\nисполнитель ${short(a.provider)}${a.agentId > 0n ? `, агент #${a.agentId}` : ""}\n${page} · ${tx}`;
     case "WorkSubmitted": {
       // The payout hint only while it is still ours to pay: a catch-up run can meet a paid one.
-      const ours = meta.poster.toLowerCase() === OUR_POSTER && !meta.resolved;
+      const ours = meta.poster.toLowerCase() === net.poster && !meta.resolved;
       const opens = Number(meta.submittedAt) + APPROVAL_TIMEOUT_S;
       return `📥 Сдали работу ${head}\nисполнитель ${worker(a.provider)}\nработа: ${esc(gateway(a.ipfsResultHash))}\n${page} · ${tx}` +
-        (ours ? `\n\nпроверить и оплатить:\n<code>${esc(PAY_COMMAND)}</code>\nавтоодобрение откроется ${utc(opens)}` : "");
+        (ours ? `\n\nпроверить и оплатить:\n<code>${esc(net.payCommand(a.jobId))}</code>\nавтоодобрение откроется ${utc(opens)}` : "");
     }
     case "BountyCompleted":
       return `✅ Одобрено и выплачено ${head}${a.agentId > 0n ? `\nоценка агенту #${a.agentId}: ${a.reputationScore}` : ""}\n${tx}`;
@@ -164,11 +190,11 @@ async function main() {
   }
   const head = await pub.getBlockNumber();
   const saved = existsSync(STATE_FILE) ? BigInt(JSON.parse(readFileSync(STATE_FILE, "utf8")).lastBlock) : null;
-  let from = fromArg ?? (saved !== null ? saved + 1n : head - FIRST_RUN_LOOKBACK);
+  let from = fromArg ?? (saved !== null ? saved + 1n : head - net.firstRunLookback);
   const notes = [];
-  if (head - from > MAX_CATCH_UP) {
-    notes.push(`ℹ️ Уведомления не работали с блока ${from}; события старше последних ~2 суток пропущены, смотри ${SITE}`);
-    from = head - MAX_CATCH_UP;
+  if (head - from > net.maxCatchUp) {
+    notes.push(`ℹ️ ${net.brand}: уведомления не работали с блока ${from}, более старые события пропущены, смотри ${net.site}`);
+    from = head - net.maxCatchUp;
   }
   if (from > head) {
     console.log(`nothing new: head ${head}, last reported ${saved}`);
@@ -176,12 +202,12 @@ async function main() {
   }
 
   const logs = [];
-  for (let start = from; start <= head; start += CHUNK) {
-    const end = start + CHUNK - 1n > head ? head : start + CHUNK - 1n;
-    logs.push(...(await pub.getLogs({ address: ADAPTER, events: EVENTS, fromBlock: start, toBlock: end })));
+  for (let start = from; start <= head; start += net.chunk) {
+    const end = start + net.chunk - 1n > head ? head : start + net.chunk - 1n;
+    logs.push(...(await pub.getLogs({ address: net.adapter, events: EVENTS, fromBlock: start, toBlock: end })));
   }
   logs.sort((x, y) => (x.blockNumber === y.blockNumber ? x.logIndex - y.logIndex : Number(x.blockNumber - y.blockNumber)));
-  console.log(`blocks ${from}..${head}: ${logs.length} event(s)`);
+  console.log(`${NETWORK} blocks ${from}..${head}: ${logs.length} event(s)`);
 
   for (const note of notes) await send(note);
   for (const log of logs) {
