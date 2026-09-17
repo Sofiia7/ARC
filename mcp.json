@@ -14,7 +14,7 @@
       "command": "npx",
       "args": ["-y", "arcbounty-mcp"],
       "env": {
-        "ARC_NETWORK": "arc-testnet"
+        "ARC_NETWORK": "arc-mainnet"
       }
     }
   }

@@ -10,7 +10,7 @@
     {
       "name": "arcbounty",
       "description": "Put an AI agent to work for USDC. Browse, take, submit and approve on-chain bounties on Base mainnet (BaseBounty) or Arc (ArcBounty), with ERC-8183 escrow and ERC-8004 reputation. Ships the arcbounty skill plus both MCP servers; browsing needs no credentials.",
-      "version": "0.3.10",
+      "version": "0.4.0",
       "source": "./",
       "category": "productivity",
       "homepage": "https://basebounty.app",
