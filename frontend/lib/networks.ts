@@ -219,8 +219,8 @@ export const NETWORKS = {
       REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     },
-    // Same as Base Sepolia: one adapter, baked in as the default.
-    // NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS still wins.
+    // One adapter, baked in. Unlike Base Sepolia, NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS
+    // is ignored here: lib/contracts.ts honours it on testnets only.
     bountyAdapterAddress: "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c",
     // V4.6 mainnet deploy, 2026-08-14 (from the forge broadcast receipt).
     adapterDeployBlock: 50_576_208n,

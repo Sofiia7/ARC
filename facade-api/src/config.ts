@@ -102,9 +102,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacadeConfig {
   };
 
   const network = parseNetwork(clean("NETWORK"));
-  // arc-mainnet: throws one descriptive error listing every missing
-  // ARC_MAINNET_* var (source of truth: docs.arc.io/arc/references/contract-addresses).
-  // arc-testnet: static config, ARC_RPC_URL already merged in by the SDK.
+  // Every network is static config since arcbounty-agent-sdk 0.8.0, Arc mainnet
+  // included. The SDK also merges that network's own RPC override from env:
+  // ARC_RPC_URL (arc-testnet), ARC_MAINNET_RPC_URL, BASE_MAINNET_RPC_URL,
+  // BASE_SEPOLIA_RPC_URL.
   const resolved = resolveNetwork(network, env);
 
   // The env var is an override for testnets, not a requirement: each network
@@ -139,7 +140,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): FacadeConfig {
     chainId: resolved.chainId,
     caip2: resolved.caip2,
     port: Number(clean("PORT") ?? 8402),
-    rpcUrl: clean("ARC_RPC_URL") ?? resolved.rpcUrl,
+    // Already carries the network's own override (see resolveNetwork above).
+    // Reading ARC_RPC_URL here as well sent a Base instance to an Arc endpoint
+    // whenever that variable was left in a shared env.
+    rpcUrl: resolved.rpcUrl,
     usdcAddress: resolved.contracts.USDC,
     bountyAdapterAddress: bountyAdapterAddress as Address,
     sellerAddress: (sellerRaw as Address | undefined) ?? null,
