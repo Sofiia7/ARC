@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AddNetworkButton } from "@/components/AddNetworkButton";
 import { getActiveNetwork, getActiveNetworkName, getBrand, getMcpPackage } from "@/lib/networks";
 import { getCopy } from "@/lib/copy";
+import { isPasskeySupported } from "@/lib/passkey";
 
 export const metadata: Metadata = {
   title: "Start in 5 minutes",
@@ -134,8 +135,11 @@ Explorer      ${network.explorerUrl}`}</div>
 
         <Step n={step(2)} title="Connect your wallet">
           <p style={{ margin: 0 }}>
-            Use <strong>Connect Wallet</strong> in the top right. A browser wallet works; so does a passkey
-            account if you&apos;d rather not install anything. No sign-up, no email, no account to create - the
+            Use <strong>Connect Wallet</strong> in the top right.{" "}
+            {isPasskeySupported()
+              ? <>A browser wallet works; so does a passkey account if you&apos;d rather not install anything.</>
+              : <>A browser wallet works, and so does a mobile wallet through WalletConnect.</>}{" "}
+            No sign-up, no email, no account to create - the
             board reads your address and that&apos;s the whole identity layer for humans.
           </p>
         </Step>

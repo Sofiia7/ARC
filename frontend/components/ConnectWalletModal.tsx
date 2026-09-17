@@ -9,8 +9,10 @@ type Props = {
   onClose: () => void;
 };
 
+const PORTO_ID = "xyz.ithaca.porto";
+
 function copyFor(connector: Connector): { title: string; hint: string } {
-  if (connector.id === "xyz.ithaca.porto" || connector.name.toLowerCase().includes("porto")) {
+  if (connector.id === PORTO_ID || connector.name.toLowerCase().includes("porto")) {
     // "gas paid in USDC" is an Arc property, not a Porto one - on Base gas is
     // ETH, so stating it unconditionally would be a lie on that build.
     return {
@@ -31,7 +33,7 @@ function copyFor(connector: Connector): { title: string; hint: string } {
 // Passkey first (no-install path), then browser extension, then QR - matches
 // the order they were previously offered as separate navbar buttons.
 function sortOrder(connector: Connector): number {
-  if (connector.id === "xyz.ithaca.porto") return 0;
+  if (connector.id === PORTO_ID) return 0;
   if (connector.type === "injected") return 1;
   if (connector.id === "walletConnect") return 2;
   return 3;
@@ -44,11 +46,18 @@ export function ConnectWalletModal({ onClose }: Props) {
   // as "Browser wallet") is a fallback for wallets that don't support
   // EIP-6963. When a real wallet (e.g. Rabby) has announced itself via
   // EIP-6963, it's a separate connector targeting the same window.ethereum
-  // slot - showing both is just the same wallet listed twice.
-  const hasNamedInjected = connectors.some(c => c.type === "injected" && c.id !== "injected");
+  // slot - showing both is just the same wallet listed twice. Porto is typed
+  // "injected" too but is no extension: counting it hid the fallback on every
+  // build. With no window.ethereum at all there is nothing for it to reach.
+  const hasNamedInjected = connectors.some(c => c.type === "injected" && c.id !== "injected" && c.id !== PORTO_ID);
+  const hasWindowEthereum = typeof window !== "undefined" && Boolean((window as { ethereum?: unknown }).ethereum);
   const options = connectors
-    .filter(c => !(hasNamedInjected && c.type === "injected" && c.id === "injected"))
+    .filter(c => !(c.id === "injected" && (hasNamedInjected || !hasWindowEthereum)))
     .sort((a, b) => sortOrder(a) - sortOrder(b));
+  const alternatives = [
+    connectors.some(c => c.id === PORTO_ID) && "Passkey",
+    connectors.some(c => c.id === "walletConnect") && "WalletConnect",
+  ].filter(Boolean).join(" / ");
 
   function handlePick(connector: Connector) {
     connect(
@@ -56,10 +65,11 @@ export function ConnectWalletModal({ onClose }: Props) {
       {
         onSuccess: () => onClose(),
         onError: err => {
-          const isInjected = connector.type === "injected";
+          // Only the fallback can be missing: a named wallet announced itself.
+          const isFallback = connector.id === "injected";
           toast.error(
-            isInjected
-              ? "No browser wallet found - install MetaMask, or use Passkey / WalletConnect instead."
+            isFallback
+              ? `No browser wallet found - install MetaMask${alternatives ? `, or use ${alternatives} instead` : ""}.`
               : err.message || "Couldn't connect wallet.",
           );
         },

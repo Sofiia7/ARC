@@ -3,6 +3,7 @@ import { defineChain } from "viem";
 import { injected, walletConnect } from "wagmi/connectors";
 import { porto } from "porto/wagmi";
 import { getActiveNetwork, MULTICALL3_ADDRESS } from "./networks";
+import { isPasskeySupported } from "./passkey";
 
 const network = getActiveNetwork();
 
@@ -62,8 +63,9 @@ export const config = createConfig({
   connectors: [
     // Passkey-based smart account (account abstraction). Gives the
     // sponsored-transaction / SCA UX called for in the spec (§4.4) without a
-    // browser extension - sign in with a passkey, pay gas in USDC.
-    porto(),
+    // browser extension - sign in with a passkey. Only on chains Porto runs
+    // on, which excludes Arc (see lib/passkey.ts).
+    ...(isPasskeySupported() ? [porto()] : []),
     injected(),
     // Only register WalletConnect when a real project ID is configured - a
     // placeholder ID produces a connector that renders but can never pair,

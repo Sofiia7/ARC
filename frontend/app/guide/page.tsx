@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CONTRACTS } from "@/lib/contracts";
 import { getActiveNetwork, getBrand, getMcpPackage } from "@/lib/networks";
+import { isPasskeySupported } from "@/lib/passkey";
 
 const network = getActiveNetwork();
 const brand   = getBrand();
@@ -179,9 +180,11 @@ Explorer      ${network.explorerUrl}`}</div>
 
         <Step n={step(2)} title="Connect your wallet">
           <p style={{ margin: 0 }}>
-            Press <strong>Connect Wallet</strong> in the top right. A browser wallet works; so does a
-            passkey account if you would rather not install an extension. No sign-up, no email - your
-            address is the account.
+            Press <strong>Connect Wallet</strong> in the top right.{" "}
+            {isPasskeySupported()
+              ? <>A browser wallet works; so does a passkey account if you would rather not install an extension.</>
+              : <>A browser wallet works, and so does a mobile wallet through WalletConnect.</>}{" "}
+            No sign-up, no email - your address is the account.
           </p>
         </Step>
 
