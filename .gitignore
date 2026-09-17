@@ -12,6 +12,7 @@
 !tsconfig.json
 !openclaw.json
 !**/slither.config.json
+!contracts/slither.report.config.json
 !**/.eslintrc.json
 !**/vercel.json
 !mcp-server/server.json

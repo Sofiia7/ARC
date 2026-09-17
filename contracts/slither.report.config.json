@@ -1,5 +1,5 @@
 {
-  "filter_paths": "lib/|src/base/",
+  "filter_paths": "lib/",
   "solc_remaps": [
     "@ozup/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@openzeppelin/=lib/openzeppelin-contracts/",

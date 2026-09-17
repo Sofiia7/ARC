@@ -61,6 +61,18 @@ jobs:
           slither-config: contracts/slither.config.json
           fail-on: low
           solc-version: 0.8.30
+      # The gate above covers BountyAdapter; src/base/AgenticCommerce.sol is a
+      # byte-for-byte copy of the reference escrow that cannot carry inline
+      # suppressions, and its triaged false positive (arbitrary-send-erc20, High)
+      # would fail any gate. It is reported on every run instead (SLITHER.md).
+      - name: slither report incl. src/base (not a gate, triaged in SLITHER.md)
+        continue-on-error: true
+        uses: crytic/slither-action@f197989dea5b53e986d0f88c60a034ddd77ec9a8 # v0.4.0 (resolved 2026-09-07, M-11)
+        with:
+          target: contracts/
+          slither-config: contracts/slither.report.config.json
+          fail-on: none
+          solc-version: 0.8.30
 
   contracts-fork:
     runs-on: ubuntu-latest
