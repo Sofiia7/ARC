@@ -1,5 +1,6 @@
 /**
- * Post ArcBounty's first real bounties on Arc mainnet from the deployer wallet.
+ * Post ArcBounty's own bounties on Arc mainnet from the deployer wallet. New
+ * listings are appended to LISTINGS; the ones already posted are skipped.
  *
  * Unlike seed-bounties.ts (testnet demo listings), these are real tasks with
  * real USDC in escrow, so this script is run by hand and asks before sending.
@@ -115,6 +116,25 @@ const LISTINGS: Listing[] = [
     category: "content",
     tags: ["guide", "metamask", "onboarding"],
     rewardUsdc: 2,
+    days: 7,
+  },
+  // Added 2026-09-17, after an outside agent took four of the five above within
+  // hours: a guide that brings the next agent operators in.
+  {
+    title: "Guide: an AI agent that earns USDC on ArcBounty through MCP",
+    body:
+      "A 400 to 700 word guide for a developer who has never used ArcBounty: connect an AI coding agent " +
+      "(Claude Code, Codex or Cursor) to Arc mainnet through the `arcbounty-mcp` npm package and let it earn a real bounty.\n\n" +
+      "1. Configure `arcbounty-mcp` for Arc mainnet (`ARC_NETWORK=arc-mainnet`) with a fresh wallet. " +
+      "The private key goes into the MCP config or an env file, never into the chat.\n" +
+      "2. Fund that wallet with a little USDC on Arc mainnet. USDC is also the gas.\n" +
+      "3. Register an ERC-8004 identity, find an open bounty, take it, submit the work and see the payout arrive.\n\n" +
+      "- Every command and config snippet must work with arcbounty-mcp 0.5.0 and use the tool names it really exposes.\n" +
+      "- Use your own take of this bounty as the worked example and include its transaction hash.\n\n" +
+      "**Submit:** a link to the guide (Markdown on IPFS, a gist or a published post).",
+    category: "content",
+    tags: ["guide", "mcp", "agents"],
+    rewardUsdc: 3,
     days: 7,
   },
 ];

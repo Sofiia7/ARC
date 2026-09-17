@@ -32,7 +32,8 @@ const APPROVAL_TIMEOUT = 14n * 86_400n;
 const LOG_CHUNK = 90_000n; // Blockdaemon serves eth_getLogs up to 100k blocks
 const CHECK_ONLY = process.argv.includes("--check");
 
-// Reputation score per jobId, from the review of 2026-09-17. It is written to
+// Suggested reputation score per jobId, from the review of 2026-09-17; a bounty
+// without one gets its score typed at the prompt. It is written to
 // ERC-8004 only for bounties taken with an agent identity (#1, #4, #5).
 const SCORES: Record<string, number> = {
   "1": 90, // full es-419 translation, every code block, address and link kept
@@ -116,7 +117,7 @@ async function main() {
   };
 
   const now = BigInt(Math.floor(Date.now() / 1000));
-  const ready: { jobId: bigint; title: string; worker: string; agentId: bigint; reward: bigint; score: number }[] = [];
+  const ready: { jobId: bigint; title: string; worker: string; agentId: bigint; reward: bigint; score: number | undefined }[] = [];
   for (const [id, title] of [...titles].sort((a, b) => Number(a[0]) - Number(b[0]))) {
     if (id === "?") continue;
     const meta = await poster.getBounty(BigInt(id));
@@ -127,7 +128,6 @@ async function main() {
       : meta.inDispute ? "in dispute"
       : meta.rejectedAt > 0n ? "a rejection is pending"
       : !meta.submittedResultHash ? (meta.isTaken ? "taken, no work submitted yet" : "not taken yet")
-      : !(id in SCORES) ? "no review score set in SCORES"
       : null;
     if (meta.isTaken) {
       console.log(`  worker     ${meta.assignedProvider}${meta.agentId > 0n ? `  ERC-8004 agent #${meta.agentId}` : "  no agent identity"}`);
@@ -142,8 +142,8 @@ async function main() {
       console.log(`  skip: ${skip}`);
       continue;
     }
-    console.log(`  score      ${SCORES[id]}`);
-    ready.push({ jobId: BigInt(id), title, worker: meta.assignedProvider, agentId: meta.agentId, reward: meta.reward, score: SCORES[id]! });
+    console.log(`  score      ${SCORES[id] ?? "not set: you type it when asked"}`);
+    ready.push({ jobId: BigInt(id), title, worker: meta.assignedProvider, agentId: meta.agentId, reward: meta.reward, score: SCORES[id] });
   }
 
   const gas = await pub.getBalance({ address: posterAddress });
@@ -162,14 +162,20 @@ async function main() {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     for (const job of ready) {
+      const pay = `release ${formatUnits(job.reward, 6)} USDC to ${job.worker}`;
       const answer = (
-        await rl.question(`\nType yes to approve #${job.jobId} (score ${job.score}) and release ${formatUnits(job.reward, 6)} USDC to ${job.worker}: `)
+        await rl.question(
+          job.score === undefined
+            ? `\nType a score 0-100 to approve #${job.jobId} and ${pay} (Enter skips): `
+            : `\nType yes to approve #${job.jobId} with score ${job.score}, or another score 0-100, and ${pay} (Enter skips): `,
+        )
       ).trim().toLowerCase();
-      if (answer !== "yes") {
+      const score = answer === "yes" ? job.score : /^\d{1,3}$/.test(answer) && Number(answer) <= 100 ? Number(answer) : undefined;
+      if (score === undefined) {
         console.log(`#${job.jobId} skipped.`);
         continue;
       }
-      const { hash } = await poster.approveBounty(job.jobId, job.score);
+      const { hash } = await poster.approveBounty(job.jobId, score);
       const receipt = await pub.waitForTransactionReceipt({ hash });
       if (receipt.status !== "success") throw new Error(`#${job.jobId}: approve ${hash} reverted. Stopped.`);
       const logs = parseEventLogs({ abi: PAYOUT_EVENTS, logs: receipt.logs });
@@ -186,7 +192,7 @@ async function main() {
         title: job.title,
         worker: job.worker,
         agentId: job.agentId.toString(),
-        score: job.score,
+        score,
         reward: formatUnits(job.reward, 6),
         paidToWorker: formatUnits(paid, 6),
         parked,
