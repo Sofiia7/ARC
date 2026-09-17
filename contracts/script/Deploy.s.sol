@@ -62,7 +62,9 @@ contract Deploy is Script {
         // with a real call wherever the contract exposes one.
         require(usdc.code.length > 0, "USDC has no code");
         require(keccak256(bytes(IERC20MetadataView(usdc).symbol())) == keccak256("USDC"), "USDC symbol mismatch");
-        require(IERC20MetadataView(usdc).decimals() == 6, "USDC decimals mismatch (expected 6 for the ERC-20 interface)");
+        require(
+            IERC20MetadataView(usdc).decimals() == 6, "USDC decimals mismatch (expected 6 for the ERC-20 interface)"
+        );
         require(agenticCommerce.code.length > 0, "AgenticCommerce has no code");
         require(
             IAgenticCommercePaymentToken(agenticCommerce).paymentToken() == usdc,

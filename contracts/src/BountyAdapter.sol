@@ -378,7 +378,11 @@ contract BountyAdapter is ReentrancyGuard {
     event MaxBountyAmountUpdated(uint256 previous, uint256 next);
     event PausedSet(bool paused);
     event ExternalRefundReconciled(
-        uint256 indexed jobId, address indexed poster, address indexed worker, uint256 posterAmount, uint256 workerAmount
+        uint256 indexed jobId,
+        address indexed poster,
+        address indexed worker,
+        uint256 posterAmount,
+        uint256 workerAmount
     );
     event ArbitratorTimeoutClaimed(uint256 indexed jobId, uint256 posterAmount, uint256 providerAmount);
     event WorkerBondPosted(uint256 indexed jobId, address indexed worker, uint256 amount);
@@ -771,7 +775,7 @@ contract BountyAdapter is ReentrancyGuard {
 
         meta.resolved = true;
         meta.inDispute = false; // every other terminal path clears this; a job
-                                 // resolved here must not read as "in dispute" forever.
+        // resolved here must not read as "in dispute" forever.
         meta.workerBond = 0;
 
         uint256 posterAmt = 0;

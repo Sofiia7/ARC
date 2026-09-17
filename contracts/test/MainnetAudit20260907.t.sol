@@ -23,10 +23,23 @@ contract MainnetAudit20260907Test is Test {
     function setUp() public {
         token = new MockUSDC();
         AgenticCommerce impl = new AgenticCommerce();
-        escrow = AgenticCommerce(address(new ERC1967Proxy(address(impl),
-            abi.encodeCall(AgenticCommerce.initialize, (address(token), address(0xFEE), address(this))))));
-        adapter = new BountyAdapter(address(escrow), address(new MockIdentityRegistry()),
-            address(new MockReputationRegistry()), address(token), address(0xFEE), 100, 500e6);
+        escrow = AgenticCommerce(
+            address(
+                new ERC1967Proxy(
+                    address(impl),
+                    abi.encodeCall(AgenticCommerce.initialize, (address(token), address(0xFEE), address(this)))
+                )
+            )
+        );
+        adapter = new BountyAdapter(
+            address(escrow),
+            address(new MockIdentityRegistry()),
+            address(new MockReputationRegistry()),
+            address(token),
+            address(0xFEE),
+            100,
+            500e6
+        );
         token.mint(poster, REWARD);
         token.mint(attacker, REWARD);
         vm.prank(poster);
@@ -37,9 +50,15 @@ contract MainnetAudit20260907Test is Test {
 
     function create(address who, uint256 deadline) internal returns (uint256) {
         BountyAdapter.CreateParams memory p = BountyAdapter.CreateParams({
-            provider: address(0), reward: REWARD, deadline: deadline,
-            ipfsDescHash: "ipfs://audit-description", category: "dev", tags: new string[](0),
-            agentOnly: false, humanOnly: false, requireWorkerBond: false
+            provider: address(0),
+            reward: REWARD,
+            deadline: deadline,
+            ipfsDescHash: "ipfs://audit-description",
+            category: "dev",
+            tags: new string[](0),
+            agentOnly: false,
+            humanOnly: false,
+            requireWorkerBond: false
         });
         vm.prank(who);
         return adapter.createBounty(p);
@@ -212,7 +231,9 @@ contract MainnetAudit20260907Test is Test {
         vm.warp(deadline + adapter.AC_EXPIRY_BUFFER() + 1);
         escrow.claimRefund(job);
         adapter.reconcileExpiredEscrow(job);
-        assertEq(token.balanceOf(worker), REWARD, "worker challenged (initiator), poster silent -> worker wins by default");
+        assertEq(
+            token.balanceOf(worker), REWARD, "worker challenged (initiator), poster silent -> worker wins by default"
+        );
         assertEq(token.balanceOf(poster), 0);
         assertFalse(adapter.getBountyMeta(job).inDispute);
     }

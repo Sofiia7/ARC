@@ -99,7 +99,9 @@ contract DeployArcMainnet is Script {
 
         AgenticCommerce impl = new AgenticCommerce();
         escrow = AgenticCommerce(
-            address(new ERC1967Proxy(address(impl), abi.encodeCall(AgenticCommerce.initialize, (USDC, feeRecipient, safe))))
+            address(
+                new ERC1967Proxy(address(impl), abi.encodeCall(AgenticCommerce.initialize, (USDC, feeRecipient, safe)))
+            )
         );
         // platformFeeBP / evaluatorFeeBP stay 0, which BountyAdapter's
         // balance-delta payout forwarding assumes. Only the Safe can change them.
@@ -133,7 +135,9 @@ contract DeployArcMainnet is Script {
     ///      mainnet once already (see DEPLOYMENTS.md).
     function _checkExternalContracts(address identityRegistry, address reputationRegistry) internal view {
         require(keccak256(bytes(IERC20MetadataView(USDC).symbol())) == keccak256("USDC"), "USDC symbol mismatch");
-        require(IERC20MetadataView(USDC).decimals() == 6, "USDC decimals mismatch (expected 6 for the ERC-20 interface)");
+        require(
+            IERC20MetadataView(USDC).decimals() == 6, "USDC decimals mismatch (expected 6 for the ERC-20 interface)"
+        );
         require(
             keccak256(bytes(IIdentityRegistryName(identityRegistry).name())) == keccak256("AgentIdentity"),
             "identity registry does not answer name() == AgentIdentity"
