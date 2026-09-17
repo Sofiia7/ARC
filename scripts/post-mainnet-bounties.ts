@@ -174,6 +174,24 @@ const LISTINGS: Listing[] = [
     rewardUsdc: 1,
     days: 7,
   },
+  // Replaces the phone wallet check (#9, cancelled the same evening): on the
+  // board its title read as a dollar for connecting a wallet. This one is real
+  // work and feeds the outreach, which needs teams with small backlogs.
+  {
+    title: "Research: 10 Arc mainnet projects with open issues a newcomer could fix",
+    body:
+      "Find 10 projects that are live on Arc mainnet (chain id 5042) and have open GitHub issues an outside contributor " +
+      "could finish in a day, such as a docs fix, a small bug or a missing example.\n\n" +
+      "- For each project: its name, one line on what it does, proof that it runs on Arc mainnet (a contract or explorer link, " +
+      "or an official post) and 1 to 3 links to open issues.\n" +
+      "- Only issues that are open and were updated in the last 60 days. No ArcBounty repos, forks or duplicates.\n" +
+      "- One line per project on why its issue would make a good small paid bounty.\n\n" +
+      "**Submit:** a Markdown table on IPFS or in a gist.",
+    category: "data",
+    tags: ["research", "arc", "github"],
+    rewardUsdc: 1,
+    days: 7,
+  },
 ];
 
 const CHECK_ONLY = process.argv.includes("--check");
