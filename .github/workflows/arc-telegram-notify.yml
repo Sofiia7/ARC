@@ -1,0 +1,52 @@
+name: Arc mainnet alerts
+
+# Telegram alerts for ArcBounty on Arc mainnet: new bounties, takes, submitted
+# work, disputes and payouts (scripts/arc-telegram-notify.mjs). Scheduled runs
+# can start late when GitHub is busy; the script reports everything since the
+# last block it saw, so a late run only delays alerts, it never drops them.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arc-telegram-notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
+        with: { node-version: "20" }
+      - name: Restore the last reported block
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (resolved 2026-09-17)
+        with:
+          path: .notify-state
+          key: arc-notify-${{ github.run_id }}
+          restore-keys: arc-notify-
+      # Only viem is needed, so the script runs from a scratch folder instead of
+      # installing the whole scripts/ workspace every ten minutes.
+      - name: Install viem
+        run: |
+          mkdir -p "$RUNNER_TEMP/notify"
+          npm install --prefix "$RUNNER_TEMP/notify" --no-save --no-audit --no-fund viem@2.55.19
+          cp scripts/arc-telegram-notify.mjs "$RUNNER_TEMP/notify/"
+      - name: Send alerts
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_BOT_CHAT: ${{ secrets.TG_BOT_CHAT }}
+          STATE_FILE: .notify-state/state.json
+        run: node "$RUNNER_TEMP/notify/arc-telegram-notify.mjs"
+      - name: Save the last reported block
+        # No file yet means nothing was reported (secrets missing): saving would fail.
+        if: success() && hashFiles('.notify-state/state.json') != ''
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (resolved 2026-09-17)
+        with:
+          path: .notify-state
+          key: arc-notify-${{ github.run_id }}
