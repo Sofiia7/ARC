@@ -25,8 +25,8 @@ overwritten or out of date.
 | Fee | 100 bps (1%) |
 | Fee recipient | `0xADac7534d3fE868E28c77df5CD930f2635bcb63A` (same wallet as Arc testnet and Base) |
 | maxBountyAmount | `500000000` (500 USDC, atomic) - the unaudited-mainnet cap, same as Base |
-| Owner | deployer `0xde427f3967cc7a0BF7A9F891195760cCffC82edA`, `pendingOwner` = the Safe. The testnet deployer key, reused for mainnet by the owner's decision on 2026-09-16 over `PRE_MAINNET_RUNBOOK.md` §9 |
-| Arbitrator | deployer, `pendingArbitrator` = the Safe. **Not accepted yet**: app.safe.global does not list chain 5042, so `acceptOwner()` / `acceptArbitrator()` need owner signatures gathered outside the Safe web app. Until then one EOA rules disputes on this deployment, bounded by the 500 USDC cap |
+| Owner | the Safe, since 2026-09-17 (see Arbitrator). Deployed by `0xde427f3967cc7a0BF7A9F891195760cCffC82edA`, the testnet deployer key, reused for mainnet by the owner's decision on 2026-09-16 over `PRE_MAINNET_RUNBOOK.md` §9; `pendingOwner` is now zero |
+| Arbitrator | the Safe, since 2026-09-17, block `21325002`: one Safe transaction (nonce 0, through MultiSendCallOnly) called `acceptOwner()` and `acceptArbitrator()`, signed by owners `0xC6B4…242A` and `0x403A…FD2D` at arcbounty.app/safe because app.safe.global does not list chain 5042, executed by `0x403A…FD2D`, tx `0xe7c72523e9df19bb3a65a86c6180aeed9befe77ff1393d91be96827891900ec9`. `owner()` and `arbitrator()` read back as the Safe, both pending slots are zero, Safe nonce is 1 (checked on-chain) |
 | AgenticCommerce admin (upgrade key) | the Safe, from `initialize` - `hasRole(DEFAULT_ADMIN_ROLE)` and `hasRole(ADMIN_ROLE)` are true for the Safe and false for the deployer (checked on-chain); `platformFeeBP` and `evaluatorFeeBP` are 0 |
 | Paused | deployed paused; opened with `setPaused(false)` at block `21153303`, tx `0x205abadb7f07737a7733b0dd13ef2c3ae7b0d0905c1ab10e0023c02209141e6e` |
 | Deployed | 2026-09-16, blocks `21153182` (impl), `21153186` (proxy), `21153190` (adapter); gas 2,127,457 + 258,609 + 5,222,849, plus 46,875 (`setPaused(true)`), 48,510 (`transferArbitrator`), 48,070 (`transferOwner`); 0.2575 USDC in total |
