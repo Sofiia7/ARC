@@ -40,7 +40,9 @@ function fail(msg: string): never {
   process.exit(2);
 }
 
-const ADDR_TOKEN_RE = /0x[a-fA-F0-9]{40}/;
+// The lookahead keeps a 64-hex tx hash from reading as an address: without it
+// the first 40 hex digits of any hash linked from a doc were flagged as stray.
+const ADDR_TOKEN_RE = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/;
 const ZERO_ADDRESS = "0x" + "0".repeat(40);
 
 // ─── 1a. Parse contracts/DEPLOYMENTS.md into per-network sections ─────────────
