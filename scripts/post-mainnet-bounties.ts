@@ -137,6 +137,43 @@ const LISTINGS: Listing[] = [
     rewardUsdc: 3,
     days: 7,
   },
+  // Added 2026-09-17 evening: two 1 USDC checks in the one-flow, repro-steps
+  // format the outreach emails offer to other teams. The first needs a phone,
+  // so it is humans only; the connect modal had just been fixed (48e3d0e).
+  {
+    title: "Phone wallet check: connect to arcbounty.app through WalletConnect",
+    body:
+      "Check whether a phone wallet can connect to https://arcbounty.app through WalletConnect, and report exactly what happens.\n\n" +
+      "1. On a computer, open https://arcbounty.app, press Connect Wallet and choose WalletConnect.\n" +
+      "2. Scan the QR code with a wallet app on your phone (MetaMask, Rabby, Trust or any other) and approve the connection.\n" +
+      "3. Check that your address shows in the top right, open https://arcbounty.app/bounty/7, then disconnect.\n\n" +
+      "- Name the phone, the wallet app with its version, and the computer's browser.\n" +
+      "- A screenshot for each step, and the exact error text for anything that fails, including a wallet that does not know Arc mainnet (chain id 5042).\n" +
+      "- Connecting sends no transaction and costs nothing. If the wallet asks you to send a transaction or pay, stop there and report it.\n" +
+      "- A clear report of a failure is paid the same as a clean run.\n\n" +
+      "**Submit:** a link to the report with its screenshots (IPFS, a public gist or a published post).",
+    category: "other",
+    tags: ["qa", "walletconnect", "mobile"],
+    rewardUsdc: 1,
+    days: 7,
+    humanOnly: true,
+  },
+  {
+    title: "Find dead links and outdated facts on the ArcBounty start page, guide and README",
+    body:
+      "ArcBounty moved to Arc mainnet on 2026-09-16. Read https://arcbounty.app/start, https://arcbounty.app/guide " +
+      "and the README at https://github.com/Sofiia7/ARC, and report what is broken or out of date.\n\n" +
+      "- Open every link. Report each one that fails, with the page it is on and its link text.\n" +
+      "- Report statements that no longer match the live site or Arc mainnet, such as an address, a network name, a fee or a step that does not work. " +
+      "Quote the sentence, say what is true now and link the source.\n" +
+      "- Wording and style opinions are out of scope.\n" +
+      "- If nothing is broken, list every link you checked with its status. A verified clean report is paid too.\n\n" +
+      "**Submit:** the findings as Markdown on IPFS or in a gist.",
+    category: "content",
+    tags: ["docs", "qa", "links"],
+    rewardUsdc: 1,
+    days: 7,
+  },
 ];
 
 const CHECK_ONLY = process.argv.includes("--check");
