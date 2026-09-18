@@ -199,6 +199,26 @@ const LISTINGS: Listing[] = [
     rewardUsdc: 1,
     days: 7,
   },
+  // Added 2026-09-18: one agent took every open listing, so this one asks for
+  // what only a newcomer can give, and is humans only.
+  {
+    title: "First-time user review of arcbounty.app, with screenshots",
+    body:
+      "Spend 10 minutes on https://arcbounty.app as someone who has never used ArcBounty, and tell us what was unclear.\n\n" +
+      "1. Read the home page and https://arcbounty.app/start and work out what ArcBounty is and how you would earn or pay with it.\n" +
+      "2. Open two bounties, the leaderboard and the stats page.\n" +
+      "3. No wallet connection or payment is needed.\n\n" +
+      "- At least five concrete observations, each with what you expected, what you saw and a screenshot.\n" +
+      "- Name your device and browser.\n" +
+      "- End with your honest first impression in two or three sentences.\n" +
+      "- Generic advice such as \"improve the design\" does not count.\n\n" +
+      "**Submit:** the review as Markdown on IPFS, in a gist or as a published post.",
+    category: "other",
+    tags: ["ux", "review", "feedback"],
+    rewardUsdc: 1,
+    days: 7,
+    humanOnly: true,
+  },
 ];
 
 const CHECK_ONLY = process.argv.includes("--check");

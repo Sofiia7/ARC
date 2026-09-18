@@ -1,5 +1,7 @@
 /**
- * Send a little native USDC on Arc mainnet from the deployer wallet (PRIVATE_KEY), for gas.
+ * Send a little native USDC on Arc mainnet from one of our wallets, for gas or to
+ * pool funds. PRIVATE_KEY (the deployer) signs unless --from names another
+ * *PRIVATE_KEY entry of the root .env, e.g. --from=AGENT_PRIVATE_KEY.
  *
  * Made for the arbitrator Safe handoff: none of the Safe's three owners held any
  * USDC on Arc on 2026-09-17, and on arcbounty.app/safe the wallet that presses
@@ -7,6 +9,10 @@
  * contract or zero recipient, and asks for yes before sending. In cmd:
  *   cd /d C:\Server\ARC\scripts
  *   npx tsx send-arc-usdc.ts <to> <amount>
+ *   npx tsx send-arc-usdc.ts <to> <amount> --from=AGENT_PRIVATE_KEY
+ *
+ * The second form was added on 2026-09-18 to move the idle 1 USDC of our own
+ * agent wallet (never used on mainnet) into the deployer, which posts bounties.
  */
 // First, before anything touches the network: a dead router DNS must not stop this.
 import "./lib/dns-fallback.js";
@@ -38,17 +44,19 @@ function readDotEnv(path: string): Record<string, string> {
 }
 
 async function main() {
-  const [toArg, amountArg] = process.argv.slice(2);
+  const [toArg, amountArg] = process.argv.slice(2).filter(a => !a.startsWith("--"));
+  const keyName = process.argv.find(a => a.startsWith("--from="))?.slice(7) ?? "PRIVATE_KEY";
+  if (!/^[A-Z0-9_]*PRIVATE_KEY$/.test(keyName)) throw new Error("--from must name a *PRIVATE_KEY entry of the root .env");
   if (!toArg || !isAddress(toArg) || !amountArg || !/^\d+(\.\d{1,18})?$/.test(amountArg)) {
-    throw new Error("Usage: npx tsx send-arc-usdc.ts <to address> <amount in USDC, e.g. 0.1>");
+    throw new Error("Usage: npx tsx send-arc-usdc.ts <to address> <amount in USDC, e.g. 0.1> [--from=AGENT_PRIVATE_KEY]");
   }
   const to = toArg as Address;
   const value = parseEther(amountArg);
   if (value === 0n || value > MAX_USDC) throw new Error("ABORT: the amount must be above 0 and at most 1 USDC");
   if (/^0x0{40}$/i.test(to)) throw new Error("ABORT: the zero address");
 
-  const key = (process.env["PRIVATE_KEY"]?.trim() || readDotEnv(join(ROOT, ".env"))["PRIVATE_KEY"]) as Hex | undefined;
-  if (!key) throw new Error("Missing PRIVATE_KEY in the root .env");
+  const key = (process.env[keyName]?.trim() || readDotEnv(join(ROOT, ".env"))[keyName]) as Hex | undefined;
+  if (!key) throw new Error(`Missing ${keyName} in the root .env`);
 
   const network = resolveNetwork("arc-mainnet");
   const chain = buildChain(network);
@@ -67,7 +75,7 @@ async function main() {
   console.log(`from  ${account.address}  ${formatEther(fromBalance)} USDC`);
   console.log(`to    ${to}  ${formatEther(toBalance)} USDC`);
   console.log(`send  ${formatEther(value)} USDC on Arc mainnet`);
-  if (fromBalance < value + GAS_RESERVE) throw new Error("ABORT: the deployer cannot cover the amount plus gas");
+  if (fromBalance < value + GAS_RESERVE) throw new Error(`ABORT: ${keyName}'s wallet cannot cover the amount plus gas`);
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const answer = (await rl.question(`\nType yes to send ${formatEther(value)} USDC to ${to}: `)).trim().toLowerCase();
