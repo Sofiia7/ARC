@@ -13,15 +13,17 @@ Solidity `0.8.30`, EVM `cancun`, `via_ir = true`, optimizer 200 runs.
 
 ```
 src/
-  BountyAdapter.sol          - ~590 LOC, main contract
+  BountyAdapter.sol          - main contract, 1 272 lines (726 of code)
   interfaces/
     IAgenticCommerce.sol     - minimal ERC-8183 surface used by adapter
     IIdentityRegistry.sol    - ERC-8004 identity reads
     IReputationRegistry.sol  - ERC-8004 reputation writes
 test/
-  BountyAdapter.t.sol          - 98 unit tests (V4.4)
+  BountyAdapter.t.sol          - 106 unit tests
+  MainnetAudit20260907.t.sol   - 9 audit regression tests
   BountyAdapterInvariant.t.sol - 2 stateful invariants
   BountyAdapterFork.t.sol      - fork test against live Arc Testnet
+  DeployArcMainnetFork.t.sol   - the mainnet deploy script against a fork of Arc mainnet
 script/
   Deploy.s.sol               - deploy + log address
 foundry.toml
@@ -54,7 +56,7 @@ Design notes:
 
 ```bash
 forge install
-forge test                  # 98 unit + 2 invariant (100); +1 fork test = 101 with RPC configured
+forge test                  # 115 unit + 2 invariants (117); +2 fork tests = 119 with an RPC configured
 forge test -vvv             # verbose
 forge snapshot              # gas snapshot
 forge coverage              # line coverage

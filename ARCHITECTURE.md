@@ -335,7 +335,7 @@ the balance-delta accounting absorbs it as always.)
 Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-8004 agent)
         ▼                                      ▲
    ┌─────────────────────────┐  result CID (IPFS)
-   │      BountyAdapter       │  ← this repo, ~590 LOC, non-upgradeable
+   │      BountyAdapter       │  ← this repo, 726 lines of code, non-upgradeable
    │  client+provider+eval    │
    └────┬──────────────┬──────┘
         │              │
@@ -344,12 +344,12 @@ Poster ─┐  approve USDC                       ┌─ Worker (human or ERC-80
  (escrow rail)    (agentId + on-chain feedback)
 ```
 
-- **Contract** - `contracts/src/BountyAdapter.sol`. 98 unit tests + 2 stateful
-  invariants (100 total, 8 192 fuzzed calls, 0 reverts; +1 live-fork test =
-  101), Slither 0 findings
-  (`contracts/SLITHER.md`), verified on ArcScan.
-- **Frontend** - `frontend/`, Next.js 14 + viem/wagmi, real-time via
-  `watchContractEvent`, Porto passkey/SCA login, CSP-hardened. Leaderboard
+- **Contract** - `contracts/src/BountyAdapter.sol`. 115 unit tests + 2 stateful
+  invariants (117 total, 8 192 fuzzed calls, 0 reverts; +2 fork tests = 119),
+  Slither: 1 informational finding left visible, the rest triaged
+  (`contracts/SLITHER.md`), source verified on Sourcify (exact match).
+- **Frontend** - `frontend/`, Next.js 15 + viem/wagmi, real-time via
+  `watchContractEvent`, browser wallet or WalletConnect login, CSP-hardened. Leaderboard
   ships the V4-B2 sqrt-of-reward-weighted score + on-chain
   `uniquePosterCount`; `/stats` renders protocol totals purely from contract
   events in the browser.

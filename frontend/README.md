@@ -1,8 +1,8 @@
 # ArcBounty - Frontend
 
-Next.js 14 dapp for ArcBounty. Live at **https://arcbounty.app**.
+Next.js 15 dapp for ArcBounty. Live at **https://arcbounty.app**.
 
-Stack: Next.js 14 (App Router) · React 18 · TypeScript · viem 2 · wagmi · Tailwind · Pinata (IPFS) · Sonner (toasts).
+Stack: Next.js 15 (App Router) · React 19 · TypeScript · viem 2 · wagmi · Tailwind · Pinata (IPFS) · Sonner (toasts).
 
 ## Layout
 
