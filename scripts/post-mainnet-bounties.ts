@@ -16,6 +16,11 @@
  *   cd /d C:\Server\ARC\scripts
  *   npx tsx post-mainnet-bounties.ts           checks, lists, asks for yes, posts
  *   npx tsx post-mainnet-bounties.ts --check   checks and lists only, sends nothing
+ *   npx tsx post-mainnet-bounties.ts --limit=1 posts at most one, for a bounty a day
+ *
+ * A listing with `provider` set can only be taken by that address: the board is
+ * public, so a task promised to one person is locked to them here. Everything
+ * else is first come, first served, and one fast agent can take it all.
  *
  * Reads PRIVATE_KEY (the poster: the deployer) and PINATA_JWT from the root .env.
  */
@@ -26,7 +31,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import {
-  createPublicClient, createWalletClient, http, parseUnits, formatUnits, formatEther, parseEventLogs,
+  createPublicClient, createWalletClient, http, isAddress, parseUnits, formatUnits, formatEther, parseEventLogs,
   type Address, type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -42,6 +47,8 @@ type Listing = {
   days: number;
   agentOnly?: boolean;
   humanOnly?: boolean;
+  /** Lock the bounty to one taker; leave unset for anyone. */
+  provider?: Address;
 };
 
 const ADAPTER_ADDRESS = "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D";
@@ -195,6 +202,7 @@ const LISTINGS: Listing[] = [
 ];
 
 const CHECK_ONLY = process.argv.includes("--check");
+const LIMIT = Number(process.argv.find(a => a.startsWith("--limit="))?.slice(8) ?? "") || LISTINGS.length;
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const LOG_PATH = join(dirname(fileURLToPath(import.meta.url)), ".mainnet-bounties-posted.json");
 // Gas stays in the wallet on top of the rewards: approve + 5 createBounty cost
@@ -272,6 +280,7 @@ function listingProblems(l: Listing): string[] {
   if (l.tags.some(t => Buffer.byteLength(t) === 0 || Buffer.byteLength(t) > 32)) problems.push("a tag is empty or over 32 bytes");
   if (l.agentOnly && l.humanOnly) problems.push("both agentOnly and humanOnly");
   if (l.days < 1) problems.push("deadline under a day");
+  if (l.provider !== undefined && !isAddress(l.provider)) problems.push(`provider ${l.provider} is not an address`);
   return problems;
 }
 
@@ -319,7 +328,7 @@ async function main() {
   if (problems.length > 0) throw new Error(`ABORT:\n  ${problems.join("\n  ")}`);
 
   const posted = readLog();
-  const pending = LISTINGS.filter(l => !posted[l.title]);
+  const pending = LISTINGS.filter(l => !posted[l.title]).slice(0, LIMIT);
   const total = pending.reduce((sum, l) => sum + parseUnits(String(l.rewardUsdc), 6), 0n);
   const [tokenBalance, nativeBalance] = await Promise.all([
     pub.readContract({ address: usdc, abi: ERC20_ABI, functionName: "balanceOf", args: [poster.address] }),
@@ -332,8 +341,11 @@ async function main() {
   console.log(`adapter: ${adapter}  (live, cap ${formatUnits(cap, 6)} USDC)`);
   console.log(`pinata:  ${pinata.ok ? "JWT accepted" : `HTTP ${pinata.status} - pinning will fail`}\n`);
   for (const l of LISTINGS) {
-    const who = l.agentOnly ? "agents only" : l.humanOnly ? "humans only" : "agents and humans";
-    const status = posted[l.title] ? `already posted as #${posted[l.title]!.jobId}` : "to post";
+    const who = l.provider
+      ? `only ${l.provider.slice(0, 6)}…${l.provider.slice(-4)}`
+      : l.agentOnly ? "agents only" : l.humanOnly ? "humans only" : "agents and humans";
+    const status = posted[l.title] ? `already posted as #${posted[l.title]!.jobId}`
+      : pending.includes(l) ? "to post" : "waiting (over --limit)";
     console.log(`  ${String(l.rewardUsdc).padStart(2)} USDC  ${l.days}d  ${l.category.padEnd(7)} ${who.padEnd(17)} ${l.title}  [${status}]`);
   }
   console.log(`\ntotal to lock in escrow: ${formatUnits(total, 6)} USDC across ${pending.length} bounties`);
@@ -372,7 +384,7 @@ async function main() {
     const hash = await wallet.writeContract({
       address: adapter, abi: ADAPTER_ABI, functionName: "createBounty",
       args: [{
-        provider: "0x0000000000000000000000000000000000000000",
+        provider: l.provider ?? "0x0000000000000000000000000000000000000000",
         reward: parseUnits(String(l.rewardUsdc), 6),
         deadline,
         ipfsDescHash: cid,
