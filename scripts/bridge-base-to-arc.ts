@@ -14,6 +14,8 @@
  *   cd /d C:\Server\ARC\scripts
  *   npx tsx bridge-base-to-arc.ts
  * `--quote-only` runs every check against a live quote and stops before signing.
+ * `--no-top-ups` bridges only: the launch-day gas for the keeper and the agent
+ * is skipped (the agent's was pooled into the deployer on 2026-09-18).
  *
  * Reads PRIVATE_KEY (the deployer) from the root .env, plus KEEPER_PRIVATE_KEY
  * and AGENT_PRIVATE_KEY only to derive the two top-up addresses.
@@ -39,6 +41,7 @@ const NATIVE = "0x0000000000000000000000000000000000000000";
 // Arc's native USDC has 18 decimals (its ERC-20 view has 6).
 const GAS_TOP_UP = parseEther("1");
 const QUOTE_ONLY = process.argv.includes("--quote-only");
+const NO_TOP_UPS = process.argv.includes("--no-top-ups");
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -203,8 +206,10 @@ async function main() {
     console.log("\nnothing left on Base to bridge.");
   }
 
-  const topUps = [keeper, agent];
-  console.log(`then:     1 USDC of gas on Arc to the keeper and to the agent, where they hold less than 1`);
+  const topUps = NO_TOP_UPS ? [] : [keeper, agent];
+  console.log(NO_TOP_UPS
+    ? "then:     no gas top-ups (--no-top-ups)"
+    : "then:     1 USDC of gas on Arc to the keeper and to the agent, where they hold less than 1");
 
   if (QUOTE_ONLY) {
     console.log("\n--quote-only: all checks passed, nothing signed or sent.");
