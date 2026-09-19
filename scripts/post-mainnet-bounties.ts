@@ -219,6 +219,44 @@ const LISTINGS: Listing[] = [
     days: 7,
     humanOnly: true,
   },
+  // Agreed with the ArcNS maintainer on khenzarr/arcns#51 (2026-09-18/19): we
+  // fund, post and pay; ArcNS only agrees the spec and reviews. Their scope and
+  // repository rules are copied as given; 10 USDC, 10 days, no bond, humans only.
+  {
+    title: "TypeScript example: resolve .arc and .circle names with the ArcNS API",
+    body:
+      "Build a small, standalone TypeScript example for [ArcNS](https://arcname.services) and submit it as a pull request to " +
+      "https://github.com/khenzarr/arcns. The scope was agreed with the ArcNS maintainer in https://github.com/khenzarr/arcns/issues/51.\n\n" +
+      "**The example must:**\n" +
+      "- resolve both `.arc` and `.circle` names to addresses;\n" +
+      "- resolve an address to a primary name and display it only when the API returns a verified, forward-confirmed result;\n" +
+      "- use the production ArcNS API at https://arcname.services/api/v1;\n" +
+      "- handle timeouts, invalid input, not-found names and upstream errors;\n" +
+      "- use only synthetic example names and wallet addresses, never real user wallet data;\n" +
+      "- need no private key, wallet connection, token approval or onchain transaction;\n" +
+      "- include concise run instructions and an automated test or deterministic validation command.\n\n" +
+      "**Repository scope:**\n" +
+      "- The PR is documentation/example-only, and every change stays under `examples/typescript-resolution/**`.\n" +
+      "- It must not modify `frontend/**`, `contracts/**`, API routes, deployment files, environment configuration, " +
+      "GitHub Actions, or root package/lock files.\n" +
+      "- No `preinstall`, `postinstall` or other lifecycle scripts.\n" +
+      "- Prefer zero runtime dependencies. Any development dependency must be minimal, pinned through a lockfile and justified in the PR.\n" +
+      "- Default tests use deterministic mocked or local responses and never call the live production API. " +
+      "An optional, clearly separated production smoke command is fine.\n" +
+      "- No production deployment or API changes.\n\n" +
+      "**How it works:**\n" +
+      "- Humans only, no worker bond, and nobody is selected in advance. Taking and submitting need a wallet on Arc mainnet " +
+      "with a few cents of USDC for gas.\n" +
+      "- ArcNS reviews the PR against the lists above, and the payout follows their confirmation that the lists are met. " +
+      "A PR that does not meet them is rejected with the reasons.\n" +
+      "- Acceptance and payout do not imply a merge: merging stays ArcNS's separate decision after their security review, tests and CI.\n\n" +
+      "**Submit:** the pull request link.",
+    category: "dev",
+    tags: ["typescript", "arcns", "example"],
+    rewardUsdc: 10,
+    days: 10,
+    humanOnly: true,
+  },
 ];
 
 const CHECK_ONLY = process.argv.includes("--check");
