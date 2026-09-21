@@ -18,6 +18,8 @@
  *   set "ARC_NETWORK=base-mainnet" && set "ALLOW_MAINNET=yes" && npx tsx --env-file=..\.env reject-bounty.ts <jobId> "<reason>"
  */
 
+// First, before anything touches the network: a dead router DNS must not stop this.
+import "./lib/dns-fallback.js";
 import { ArcBountyAgent } from "arcbounty-agent-sdk";
 import { createPublicClient, http, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
