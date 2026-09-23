@@ -1,15 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useReadContract } from "wagmi";
 import Link from "next/link";
-import { CONTRACTS, BOUNTY_ADAPTER_ABI, CATEGORIES, type Category } from "@/lib/contracts";
+import { CATEGORIES, type Category } from "@/lib/contracts";
 import { getCopy } from "@/lib/copy";
 import { getMcpPackage } from "@/lib/networks";
 import { BountyCard } from "@/components/BountyCard";
 import type { BountyMeta } from "@/components/BountyCard";
 import { useAllOpenBountyMetas } from "@/hooks/useBountyMeta";
 import { useBountyEvents } from "@/hooks/useBountyEvents";
+import { useBoardCounts } from "@/hooks/useBoardCounts";
 
 const PAGE_SIZE = 20;
 
@@ -38,7 +38,10 @@ export default function HomePage() {
   const [page, setPage]           = useState(0);
 
   const { metas, isLoading, isError, refetch } = useAllOpenBountyMetas(category);
-  useBountyEvents(() => { void refetch(); });
+  const { data: counts, refetch: refetchCounts } = useBoardCounts();
+  // One subscription for the page: any adapter event refreshes both the board
+  // and the posted/completed counter, so a new bounty shows up right away.
+  useBountyEvents(() => { void refetch(); void refetchCounts(); });
 
   // Filter by audience + search over the full set, THEN paginate - so a
   // filtered view never shows a falsely-empty page while matches exist
@@ -69,13 +72,6 @@ export default function HomePage() {
 
   const pageItems = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const hasNext = (page + 1) * PAGE_SIZE < sorted.length;
-
-  const { data: total } = useReadContract({
-    address: CONTRACTS.BOUNTY_ADAPTER,
-    abi: BOUNTY_ADAPTER_ABI,
-    functionName: "totalBounties",
-    query: { refetchInterval: 10_000 },
-  });
 
   return (
     <>
@@ -113,9 +109,9 @@ export default function HomePage() {
         </p>
 
         <div className="stats">
-          <span className="pill green">
+          <span className="pill green live" title="Live from the contract: updates as soon as a bounty is posted or paid">
             <span className="dot" />
-            {total !== undefined ? `${total.toString()} total posted` : "- total posted"}
+            {counts ? `${counts.posted} posted · ${counts.completed} completed` : "- posted"}
           </span>
           <span className="pill"><span className="dot" /><span className="ico">⚡</span>~$0.01 / tx</span>
           <span className="pill"><span className="dot" /><span className="ico">🔒</span>ERC-8183 escrow</span>

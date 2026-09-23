@@ -270,6 +270,10 @@ p.lede {
 .pill .ico { font-size: 13px; line-height: 1; }
 .pill .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--amber); box-shadow: 0 0 8px rgba(255,179,106,0.6); }
 .pill.green .dot { background: var(--green); box-shadow: 0 0 8px rgba(70,211,145,0.6); }
+/* The home counter updates live from contract events: the pulse says so. */
+.pill.live .dot { animation: live-dot 2s ease-in-out infinite; }
+@keyframes live-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.7); } }
+@media (prefers-reduced-motion: reduce) { .pill.live .dot { animation: none; } }
 
 /* filters */
 .filters-head {
