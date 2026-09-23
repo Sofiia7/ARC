@@ -21,7 +21,7 @@
  *   node scripts/arc-telegram-notify.mjs --dry-run --from-block 21153190
  *   NETWORK=base-mainnet node scripts/arc-telegram-notify.mjs --dry-run --from-block <block>
  */
-import { createPublicClient, http, parseAbi, formatUnits } from "viem";
+import { createPublicClient, fallback, http, parseAbi, formatUnits } from "viem";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -31,7 +31,7 @@ const NETWORKS = {
     brand: "ArcBounty",
     adapter: "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D",
     poster: "0xde427f3967cc7a0bf7a9f891195760ccffc82eda",
-    rpc: process.env.ARC_MAINNET_RPC_URL || "https://rpc.blockdaemon.mainnet.arc.io",
+    rpcs: [process.env.ARC_MAINNET_RPC_URL, "https://rpc.blockdaemon.mainnet.arc.io"],
     site: "https://arcbounty.app",
     tx: "https://arcexplorer.org/tx/",
     chunk: 90_000n, // Blockdaemon serves eth_getLogs up to 100k blocks
@@ -43,12 +43,16 @@ const NETWORKS = {
     brand: "BaseBounty",
     adapter: "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c",
     poster: "0x6abc2b575ec66701c17dad96dda97f22b837849e",
-    rpc: process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org",
+    // Two public endpoints: base.org rate-limits a catch-up burst, publicnode
+    // serves the same 1,000-block range for recent blocks and takes over.
+    rpcs: [process.env.BASE_MAINNET_RPC_URL, "https://mainnet.base.org", "https://base-rpc.publicnode.com"],
     site: "https://basebounty.app",
     tx: "https://basescan.org/tx/",
-    chunk: 2_000n, // mainnet.base.org refuses eth_getLogs over 2,000 blocks
+    // mainnet.base.org tightened eth_getLogs from 2,000 blocks to 1,000 on
+    // 2026-09-22 and every Base run failed until this came down with it.
+    chunk: 1_000n,
     firstRunLookback: 900n, // ~30 minutes at 2 s blocks
-    maxCatchUp: 43_200n, // ~1 day, 22 requests on the public RPC
+    maxCatchUp: 43_200n, // ~1 day, 44 requests on the public RPC
     payCommand: jobId => `cd /d C:\\Server\\ARC\\scripts && set "ARC_NETWORK=base-mainnet" && set "ALLOW_MAINNET=yes" && npx tsx --env-file=..\\.env approve-bounty.ts ${jobId} 95`,
   },
 };
@@ -95,7 +99,10 @@ const META_ABI = [{
   ] }],
 }];
 
-const pub = createPublicClient({ transport: http(net.rpc, { retryCount: 3 }) });
+const pub = createPublicClient({
+  transport: fallback(net.rpcs.filter(Boolean).map(url => http(url, { retryCount: 3, retryDelay: 500 }))),
+});
+const pause = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const short = a => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const usdc = v => formatUnits(v, 6);
@@ -205,6 +212,8 @@ async function main() {
   for (let start = from; start <= head; start += net.chunk) {
     const end = start + net.chunk - 1n > head ? head : start + net.chunk - 1n;
     logs.push(...(await pub.getLogs({ address: net.adapter, events: EVENTS, fromBlock: start, toBlock: end })));
+    // A day of catch-up on Base is 44 calls; back to back they trip its rate limit.
+    if (start + net.chunk <= head) await pause(300);
   }
   logs.sort((x, y) => (x.blockNumber === y.blockNumber ? x.logIndex - y.logIndex : Number(x.blockNumber - y.blockNumber)));
   console.log(`${NETWORK} blocks ${from}..${head}: ${logs.length} event(s)`);
