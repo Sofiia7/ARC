@@ -21,8 +21,8 @@ export default function StatsPage() {
       <header className="page-head">
         <h1>Protocol stats</h1>
         <p className="sub">
-          Live from {network.name} - every number below is an on-chain event,
-          read directly from the contract in your browser. No backend.
+          Live from {network.name} - every number below is read from the contract&apos;s own storage,
+          directly in your browser. No backend.
         </p>
       </header>
 
@@ -69,8 +69,8 @@ export default function StatsPage() {
           </div>
 
           <p style={{ fontSize: 12.5, color: "var(--ink-mute)", marginTop: 22, lineHeight: 1.6 }}>
-            Verify any of this yourself: events <code>BountyCreated</code>, <code>BountyTaken</code>,{" "}
-            <code>BountyCompleted</code>, and <code>ProtocolFeePaid</code> on the verified adapter{" "}
+            Verify any of this yourself: <code>totalBounties</code>, <code>allJobIds</code> and{" "}
+            <code>getBountyMeta</code> on the verified adapter{" "}
             <a
               href={`${EXPLORER}${CONTRACTS.BOUNTY_ADAPTER}`}
               target="_blank"

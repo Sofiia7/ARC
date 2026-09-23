@@ -281,6 +281,15 @@ export const BOUNTY_ADAPTER_ABI = [
     inputs: [], outputs: [{ name: "", type: "uint256" }],
   },
   {
+    // Every jobId ever created, in creation order (lib/bountyMetas.ts walks it).
+    name: "allJobIds", type: "function", stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }], outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "feeBps", type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     name: "arbitrator", type: "function", stateMutability: "view",
     inputs: [], outputs: [{ name: "", type: "address" }],
   },

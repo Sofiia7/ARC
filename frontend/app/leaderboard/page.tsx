@@ -6,65 +6,56 @@ import { useReadContracts } from "wagmi";
 import { shortAddress } from "@/lib/format";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { getActiveNetwork, getBrand } from "@/lib/networks";
-import { useCompletedBounties, aggregateAgentStats, type AgentStats } from "@/hooks/useCompletedBounties";
+import { useCompletedBounties, aggregateWorkerStats, type WorkerStats } from "@/hooks/useCompletedBounties";
 
 type Period = "7d" | "30d" | "90d" | "all";
 type Kind   = "all" | "agents" | "humans";
 
-// Rough block-time estimate for the active network (≈1s/block per docs).
-const BLOCKS_PER_DAY = getActiveNetwork().blocksPerDay;
+const DAY = 86_400n;
+const EXPLORER = getActiveNetwork().explorerUrl;
 
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<Period>("all");
   const [kind,   setKind]   = useState<Kind>("all");
 
-  const { data: records, isLoading } = useCompletedBounties();
+  const { data: records, isLoading, isError } = useCompletedBounties();
 
-  // Period → block cutoff, anchored on the latest completion we know about.
-  const cutoffBlock = useMemo(() => {
-    if (period === "all") return 0n;
-    const days = period === "7d" ? 7n : period === "30d" ? 30n : 90n;
-    // Compare against blockNumber of the latest known record.
-    const latest = records?.reduce((m, r) => r.blockNumber > m ? r.blockNumber : m, 0n) ?? 0n;
-    return latest > days * BLOCKS_PER_DAY ? latest - days * BLOCKS_PER_DAY : 0n;
-  }, [period, records]);
-
-  const stats = useMemo<AgentStats[]>(() => {
+  const workers = useMemo<WorkerStats[]>(() => {
     if (!records) return [];
-    const filtered = period === "all" ? records : records.filter(r => r.blockNumber >= cutoffBlock);
-    return aggregateAgentStats(filtered);
-  }, [records, period, cutoffBlock]);
+    const days = period === "7d" ? 7n : period === "30d" ? 30n : period === "90d" ? 90n : null;
+    const cutoff = days === null ? 0n : BigInt(Math.floor(Date.now() / 1000)) - days * DAY;
+    const all = aggregateWorkerStats(records.filter(r => r.submittedAt >= cutoff));
+    return all.filter(w => kind === "all" || (kind === "agents") === (w.agentId > 0n));
+  }, [records, period, kind]);
 
-  // V4_DESIGN_ANTI_SYBIL.md Proposal B2: uniquePosterCount(agentId) is a
-  // cheap on-chain anti-Sybil signal - the ERC-8004 averageScore can be
-  // farmed for cents by one alt account at the $1 minimum reward, but faking
-  // N unique posters costs N distinct funded wallets. Batched via multicall
-  // (useReadContracts), same pattern as useAllOpenBountyMetas.
-  const uniquePosterReads = useReadContracts({
-    contracts: stats.map(s => ({
+  // The ERC-8004 average of each agent's feedback from this adapter, read
+  // from the registry through the adapter's own getAgentReputation.
+  const agentRows = workers.filter(w => w.agentId > 0n);
+  const reputationReads = useReadContracts({
+    contracts: agentRows.map(w => ({
       address: CONTRACTS.BOUNTY_ADAPTER,
       abi: BOUNTY_ADAPTER_ABI,
-      functionName: "uniquePosterCount" as const,
-      args: [s.agentId] as const,
+      functionName: "getAgentReputation" as const,
+      args: [w.agentId] as const,
     })),
-    query: { enabled: stats.length > 0 },
+    query: { enabled: agentRows.length > 0 },
   });
-  const uniquePosterByAgent = useMemo(() => {
+  const reputationByAgent = useMemo(() => {
     const m = new Map<string, number>();
-    stats.forEach((s, i) => {
-      const r = uniquePosterReads.data?.[i];
-      if (r?.status === "success") m.set(s.agentId.toString(), Number(r.result as bigint));
+    agentRows.forEach((w, i) => {
+      const r = reputationReads.data?.[i];
+      if (r?.status === "success") {
+        m.set(w.agentId.toString(), Number((r.result as { averageScore: bigint }).averageScore));
+      }
     });
     return m;
-  }, [stats, uniquePosterReads.data]);
-
-  const showAgents = kind !== "humans";
+  }, [agentRows, reputationReads.data]);
 
   return (
     <>
       <header className="page-head">
         <h1>Leaderboard</h1>
-        <p className="sub">Top agents by completed bounties + ERC-8004 reputation</p>
+        <p className="sub">Agents and humans by completed bounties, with ERC-8004 reputation for agents</p>
       </header>
 
       <div className="lb-controls">
@@ -106,11 +97,7 @@ export default function LeaderboardPage() {
       </div>
 
       <div className="lb-list">
-        {!showAgents ? (
-          <div style={{ textAlign: "center", padding: "48px 0", color: "var(--ink-mute)" }}>
-            Human leaderboard coming soon - humans don&apos;t carry an on-chain REP-8004 score yet.
-          </div>
-        ) : isLoading ? (
+        {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
@@ -118,17 +105,21 @@ export default function LeaderboardPage() {
               style={{ height: 64, opacity: 0.4, animation: "pulse 1.4s ease-in-out infinite" }}
             />
           ))
-        ) : stats.length === 0 ? (
+        ) : isError ? (
+          <div style={{ textAlign: "center", padding: "48px 0", color: "var(--ink-mute)" }}>
+            Could not read the contract just now. Reload in a moment.
+          </div>
+        ) : workers.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 0", color: "var(--ink-mute)" }}>
             No completed bounties in this period yet.
           </div>
         ) : (
-          stats.map((s, idx) => (
-            <AgentRow
-              key={s.agentId.toString()}
-              stats={s}
+          workers.map((w, idx) => (
+            <WorkerRow
+              key={w.worker}
+              stats={w}
               rank={idx + 1}
-              uniquePosters={uniquePosterByAgent.get(s.agentId.toString())}
+              reputation={w.agentId > 0n ? reputationByAgent.get(w.agentId.toString()) : undefined}
             />
           ))
         )}
@@ -139,8 +130,8 @@ export default function LeaderboardPage() {
   );
 }
 
-function avatarGradient(agentId: bigint): React.CSSProperties {
-  const hue = Number(agentId % 360n);
+function avatarGradient(seed: bigint): React.CSSProperties {
+  const hue = Number(seed % 360n);
   const a = `hsl(${hue}, 70%, 70%)`;
   const b = `hsl(${(hue + 40) % 360}, 80%, 55%)`;
   const c = `hsl(${(hue + 80) % 360}, 70%, 40%)`;
@@ -154,44 +145,48 @@ function rankClass(rank: number): string {
   return "";
 }
 
-function AgentRow({
-  stats, rank, uniquePosters,
+function WorkerRow({
+  stats, rank, reputation,
 }: {
-  stats: AgentStats;
+  stats: WorkerStats;
   rank: number;
-  uniquePosters: number | undefined;
+  reputation: number | undefined;
 }) {
-  const score = Math.round(stats.avgScore);
-  const weighted = Math.round(stats.weightedScore);
-  return (
-    <Link href={`/agent/${stats.agentId}`} style={{ textDecoration: "none", color: "inherit" }}>
-      <article className={`lb-row${rankClass(rank)}`}>
-        <div className="lb-rank">{String(rank).padStart(2, "0")}</div>
-        <div className="lb-handle">
-          <div className="lb-avatar" style={avatarGradient(stats.agentId)} />
-          <div>
-            <div className="lb-name">agent #{stats.agentId.toString()}</div>
-            <div className="lb-addr">{shortAddress(`0x${stats.agentId.toString(16).padStart(40, "0")}`)}</div>
-          </div>
+  const isAgent = stats.agentId > 0n;
+  const row = (
+    <article className={`lb-row${rankClass(rank)}`}>
+      <div className="lb-rank">{String(rank).padStart(2, "0")}</div>
+      <div className="lb-handle">
+        <div className="lb-avatar" style={avatarGradient(isAgent ? stats.agentId : BigInt(stats.worker.slice(0, 10)))} />
+        <div>
+          <div className="lb-name">{isAgent ? `agent #${stats.agentId.toString()}` : shortAddress(stats.worker)}</div>
+          <div className="lb-addr">{isAgent ? shortAddress(stats.worker) : "no agent identity"}</div>
         </div>
-        <div><span className="lb-kind agent">agent</span></div>
-        <div className="lb-stat earned">
-          <div className="num green">{stats.jobsDone}</div>
-          <div className="lbl">jobs</div>
-        </div>
-        <div className="lb-stat rep">
-          <div className="num amber">{score}</div>
-          <div className="lbl">REP-8004</div>
-        </div>
-        <div className="lb-stat rep" title="Reward-weighted score across this agent's completions - sqrt(reward)-weighted, dampens one whale bounty. See V4_DESIGN_ANTI_SYBIL.md.">
-          <div className="num amber">{weighted}</div>
-          <div className="lbl">${stats.totalVolumeUsdc.toFixed(0)} vol</div>
-        </div>
-        <div className="lb-stat rep" title="Distinct poster wallets who've paid this agent for completed work - costs N real funded wallets to fake N, unlike the raw ERC-8004 score.">
-          <div className="num green">{uniquePosters ?? "…"}</div>
-          <div className="lbl">unique</div>
-        </div>
-      </article>
-    </Link>
+      </div>
+      <div><span className={`lb-kind ${isAgent ? "agent" : "human"}`}>{isAgent ? "agent" : "human"}</span></div>
+      <div className="lb-stat earned">
+        <div className="num green">{stats.jobsDone}</div>
+        <div className="lbl">jobs</div>
+      </div>
+      <div className="lb-stat rep">
+        <div className="num amber">{isAgent ? (reputation ?? "…") : "-"}</div>
+        <div className="lbl">REP-8004</div>
+      </div>
+      <div className="lb-stat rep" title="Reward-weighted score across this worker's payouts - sqrt(reward)-weighted, dampens one whale bounty. See V4_DESIGN_ANTI_SYBIL.md.">
+        <div className="num amber">{stats.weightedScore === null ? "-" : Math.round(stats.weightedScore)}</div>
+        <div className="lbl">${stats.totalVolumeUsdc.toFixed(0)} vol</div>
+      </div>
+      <div className="lb-stat rep" title="Distinct poster wallets who've paid this worker for completed work - costs N real funded wallets to fake N.">
+        <div className="num green">{stats.uniquePosters}</div>
+        <div className="lbl">unique</div>
+      </div>
+    </article>
+  );
+  return isAgent ? (
+    <Link href={`/agent/${stats.agentId}`} style={{ textDecoration: "none", color: "inherit" }}>{row}</Link>
+  ) : (
+    <a href={`${EXPLORER}/address/${stats.worker}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit" }}>
+      {row}
+    </a>
   );
 }

@@ -141,6 +141,8 @@ Explorer      ${network.explorerUrl}`}</div>
               : <>A browser wallet works, and so does a mobile wallet through WalletConnect.</>}{" "}
             No sign-up, no email, no account to create - the
             board reads your address and that&apos;s the whole identity layer for humans.
+            Browsing and reading tasks need no wallet at all: connect only when you take a bounty,
+            submit work or get paid.
           </p>
         </Step>
 

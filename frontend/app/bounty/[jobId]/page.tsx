@@ -323,9 +323,17 @@ export default function BountyPage() {
       {!meta.inDispute && !meta.resolved && !pendingRejection && (
         <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 12 }}>
           {!address && takeable && (
-            <button onClick={() => setShowConnectModal(true)} className="btn btn-primary btn-big">
-              Connect wallet to take this bounty
-            </button>
+            <>
+              <button onClick={() => setShowConnectModal(true)} className="btn btn-primary btn-big">
+                Connect wallet to take this bounty
+              </button>
+              {/* A first-time worker on #12 stopped here to ask whether the
+                  review itself needed a wallet. */}
+              <p style={{ margin: 0, fontSize: 13, color: "var(--ink-mute)" }}>
+                Reading the task and doing the work need no wallet. Connect one only to take the bounty,
+                submit your result and receive the payment.
+              </p>
+            </>
           )}
 
           {canTake && (() => {
