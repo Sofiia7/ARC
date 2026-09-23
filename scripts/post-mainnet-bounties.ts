@@ -257,6 +257,44 @@ const LISTINGS: Listing[] = [
     days: 10,
     humanOnly: true,
   },
+  // Added 2026-09-23, after #12's first human worker found a real bug in ten
+  // minutes: two more humans-only tasks where a newcomer's eyes are the product.
+  {
+    title: "Onboarding report: take and submit your first ArcBounty job",
+    body:
+      "This bounty is the test. Take it and submit it as someone new to ArcBounty and Arc mainnet, and write down every step " +
+      "and every place where you got stuck.\n\n" +
+      "1. Start from https://arcbounty.app/start. Get a wallet onto Arc mainnet (chain id 5042) with a little USDC for gas, " +
+      "the way you normally would, and note the route you used (exchange, bridge or anything else) and what it cost.\n" +
+      "2. Connect your wallet, take this bounty and submit your report as the work.\n\n" +
+      "- A numbered list of every step you took, with a screenshot for each wallet or network step.\n" +
+      "- For each problem: what you expected, what happened, the exact error text and how you got past it, or that you did not.\n" +
+      "- Name your wallet app, device and browser.\n" +
+      "- Never share a seed phrase or private key, and make sure none is visible in a screenshot.\n\n" +
+      "**Submit:** the report as Markdown on IPFS, in a gist or as a published post.",
+    category: "other",
+    tags: ["onboarding", "ux", "report"],
+    rewardUsdc: 2,
+    days: 7,
+    humanOnly: true,
+  },
+  {
+    title: "Find one reproducible bug on arcbounty.app",
+    body:
+      "Find one real, reproducible bug on https://arcbounty.app and report it so we can fix it: a page that fails, " +
+      "a number that disagrees with another page, a button that does nothing, a layout that breaks on your device.\n\n" +
+      "- Steps to reproduce, what you expected, what you saw, a screenshot or a short recording, and your device and browser.\n" +
+      "- Not counted: the known issues in the README (https://github.com/Sofiia7/ARC#-known-issues), the mismatch between " +
+      "Home, Stats and the Leaderboard already reported in bounty #12, and design or wording opinions.\n" +
+      "- No attacks on the contracts or other users, no load testing and no real funds at risk. " +
+      "A security issue goes to https://github.com/Sofiia7/ARC/security/advisories/new instead of this bounty.\n\n" +
+      "**Submit:** the report as Markdown on IPFS, in a gist or as a published post.",
+    category: "other",
+    tags: ["qa", "bug", "report"],
+    rewardUsdc: 2,
+    days: 7,
+    humanOnly: true,
+  },
 ];
 
 const CHECK_ONLY = process.argv.includes("--check");

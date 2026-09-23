@@ -30,6 +30,7 @@ const EXPLORER = "https://arcexplorer.org/tx/";
 const GATEWAY = "https://ipfs.io/ipfs/";
 const APPROVAL_TIMEOUT = 14n * 86_400n;
 const LOG_CHUNK = 90_000n; // Blockdaemon serves eth_getLogs up to 100k blocks
+const PRUNED_LOOKBACK = 250_000n; // ~1.5 days of Arc blocks, when older history is pruned away
 const CHECK_ONLY = process.argv.includes("--check");
 
 // Suggested reputation score per jobId, from the review of 2026-09-17; a bounty
@@ -102,13 +103,33 @@ async function main() {
   const head = await pub.getBlockNumber();
   const taken = new Map<string, { hash: Hash; block: bigint }>();
   const submitted = new Map<string, { hash: Hash; block: bigint }>();
-  for (let from = BigInt(deployBlock); from <= head; from += LOG_CHUNK) {
-    const to = from + LOG_CHUNK - 1n > head ? head : from + LOG_CHUNK - 1n;
-    const logs = await pub.getLogs({ address: adapter, events: LIFECYCLE_EVENTS, fromBlock: from, toBlock: to });
-    for (const log of logs) {
-      const id = log.args.jobId!.toString();
-      // The latest one counts: a bounty can be taken again after a rejection.
-      (log.eventName === "BountyTaken" ? taken : submitted).set(id, { hash: log.transactionHash, block: log.blockNumber });
+  const scanFrom = async (start: bigint): Promise<void> => {
+    for (let from = start; from <= head; from += LOG_CHUNK) {
+      const to = from + LOG_CHUNK - 1n > head ? head : from + LOG_CHUNK - 1n;
+      const logs = await pub.getLogs({ address: adapter, events: LIFECYCLE_EVENTS, fromBlock: from, toBlock: to });
+      for (const log of logs) {
+        const id = log.args.jobId!.toString();
+        // The latest one counts: a bounty can be taken again after a rejection.
+        (log.eventName === "BountyTaken" ? taken : submitted).set(id, { hash: log.transactionHash, block: log.blockNumber });
+      }
+    }
+  };
+  // These hashes only decorate the saved record; the review itself reads contract
+  // storage. Blockdaemon started answering "pruned history unavailable" below
+  // block ~22,000,000 on 2026-09-23, which used to abort the whole run, so a
+  // pruned window costs the old hashes and nothing else.
+  try {
+    await scanFrom(BigInt(deployBlock));
+  } catch (err) {
+    const recent = head > PRUNED_LOOKBACK ? head - PRUNED_LOOKBACK : 0n;
+    taken.clear();
+    submitted.clear();
+    console.warn(`the RPC no longer serves logs from block ${deployBlock} (${err instanceof Error ? err.message.split("\n")[0] : err});`);
+    console.warn(`take and submit hashes are recorded only from block ${recent}.`);
+    try {
+      await scanFrom(recent);
+    } catch (err2) {
+      console.warn(`even the recent scan failed (${err2 instanceof Error ? err2.message.split("\n")[0] : err2}); they will be saved as null.`);
     }
   }
   const stampOf = async (tx: { hash: Hash; block: bigint }): Promise<Stamp> => {
