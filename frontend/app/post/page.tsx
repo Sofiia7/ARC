@@ -9,8 +9,18 @@ import { pinText } from "@/lib/ipfs";
 import { FileAttacher } from "@/components/FileAttacher";
 import { AttachmentPreview } from "@/components/AttachmentPreview";
 import { GlassSelect } from "@/components/GlassSelect";
+import { ConnectWalletModal } from "@/components/ConnectWalletModal";
+import { PostTemplates } from "@/components/PostTemplates";
+import { PostExamples } from "@/components/PostExamples";
+import { getActiveNetwork, getActiveNetworkName } from "@/lib/networks";
+import {
+  getPostTemplates, hasPlaceholder, firstPlaceholder, type PostTemplate,
+} from "@/lib/postTemplates";
 
 type Step = "idle" | "pinning" | "approving" | "creating" | "done";
+
+const TEMPLATES = getPostTemplates(getActiveNetwork().name);
+const SHOW_EXAMPLES = getActiveNetworkName() === "arc-mainnet";
 
 export default function PostPage() {
   const router = useRouter();
@@ -31,9 +41,39 @@ export default function PostPage() {
   });
   const [step, setStep]   = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setForm(f => ({ ...f, [key]: value }));
+  }
+
+  function applyTemplate(t: PostTemplate) {
+    const current = form.description.trim();
+    const untouched = TEMPLATES.some(x => x.description === form.description);
+    if (current && !untouched && !window.confirm("Replace your description with this template?")) return;
+
+    setForm(f => ({
+      ...f,
+      description: t.description,
+      category:    t.category,
+      tags:        t.tags,
+      reward:      t.reward,
+      days:        t.days,
+      agentOnly:   false,
+      humanOnly:   t.humanOnly,
+      requireWorkerBond: false,
+    }));
+    setTemplateId(t.id);
+    setError(null);
+    // Select the first gap so typing replaces it straight away.
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current;
+      const gap = firstPlaceholder(t.description);
+      if (!ta || !gap) return;
+      ta.focus();
+      ta.setSelectionRange(gap[0], gap[1]);
+    });
   }
 
   function insertIntoDescription(snippet: string) {
@@ -86,6 +126,10 @@ export default function PostPage() {
 
     if (form.requireWorkerBond && Number(form.days) < 2) {
       setError("Bounties with a worker bond need a deadline of at least 2 days.");
+      return;
+    }
+    if (hasPlaceholder(form.description)) {
+      setError("Replace the {{…}} parts of the template before posting.");
       return;
     }
 
@@ -143,19 +187,20 @@ export default function PostPage() {
   };
   const busy = step !== "idle" && step !== "done";
 
-  if (!isConnected) {
-    return (
-      <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-mute)" }}>
-        Connect your wallet to post a bounty.
-      </div>
-    );
-  }
-
+  // No wallet gate on the page itself: a would-be poster should see the
+  // examples and templates first. The wallet is asked for at the button.
   return (
     <div style={{ maxWidth: 820, margin: "0 auto" }}>
       <header className="page-head">
         <h1>Post a Bounty</h1>
+        <p className="sub">
+          Humans and AI agents take small paid tasks. The reward waits in escrow while you review the work;
+          if you stay silent for 14 days, it pays out to the worker. The fee is 1%, taken only on payout.
+        </p>
       </header>
+
+      {SHOW_EXAMPLES && <PostExamples />}
+      <PostTemplates templates={TEMPLATES} activeId={templateId} onPick={applyTemplate} />
 
       <form className="form-card" onSubmit={handleSubmit}>
         {/* Description */}
@@ -169,14 +214,20 @@ export default function PostPage() {
             className="textarea"
             value={form.description}
             onChange={e => set("description", e.target.value)}
-            placeholder="Describe the task clearly. Include acceptance criteria."
+            placeholder="Describe the task clearly and include acceptance criteria, or start from a template above."
             required
           />
         </div>
 
-        {/* File attach */}
+        {/* File attach: pinning signs with the wallet, so it needs one */}
         <div className="form-row">
-          <FileAttacher onPinned={(snippet) => insertIntoDescription(snippet)} />
+          {isConnected ? (
+            <FileAttacher onPinned={(snippet) => insertIntoDescription(snippet)} />
+          ) : (
+            <p style={{ fontSize: 12.5, color: "var(--ink-mute)", margin: 0 }}>
+              Connect a wallet to attach files or images.
+            </p>
+          )}
           <AttachmentPreview text={form.description} />
         </div>
 
@@ -291,9 +342,15 @@ export default function PostPage() {
           </div>
         )}
 
-        <button type="submit" disabled={busy} className="btn btn-primary btn-big">
-          {STEP_LABELS[step]}
-        </button>
+        {isConnected ? (
+          <button type="submit" disabled={busy} className="btn btn-primary btn-big">
+            {STEP_LABELS[step]}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-primary btn-big" onClick={() => setShowConnectModal(true)}>
+            Connect wallet to post
+          </button>
+        )}
 
         {busy && (
           <p style={{ fontSize: 12, textAlign: "center", color: "var(--ink-mute)", margin: 0 }}>
@@ -303,6 +360,10 @@ export default function PostPage() {
       </form>
 
       <footer className="spacer" />
+
+      {showConnectModal && !address && (
+        <ConnectWalletModal onClose={() => setShowConnectModal(false)} />
+      )}
     </div>
   );
 }

@@ -1228,6 +1228,49 @@ footer.spacer { height: 200px; }
 .agent-badge.compact .glyph { width: 14px; height: 14px; border-radius: 5px; }
 .agent-badge.compact .title { font-size: 11px; font-weight: 600; }
 
+/* ---------------- POST: examples + templates ---------------- */
+.post-section { margin-bottom: 28px; }
+.post-section-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.post-section-sub { margin: 0 0 14px; font-size: 13.5px; color: var(--ink-mute); }
+.tpl-grid, .example-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tpl-card, .example-card {
+  appearance: none;
+  text-align: left;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--g-border);
+  background: var(--g-bg);
+  backdrop-filter: var(--g-blur);
+  -webkit-backdrop-filter: var(--g-blur);
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: background 200ms ease, border-color 200ms ease, transform 180ms ease;
+}
+.tpl-card { cursor: pointer; }
+.tpl-card:hover, .example-card:hover {
+  background: var(--g-bg-hover);
+  border-color: var(--g-border-hi);
+  transform: translateY(-1px);
+}
+.tpl-card.active {
+  background: linear-gradient(180deg, rgba(255,220,180,0.18), rgba(255,179,106,0.08));
+  border-color: rgba(255,205,140,0.55);
+}
+.tpl-title { font-size: 14.5px; font-weight: 650; color: var(--ink); }
+.tpl-pitch, .example-text { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.tpl-meta, .example-meta { font-size: 12px; color: var(--ink-mute); }
+.example-link { font-size: 12.5px; color: var(--honey); margin-top: 2px; }
+
 /* ---------------- RESPONSIVE ---------------- */
 @media (max-width: 1000px) {
   .cats { grid-template-columns: repeat(3, 1fr); }
@@ -1247,4 +1290,5 @@ footer.spacer { height: 200px; }
   .lb-head .col-earned, .lb-row .lb-stat.earned { display: none; }
   .bounty-head { grid-template-columns: 1fr; }
   .bounty-head .bounty-price { text-align: left; }
+  .tpl-grid, .example-grid { grid-template-columns: 1fr; }
 }
