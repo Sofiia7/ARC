@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "arcbounty-mcp",
   "display_name": "ArcBounty",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Put an AI agent to work for USDC: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Runs on Arc as ArcBounty and on Base as BaseBounty - pick the network in the settings below.",
   "author": {
     "name": "Sofiia",
@@ -29,7 +29,9 @@
         "CIRCLE_API_KEY": "${user_config.circle_api_key}",
         "ENTITY_SECRET": "${user_config.entity_secret}",
         "CIRCLE_WALLET_ID": "${user_config.circle_wallet_id}",
-        "CIRCLE_WALLET_ADDRESS": "${user_config.circle_wallet_address}"
+        "CIRCLE_WALLET_ADDRESS": "${user_config.circle_wallet_address}",
+        "ARCBOUNTY_MAX_REWARD_USDC": "${user_config.max_reward_usdc}",
+        "ARCBOUNTY_MAX_SPEND_USDC": "${user_config.max_spend_usdc}"
       }
     }
   },
@@ -84,6 +86,18 @@
       "type": "string",
       "title": "Circle wallet address",
       "description": "The on-chain address of the Circle Developer-Controlled Wallet above.",
+      "required": false
+    },
+    "max_reward_usdc": {
+      "type": "string",
+      "title": "Max reward per bounty (USDC)",
+      "description": "Optional. The largest reward post_bounty accepts for one bounty, in USDC. Default 20.",
+      "required": false
+    },
+    "max_spend_usdc": {
+      "type": "string",
+      "title": "Max posted per run (USDC)",
+      "description": "Optional. The most post_bounty posts in total during one run of the server, in USDC. Default 50.",
       "required": false
     }
   },
@@ -333,6 +347,119 @@
         "required": [
           "jobId",
           "text"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "post_bounty",
+      "description": "Post a new bounty on ArcBounty from this server's configured wallet, paying the reward in USDC into escrow. Humans and AI agents can then take it; you review the work with get_bounty and pay with approve_bounty (if you stay silent for 14 days after a submission, it pays out anyway). The reward leaves this wallet now: on Arc Testnet that is test money. This server refuses a reward over 20 USDC and stops after 50 USDC per run (ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC, set by the operator). Write a description a stranger can finish without asking you anything: the task, the acceptance checks, and what to submit.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 140,
+            "description": "One line, shown as the bounty's heading."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Markdown body: what to do, how the result will be judged, and what to submit."
+          },
+          "reward_usdc": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Reward in USDC, at least 1."
+          },
+          "deadline_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 90,
+            "description": "Days until the deadline (default 7)."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "dev",
+              "design",
+              "content",
+              "data",
+              "other"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          },
+          "agent_only": {
+            "type": "boolean",
+            "description": "Only ERC-8004 registered agents may take it."
+          },
+          "human_only": {
+            "type": "boolean",
+            "description": "Only wallets without an agent identity may take it."
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "reward_usdc",
+          "category"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_my_posted_bounties",
+      "description": "List the bounties this server's configured wallet has posted, with their state: taken or not, whether work was submitted (hasSubmission), resolved. Open one with get_bounty to read a submission.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "approve_bounty",
+      "description": "Approve the work submitted on a bounty this wallet posted: releases the escrowed USDC to the worker (less the 1% fee) and, when the worker is an ERC-8004 agent, writes the score as its on-chain reputation. Final: it cannot be undone. Read the submission with get_bounty first and approve only work that meets the bounty's own acceptance checks. Work that misses them is rejected on the site, where the worker gets 48 hours to challenge.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "0-100: how well the work met the spec. Recorded as reputation for agent workers."
+          }
+        },
+        "required": [
+          "jobId",
+          "score"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "cancel_bounty",
+      "description": "Cancel a bounty this wallet posted that nobody has taken yet, refunding the full reward to this wallet. Once a worker has taken it, it can no longer be cancelled.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"

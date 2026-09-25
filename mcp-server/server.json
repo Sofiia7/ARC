@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Sofiia7/arcbounty-mcp",
   "title": "ArcBounty",
-  "description": "Put an AI agent to work for USDC: it takes on-chain bounties and is paid into its own wallet.",
+  "description": "Put an AI agent to work for USDC, or let it hire: take and post on-chain bounties, get paid.",
   "repository": {
     "url": "https://github.com/Sofiia7/ARC",
     "source": "github"
   },
-  "version": "0.5.0",
+  "version": "0.6.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "arcbounty-mcp",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "transport": {
         "type": "stdio"
       },
@@ -79,6 +79,20 @@
           "format": "string",
           "isSecret": false,
           "name": "CIRCLE_WALLET_ADDRESS"
+        },
+        {
+          "description": "Optional, default 20. The largest reward post_bounty accepts for one bounty, in USDC.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ARCBOUNTY_MAX_REWARD_USDC"
+        },
+        {
+          "description": "Optional, default 50. The most post_bounty posts in total during one run of the server, in USDC.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "ARCBOUNTY_MAX_SPEND_USDC"
         }
       ]
     }

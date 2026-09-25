@@ -37,7 +37,11 @@ export {
   bondTakeWindowOk,
 } from "./logic.js";
 export { BOUNTY_ADAPTER_ABI, IDENTITY_REGISTRY_ABI, ERC20_ABI } from "./abi.js";
-export { pinText, fetchIpfsText, fetchIpfsJson, isPinningConfigured } from "./ipfs.js";
+export {
+  pinText, pinTextAuto, pinTextViaSite, pinAuthMessage, DEFAULT_PIN_URL,
+  fetchIpfsText, fetchIpfsJson, isPinningConfigured,
+} from "./ipfs.js";
+export type { MessageSigner, PinViaSiteOptions } from "./ipfs.js";
 export {
   pinAgentMetadata,
   validateAgentMetadata,

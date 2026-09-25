@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
+  fetchIpfsText,
   pinAgentMetadata,
   workerBondFor,
   type AgentMetadata,
@@ -8,6 +9,7 @@ import {
   type BountyMeta,
   type PendingAction,
 } from "arcbounty-agent-sdk";
+import { DEFAULT_SPEND_LIMITS, spendLimitError, type SpendLimits } from "./limits.js";
 
 /**
  * Build the MCP server for one already-configured agent.
@@ -21,15 +23,19 @@ import {
  * the three read-only tools are registered. A hosted deployment must pass
  * false and mean it, because a signer there would be *our* wallet signing on
  * behalf of whoever called the endpoint.
+ *
+ * `limits` caps what post_bounty may spend - see limits.ts.
  */
 export function createMcpServer({
   agent,
   hasSigner,
   version,
+  limits = DEFAULT_SPEND_LIMITS,
 }: {
   agent: ArcBountyAgent;
   hasSigner: boolean;
   version: string;
+  limits?: SpendLimits;
 }): McpServer {
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -129,7 +135,18 @@ export function createMcpServer({
         } catch {
           description = "(failed to fetch description from IPFS gateways)";
         }
-        return json({ ...summarize(meta), description });
+        // A poster reviews the delivery from here before approve_bounty. Workers
+        // submit either an ipfs:// document or a link (a gist, a PR, a post).
+        const submittedResult = meta.submittedResultHash || null;
+        let submission: string | undefined;
+        if (submittedResult?.startsWith("ipfs://")) {
+          try {
+            submission = await fetchIpfsText(submittedResult);
+          } catch {
+            submission = "(failed to fetch the submission from IPFS gateways)";
+          }
+        }
+        return json({ ...summarize(meta), description, submittedResult, ...(submission ? { submission } : {}) });
       } catch (err) {
         return errorResult(err);
       }
@@ -382,18 +399,175 @@ export function createMcpServer({
         }
       },
     );
+
+    // -- Poster lifecycle ---------------------------------------------------------
+    //
+    // Until 0.6.0 this server was a worker's kit only, so an agent could earn
+    // here but never hire: the only outside poster in ArcBounty's first mainnet
+    // week was an agent operator, and he had to go around the MCP to do it.
+    // Posting spends the configured wallet's USDC, hence the caps in limits.ts;
+    // approving pays a worker out of escrow and is final, hence the checks
+    // below, which turn a sure revert into a plain answer before any gas.
+
+    let spentUsdc = 0;
+
+    server.registerTool(
+      "post_bounty",
+      {
+        description:
+          `Post a new bounty on ${BRAND} from this server's configured wallet, paying the reward in USDC into ` +
+          "escrow. Humans and AI agents can then take it; you review the work with get_bounty and pay with " +
+          "approve_bounty (if you stay silent for 14 days after a submission, it pays out anyway). The reward " +
+          `leaves this wallet now: on ${net.name} that is ${net.testnet ? "test money" : "real money"}. ` +
+          `This server refuses a reward over ${limits.maxRewardUsdc} USDC and stops after ${limits.maxSpendUsdc} ` +
+          "USDC per run (ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC, set by the operator). " +
+          "Write a description a stranger can finish without asking you anything: the task, the acceptance " +
+          "checks, and what to submit." + GAS_NOTE,
+        inputSchema: z.object({
+          title: z.string().min(1).max(140).describe("One line, shown as the bounty's heading."),
+          description: z.string().min(1)
+            .describe("Markdown body: what to do, how the result will be judged, and what to submit."),
+          reward_usdc: z.number().min(1).describe("Reward in USDC, at least 1."),
+          deadline_days: z.number().int().min(1).max(90).optional().describe("Days until the deadline (default 7)."),
+          category: z.enum(["dev", "design", "content", "data", "other"]),
+          tags: z.array(z.string()).max(10).optional(),
+          agent_only: z.boolean().optional().describe("Only ERC-8004 registered agents may take it."),
+          human_only: z.boolean().optional().describe("Only wallets without an agent identity may take it."),
+        }),
+      },
+      async ({ title, description, reward_usdc, deadline_days, category, tags, agent_only, human_only }) => {
+        if (agent_only && human_only) {
+          return errorResult("agent_only and human_only exclude each other: set at most one of them.");
+        }
+        const overLimit = spendLimitError(reward_usdc, spentUsdc, limits);
+        if (overLimit) return errorResult(overLimit);
+        try {
+          const balance = await agent.usdcBalance();
+          if (balance < BigInt(Math.round(reward_usdc * 1e6))) {
+            return errorResult(
+              `This wallet (${agent.address}) holds ${agent.formatUsdc(balance)} USDC, less than the ` +
+              `${reward_usdc} USDC reward.` + GAS_NOTE,
+            );
+          }
+          const result = await agent.createBounty({
+            rewardUsdc: reward_usdc,
+            deadline: (deadline_days ?? 7) * 86_400,
+            descriptionText: `# ${title}\n\n${description}`,
+            category,
+            tags: tags ?? [],
+            agentOnly: agent_only ?? false,
+            humanOnly: human_only ?? false,
+          });
+          spentUsdc = Math.round((spentUsdc + reward_usdc) * 1e6) / 1e6;
+          const jobId = result.jobId?.toString() ?? null;
+          return json({
+            jobId,
+            txHash: result.hash,
+            url: jobId ? `https://${net.brand.domain}/bounty/${jobId}` : null,
+          });
+        } catch (err) {
+          return errorResult(err);
+        }
+      },
+    );
+
+    server.registerTool(
+      "get_my_posted_bounties",
+      {
+        description:
+          "List the bounties this server's configured wallet has posted, with their state: taken or not, " +
+          "whether work was submitted (hasSubmission), resolved. Open one with get_bounty to read a submission.",
+      },
+      async () => {
+        try {
+          const posted = await agent.getPostedBounties();
+          return json(posted.map(summarize));
+        } catch (err) {
+          return errorResult(err);
+        }
+      },
+    );
+
+    server.registerTool(
+      "approve_bounty",
+      {
+        description:
+          "Approve the work submitted on a bounty this wallet posted: releases the escrowed USDC to the worker " +
+          "(less the 1% fee) and, when the worker is an ERC-8004 agent, writes the score as its on-chain " +
+          "reputation. Final: it cannot be undone. Read the submission with get_bounty first and approve only " +
+          "work that meets the bounty's own acceptance checks. Work that misses them is rejected on the site, " +
+          "where the worker gets 48 hours to challenge.",
+        inputSchema: z.object({
+          jobId: z.string(),
+          score: z.number().int().min(0).max(100)
+            .describe("0-100: how well the work met the spec. Recorded as reputation for agent workers."),
+        }),
+      },
+      async ({ jobId, score }) => {
+        try {
+          const meta = await agent.getBounty(BigInt(jobId));
+          if (meta.poster.toLowerCase() !== agent.address.toLowerCase()) {
+            return errorResult(
+              `Bounty ${jobId} was posted by ${meta.poster}, not by this wallet (${agent.address}); ` +
+              "only its poster can approve it.",
+            );
+          }
+          if (meta.resolved) return errorResult(`Bounty ${jobId} is already resolved.`);
+          if (!meta.submittedResultHash) {
+            return errorResult(`On bounty ${jobId} nothing has been submitted yet, so there is nothing to approve.`);
+          }
+          if (meta.inDispute || meta.rejectedAt > 0n) {
+            return errorResult(
+              `Bounty ${jobId} has a pending rejection or an open dispute; settle that on the site first.`,
+            );
+          }
+          const result = await agent.approveBounty(BigInt(jobId), score);
+          return json({ txHash: result.hash, paidTo: meta.assignedProvider });
+        } catch (err) {
+          return errorResult(err);
+        }
+      },
+    );
+
+    server.registerTool(
+      "cancel_bounty",
+      {
+        description:
+          "Cancel a bounty this wallet posted that nobody has taken yet, refunding the full reward to this " +
+          "wallet. Once a worker has taken it, it can no longer be cancelled.",
+        inputSchema: z.object({ jobId: z.string() }),
+      },
+      async ({ jobId }) => {
+        try {
+          const meta = await agent.getBounty(BigInt(jobId));
+          if (meta.poster.toLowerCase() !== agent.address.toLowerCase()) {
+            return errorResult(
+              `Bounty ${jobId} was posted by ${meta.poster}, not by this wallet (${agent.address}); ` +
+              "only its poster can cancel it.",
+            );
+          }
+          if (meta.resolved) return errorResult(`Bounty ${jobId} is already resolved.`);
+          if (meta.isTaken) {
+            return errorResult(`Bounty ${jobId} was already taken by ${meta.assignedProvider}, so it cannot be cancelled.`);
+          }
+          const result = await agent.cancelBounty(BigInt(jobId));
+          return json({ txHash: result.hash, refundedUsdc: agent.formatUsdc(meta.reward) });
+        } catch (err) {
+          return errorResult(err);
+        }
+      },
+    );
   }
 
-  // Intentionally NOT exposed in v0: approveBounty/rejectBounty/disputeBounty/
-  // resolveDispute/claimDefaultRuling/claimArbitratorTimeout/cancelBounty.
-  // Those are poster- or arbitrator-side judgment calls (rejecting real work,
-  // ruling on evidence, opening a dispute in the first place) that shouldn't
-  // be one blind tool call away from an arbitrary MCP client - they belong in
-  // the full SDK or the dashboard until there's a concrete case for exposing
-  // them here too. challengeRejection/respondToDispute moved out of this list
-  // (V4.7, M-03): both are narrow, time-boxed, worker-side self-defense, not a
-  // judgment call about someone else's work - see the tools above.
-
+  // Still NOT exposed: rejectBounty/disputeBounty/resolveDispute/
+  // claimDefaultRuling/claimArbitratorTimeout. Rejecting real work, opening a
+  // dispute and ruling on evidence are judgment calls that shouldn't be one
+  // blind tool call away from an arbitrary MCP client - they stay in the full
+  // SDK and on the site. approveBounty and cancelBounty left this list in
+  // 0.6.0 (see "Poster lifecycle" above): approving only ever pays a worker
+  // who delivered, and cancelling only refunds an untaken bounty to its poster.
+  // challengeRejection/respondToDispute left it in V4.7 (M-03) as worker-side,
+  // time-boxed self-defense.
 
   return server;
 }

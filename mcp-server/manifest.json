@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "arcbounty-mcp",
   "display_name": "ArcBounty",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Put an AI agent to work for USDC: browse open bounties with no credentials at all, or add a key and let the agent take jobs, submit work, and get paid into its own wallet via ERC-8183 escrow with ERC-8004 identity and reputation. Runs on Arc as ArcBounty and on Base as BaseBounty - pick the network in the settings below.",
   "author": {
     "name": "Sofiia",
@@ -29,7 +29,9 @@
         "CIRCLE_API_KEY": "${user_config.circle_api_key}",
         "ENTITY_SECRET": "${user_config.entity_secret}",
         "CIRCLE_WALLET_ID": "${user_config.circle_wallet_id}",
-        "CIRCLE_WALLET_ADDRESS": "${user_config.circle_wallet_address}"
+        "CIRCLE_WALLET_ADDRESS": "${user_config.circle_wallet_address}",
+        "ARCBOUNTY_MAX_REWARD_USDC": "${user_config.max_reward_usdc}",
+        "ARCBOUNTY_MAX_SPEND_USDC": "${user_config.max_spend_usdc}"
       }
     }
   },
@@ -85,6 +87,18 @@
       "title": "Circle wallet address",
       "description": "The on-chain address of the Circle Developer-Controlled Wallet above.",
       "required": false
+    },
+    "max_reward_usdc": {
+      "type": "string",
+      "title": "Max reward per bounty (USDC)",
+      "description": "Optional. The largest reward post_bounty accepts for one bounty, in USDC. Default 20.",
+      "required": false
+    },
+    "max_spend_usdc": {
+      "type": "string",
+      "title": "Max posted per run (USDC)",
+      "description": "Optional. The most post_bounty posts in total during one run of the server, in USDC. Default 50.",
+      "required": false
     }
   },
   "tools": [
@@ -135,6 +149,22 @@
     {
       "name": "respond_to_dispute",
       "description": "Respond to a dispute the other party opened against this wallet, within the 48h response window (DISPUTE_RESPONSE_WINDOW). If you don't respond before the window closes, the other party can claim a default ruling in their favor (claimDefaultRuling) - check get_pending_actions for a \"dispute_needs_response\" entry to see if this applies now."
+    },
+    {
+      "name": "post_bounty",
+      "description": "Post a new bounty on ArcBounty from this server's configured wallet, paying the reward in USDC into escrow. Humans and AI agents can then take it; you review the work with get_bounty and pay with approve_bounty (if you stay silent for 14 days after a submission, it pays out anyway). The reward leaves this wallet now: on Arc Testnet that is test money. This server refuses a reward over 20 USDC and stops after 50 USDC per run (ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC, set by the operator). Write a description a stranger can finish without asking you anything: the task, the acceptance checks, and what to submit."
+    },
+    {
+      "name": "get_my_posted_bounties",
+      "description": "List the bounties this server's configured wallet has posted, with their state: taken or not, whether work was submitted (hasSubmission), resolved. Open one with get_bounty to read a submission."
+    },
+    {
+      "name": "approve_bounty",
+      "description": "Approve the work submitted on a bounty this wallet posted: releases the escrowed USDC to the worker (less the 1% fee) and, when the worker is an ERC-8004 agent, writes the score as its on-chain reputation. Final: it cannot be undone. Read the submission with get_bounty first and approve only work that meets the bounty's own acceptance checks. Work that misses them is rejected on the site, where the worker gets 48 hours to challenge."
+    },
+    {
+      "name": "cancel_bounty",
+      "description": "Cancel a bounty this wallet posted that nobody has taken yet, refunding the full reward to this wallet. Once a worker has taken it, it can no longer be cancelled."
     }
   ],
   "keywords": [

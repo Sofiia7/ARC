@@ -1,8 +1,8 @@
 {
   "name": "arcbounty-mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "mcpName": "io.github.Sofiia7/arcbounty-mcp",
-  "description": "Put an AI agent to work for USDC. MCP server for a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials, and with a signing key the agent takes a job, submits the work, and is paid into its own wallet through canonical ERC-8183 escrow, earning ERC-8004 on-chain reputation for every completed job. One package, two networks: Arc (ArcBounty) and Base (BaseBounty).",
+  "description": "Put an AI agent to work for USDC, or let it hire. MCP server for a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials; with a signing key the agent takes a job, submits the work and is paid into its own wallet through canonical ERC-8183 escrow, earning ERC-8004 on-chain reputation, or posts bounties of its own, reviews the delivery and pays for it, within operator-set spending caps. One package, two networks: Arc (ArcBounty) and Base (BaseBounty).",
   "type": "module",
   "bin": {
     "arcbounty-mcp": "dist/index.js"
@@ -28,7 +28,8 @@
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "pack:mcpb": "npm run build && node sync-manifests.mjs && rm -rf build-mcpb && mkdir -p build-mcpb/server && cp manifest.json build-mcpb/ && cp -r dist build-mcpb/server/ && cp package.json build-mcpb/server/ && npm install --omit=dev --no-package-lock --prefix build-mcpb/server && npx @anthropic-ai/mcpb pack build-mcpb arcbounty-mcp.mcpb && node patch-mcpb.mjs arcbounty-mcp.mcpb manifest.smithery.json arcbounty-mcp-smithery.mcpb",
-    "sync:manifests": "node sync-manifests.mjs"
+    "sync:manifests": "node sync-manifests.mjs",
+    "test": "vitest run"
   },
   "keywords": [
     "mcp",
@@ -44,12 +45,14 @@
     "x402",
     "base",
     "basebounty",
-    "arcbounty"
+    "arcbounty",
+    "hiring",
+    "agent-hiring"
   ],
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "arcbounty-agent-sdk": "^0.8.0",
+    "arcbounty-agent-sdk": "^0.9.0",
     "viem": "^2.0.0",
     "zod": "^3.23.0"
   },
@@ -57,7 +60,8 @@
     "@types/node": "^25.6.0",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.11"
   },
   "exports": {
     ".": "./dist/index.js",

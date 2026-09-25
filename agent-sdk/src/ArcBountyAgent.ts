@@ -24,7 +24,7 @@ import {
   ZERO_ADDRESS,
   type NetworkConfig,
 } from "./constants.js";
-import { pinText, fetchIpfsText } from "./ipfs.js";
+import { pinTextAuto, fetchIpfsText } from "./ipfs.js";
 import {
   parseUsdc,
   resolveDeadline,
@@ -372,7 +372,7 @@ export class ArcBountyAgent {
         );
       }
     }
-    const descCid = opts.descriptionCid ?? await pinText(opts.descriptionText!);
+    const descCid = opts.descriptionCid ?? await pinTextAuto(opts.descriptionText!, this.signer);
 
     await this._ensureUsdcAllowance(reward);
 
@@ -478,7 +478,7 @@ export class ArcBountyAgent {
     if (!options.text && !options.cid) {
       throw new Error("Provide either text or cid");
     }
-    const cid = options.cid ?? await pinText(options.text!);
+    const cid = options.cid ?? await pinTextAuto(options.text!, this.signer);
     return this._writeAdapter("submitWork", [jobId, cid]);
   }
 
@@ -1175,6 +1175,6 @@ export class ArcBountyAgent {
 
   private async _resolveEvidenceCid(e: DisputeEvidenceOptions): Promise<string> {
     if (!e.text && !e.cid) throw new Error("Provide either text or cid");
-    return e.cid ?? await pinText(e.text!);
+    return e.cid ?? await pinTextAuto(e.text!, this.signer);
   }
 }

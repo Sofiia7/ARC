@@ -1,3 +1,4 @@
+import type { Address, Hex } from "viem";
 import { IPFS_GATEWAYS } from "./constants.js";
 
 function cidFromUri(uriOrCid: string): string {
@@ -155,4 +156,83 @@ export async function pinText(content: string, filename = "result.md"): Promise<
   }
 
   throw new Error("Set PINATA_JWT (preferred) or PINATA_API_KEY + PINATA_SECRET to pin to IPFS");
+}
+
+// ─── Pinning through the site ────────────────────────────────────────────────
+//
+// pinText needs a Pinata key of its own, which an agent that only wants to
+// post or deliver a bounty rarely has: every MCP write tool that pins failed
+// without one. The web app already pins for any wallet that signs a short
+// timestamped message (frontend/app/api/ipfs/pin, rate-limited per wallet and
+// per IP), so an agent holding a key can come in through the same door.
+
+/** IPFS is chain-agnostic, so one site's pin route serves every network. */
+export const DEFAULT_PIN_URL = "https://arcbounty.app/api/ipfs/pin";
+
+/** Anything that can prove it controls `address`; custodial signers may not. */
+export type MessageSigner = {
+  readonly address: Address;
+  signMessage?: (message: string) => Promise<Hex>;
+};
+
+export type PinViaSiteOptions = {
+  /** Defaults to ARCBOUNTY_PIN_URL, then {@link DEFAULT_PIN_URL}. */
+  url?: string;
+  fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;
+  now?: () => number;
+};
+
+/** The exact message the site's pin route verifies - `pinAuthMessage` in frontend/lib/wallet-auth.ts. */
+export function pinAuthMessage(address: Address, timestamp: number): string {
+  return `ArcBounty IPFS pin\naddress: ${address}\ntimestamp: ${timestamp}`;
+}
+
+/** Pin text through the site's pin route, authenticated by a wallet signature. */
+export async function pinTextViaSite(
+  content: string,
+  signer: MessageSigner,
+  opts: PinViaSiteOptions = {},
+): Promise<string> {
+  if (!signer.signMessage) throw new Error("This signer cannot sign messages, so it cannot pin through the site");
+  const url = opts.url ?? process.env["ARCBOUNTY_PIN_URL"] ?? DEFAULT_PIN_URL;
+  const fetchImpl = opts.fetchImpl ?? ((u: string, init: RequestInit) => fetch(u, init));
+  const timestamp = Math.floor((opts.now ?? Date.now)() / 1000);
+  const signature = await signer.signMessage(pinAuthMessage(signer.address, timestamp));
+
+  const res = await fetchImpl(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-arc-address": signer.address,
+      "x-arc-signature": signature,
+      "x-arc-timestamp": String(timestamp),
+    },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = ((await res.json()) as { error?: string }).error ?? "";
+    } catch {
+      // not JSON - the status alone has to do
+    }
+    throw new Error(`Pinning through ${url} failed: ${res.status}${detail ? ` ${detail}` : ""}`);
+  }
+  const data = await res.json() as { cid?: string };
+  if (!data.cid) throw new Error(`Pinning through ${url} returned no cid`);
+  return `ipfs://${data.cid}`;
+}
+
+/** Pin with what this process has: its own Pinata credentials, else the site signed by `signer`. */
+export async function pinTextAuto(
+  content: string,
+  signer: MessageSigner,
+  opts: PinViaSiteOptions = {},
+): Promise<string> {
+  if (isPinningConfigured()) return pinText(content);
+  if (signer.signMessage) return pinTextViaSite(content, signer, opts);
+  throw new Error(
+    "Cannot pin to IPFS: set PINATA_JWT (or PINATA_API_KEY + PINATA_SECRET), or use a signer that can " +
+    "sign messages (a private key), so the text is pinned through the site.",
+  );
 }

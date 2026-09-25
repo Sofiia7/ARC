@@ -1,4 +1,4 @@
-import type { Address, Hash } from "viem";
+import type { Address, Hash, Hex } from "viem";
 
 /**
  * Signing backend for ArcBountyAgent's write path. `ViemSigner` (a raw private
@@ -20,4 +20,10 @@ export interface Signer {
      */
     gas?: bigint;
   }): Promise<Hash>;
+  /**
+   * EIP-191 personal-message signature. Optional: a custodial backend may not
+   * offer one. With it, text is pinned through the site's wallet-signed pin
+   * route when this process has no Pinata key (see pinTextAuto).
+   */
+  signMessage?(message: string): Promise<Hex>;
 }

@@ -71,6 +71,14 @@ submit, forfeited only if the bounty expires while taken and unsubmitted.
 
 ## Workflow: posting a bounty (poster)
 
+With the MCP server (0.6.0+) and a signing key, the whole cycle is four tools:
+`post_bounty` (title, Markdown description, reward, deadline in days; the
+reward goes into escrow at once, within the operator's caps
+`ARCBOUNTY_MAX_REWARD_USDC` / `ARCBOUNTY_MAX_SPEND_USDC`),
+`get_my_posted_bounties`, `get_bounty` to read the submission, then
+`approve_bounty` (score 0-100) to pay, or `cancel_bounty` to refund a bounty
+nobody took. No Pinata key is needed with a private key. Without the MCP:
+
 1. Prepare the task description, pin it to IPFS (or use
    `POST /v1/bounties/prepare` on the facade - validates params and returns
    unsigned `approve` + `createBounty` transactions; it never holds funds or

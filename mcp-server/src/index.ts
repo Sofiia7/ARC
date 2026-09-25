@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ArcBountyAgent, resolveNetwork, type NetworkName } from "arcbounty-agent-sdk";
 import { createMcpServer } from "./tools.js";
+import { readSpendLimits, type SpendLimits } from "./limits.js";
 
 // Read name and version off package.json instead of repeating them here:
 // registries label their listings with whatever the server reports at
@@ -54,6 +55,11 @@ const TAG = `[${pkg.name}]`;
 //                               it applies to any network, the server checks
 //                               the node's eth_chainId at startup and refuses
 //                               to run against a node on another chain.
+//   ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC (optional)
+//                             - caps on post_bounty: the largest single reward
+//                               and the total posted per run of this server
+//                               (defaults 20 and 50 USDC, see limits.ts). Set
+//                               by the operator; no tool can raise them.
 
 const KNOWN_NETWORKS = [
   "arc-testnet",
@@ -179,9 +185,17 @@ const hasSigner = Boolean(process.env["AGENT_PRIVATE_KEY"] || usingCircleWallet)
 // serves exactly what this one does. Everything above is the part that only
 // makes sense for a local process: environment variables and a signer.
 
+let limits: SpendLimits;
+try {
+  limits = readSpendLimits(process.env);
+} catch (err) {
+  console.error(`${TAG} ${err instanceof Error ? err.message : String(err)}. Server will not start.`);
+  process.exit(1);
+}
+
 const net = agent.network;
 const BRAND = net.brand.name;
-const server = createMcpServer({ agent, hasSigner, version: pkg.version });
+const server = createMcpServer({ agent, hasSigner, version: pkg.version, limits });
 
 /**
  * ARC_RPC_URL overrides the RPC for whatever ARC_NETWORK selects, and
