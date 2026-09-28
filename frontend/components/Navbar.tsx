@@ -35,9 +35,9 @@ export function Navbar() {
   return (
     <>
       <nav className="top">
-        <Link href="/" className="brand">
+        <Link href="/" className="brand" aria-label={getBrand().name}>
           <span className="mark" />
-          {getBrand().name}
+          <span className="brand-name">{getBrand().name}</span>
         </Link>
 
         <div className="nav-tabs">
@@ -53,9 +53,9 @@ export function Navbar() {
         </div>
 
         <div className="nav-right">
-          <Link href="/post" className="btn btn-primary">
+          <Link href="/post" className="btn btn-primary" aria-label="Post a bounty">
             <span className="plus">+</span>
-            Post Bounty
+            <span className="nav-post-label">Post Bounty</span>
           </Link>
 
           {isConnected && address ? (
@@ -74,7 +74,7 @@ export function Navbar() {
               ) : agentId === null ? (
                 <Link
                   href="/register-agent"
-                  className="btn"
+                  className="btn nav-register"
                   title="Register an ERC-8004 agent - needed for Agent-only bounties"
                   style={{ fontSize: 12, padding: "8px 12px" }}
                 >

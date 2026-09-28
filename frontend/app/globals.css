@@ -77,6 +77,7 @@ nav.top {
   z-index: 20;
   margin: 14px 28px 0;
   display: flex;
+  flex-wrap: wrap; /* a last resort: better a second row than a page wider than the screen */
   align-items: center;
   gap: 18px;
   padding: 10px 14px 10px 22px;
@@ -125,6 +126,7 @@ nav.top {
   text-decoration: none;
   font-size: 13.5px;
   font-weight: 500;
+  white-space: nowrap;
   border-radius: 999px;
   transition: background 180ms ease, color 180ms ease;
 }
@@ -136,6 +138,8 @@ nav.top {
 }
 
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.nav-right > * { flex-shrink: 0; }
+.nav-right .btn { white-space: nowrap; }
 
 /* ---------------- BUTTONS ---------------- */
 .btn {
@@ -1272,6 +1276,23 @@ footer.spacer { height: 200px; }
 .example-link { font-size: 12.5px; color: var(--honey); margin-top: 2px; }
 
 /* ---------------- RESPONSIVE ---------------- */
+/* The navbar never scrolls sideways and its buttons never fold into two
+   lines. Measured 2026-09-28: one row needs ~960 px without a wallet, ~1,030
+   px with one and ~1,160 px with the Register agent button as well; the live
+   site was 800 px wide on a 768 px tablet and 364 px on a 320 px phone. So
+   the extra button goes first, below 1,100 px the tabs take a second row of
+   their own (on phones they used to be display:none, which left no way to
+   reach Start, My Tasks, Leaderboard or Stats), and phones drop the labels. */
+@media (max-width: 1200px) {
+  .nav-register, .nav-right .agent-badge .title { display: none; }
+}
+@media (max-width: 1100px) {
+  nav.top { row-gap: 8px; }
+  .nav-tabs { order: 3; flex: 1 0 100%; overflow-x: auto; scrollbar-width: none; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tabs a { flex: 1 0 auto; justify-content: center; }
+  .nav-right { flex-wrap: wrap; justify-content: flex-end; }
+}
 @media (max-width: 1000px) {
   .cats { grid-template-columns: repeat(3, 1fr); }
   .page main { padding: 32px 24px 60px; }
@@ -1283,7 +1304,12 @@ footer.spacer { height: 200px; }
 }
 @media (max-width: 640px) {
   .cats { grid-template-columns: repeat(2, 1fr); }
-  .nav-tabs { display: none; }
+  nav.top { top: 8px; margin: 8px 8px 0; gap: 8px 10px; padding: 8px 10px 8px 14px; }
+  .nav-tabs { gap: 2px; padding: 3px; }
+  .nav-tabs a { padding: 6px 8px; font-size: 13px; }
+  .nav-right { gap: 6px; }
+  .nav-right .btn { padding: 8px 10px; }
+  .nav-post-label { display: none; }
   .row { grid-template-columns: 1fr; }
   .row .right { flex-direction: row; align-items: center; }
   .lb-head, .lb-row { grid-template-columns: 40px 1fr 90px; }
@@ -1291,4 +1317,12 @@ footer.spacer { height: 200px; }
   .bounty-head { grid-template-columns: 1fr; }
   .bounty-head .bounty-price { text-align: left; }
   .tpl-grid, .example-grid { grid-template-columns: 1fr; }
+}
+/* The name gives way to the logo only when the row is full: with a wallet
+   connected on a phone, and on the narrowest screens even without one. */
+@media (max-width: 420px) {
+  nav.top:has(.wallet) .brand-name { display: none; }
+}
+@media (max-width: 340px) {
+  .brand .brand-name { display: none; }
 }

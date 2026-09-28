@@ -91,6 +91,11 @@ const COMPONENTS: Components = {
       {children}
     </code>
   ),
+  // A code block keeps its lines and scrolls inside the card instead of
+  // widening the page (the wrapper's overflow-wrap cannot break `white-space: pre`).
+  pre: ({ node: _node, ...props }) => (
+    <pre {...props} className="my-3 max-w-full overflow-x-auto" />
+  ),
 };
 
 export function IPFSMarkdownClient({ cid }: Props) {
@@ -126,7 +131,10 @@ export function IPFSMarkdownClient({ cid }: Props) {
     return <div className="h-16 bg-white/5 border border-white/10 rounded animate-pulse" />;
 
   return (
-    <div className="prose prose-invert prose-sm max-w-none text-gray-100 leading-relaxed">
+    // overflow-wrap:anywhere lets an unbroken token (a URL, a hash, an address)
+    // wrap inside the card. Without it one long link made the whole bounty page
+    // 480 px wide on a 390 px phone (bounty #15's bug report, 2026-09-27).
+    <div className="prose prose-invert prose-sm max-w-none text-gray-100 leading-relaxed [overflow-wrap:anywhere]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeSanitize, SCHEMA]]}
