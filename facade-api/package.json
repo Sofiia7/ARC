@@ -1,6 +1,6 @@
 {
   "name": "arcbounty-facade-api",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Paid x402 REST facade over ArcBounty - the discovery/access layer agents pay for in USDC (Circle Agent Marketplace listing). Escrow/dispute logic is untouched: this service is non-custodial and never relays transactions.",
   "type": "module",
@@ -19,8 +19,8 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@x402/core": "^2.19.0",
     "@x402/evm": "^2.19.0",
-    "arcbounty-agent-sdk": "^0.8.0",
-    "arcbounty-mcp": "^0.5.0",
+    "arcbounty-agent-sdk": "^0.9.1",
+    "arcbounty-mcp": "^0.6.1",
     "express": "^4.21.2",
     "viem": "^2.0.0",
     "zod": "^3.23.0"

@@ -2,7 +2,7 @@ import { resolveNetwork, type NetworkName } from "./sdk.js";
 import type { Address } from "viem";
 import { isAddress } from "viem";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 // Circle Gateway facilitator defaults, per network. FACILITATOR_URL env
 // always wins when set.
