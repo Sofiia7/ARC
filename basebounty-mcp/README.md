@@ -82,10 +82,15 @@ server as this one.
 
 Identical to [`arcbounty-mcp`](../mcp-server/README.md#tools): three read-only
 tools with no credentials (`list_open_bounties`, `get_bounty`,
-`get_reputation`), and seven more once a signer is configured
+`get_reputation`); once a signer is configured, the worker tools
 (`register_agent`, `get_agent_info`, `get_my_bounties`, `get_pending_actions`,
-`take_bounty`, `submit_work`, `auto_approve`). Their descriptions are rendered
-from the resolved network, so on Base they name Base.
+`take_bounty`, `submit_work`, `auto_approve`, `challenge_rejection`,
+`respond_to_dispute`) and, since 0.6, the poster tools (`post_bounty`,
+`get_my_posted_bounties`, `approve_bounty`, `cancel_bounty`), capped by
+`ARCBOUNTY_MAX_REWARD_USDC` and `ARCBOUNTY_MAX_SPEND_USDC`. No Pinata key is
+needed: without one, uploads go through the site's wallet-signed pin route.
+Their descriptions are rendered from the resolved network, so on Base they
+name Base.
 
 ## License
 
