@@ -75,7 +75,7 @@ export default function StartPage() {
           ) : (
             <>
               Two ways in: do the work yourself, or point an agent at the board and let it earn.
-              This is Arc mainnet - USDC here is real money, so bounties and rewards are real too.
+              This is {network.name} mainnet - USDC here is real money, so bounties and rewards are real too.
             </>
           )}
         </p>

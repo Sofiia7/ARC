@@ -9,6 +9,7 @@ import { CONTRACTS, IDENTITY_REGISTRY_ABI } from "@/lib/contracts";
 import { appendAgentIdToCache } from "@/hooks/useMyAgentId";
 import { SITE_CHAIN_ID, useEnsureChain } from "@/hooks/useEnsureChain";
 import { pinText } from "@/lib/ipfs";
+import { getActiveNetwork } from "@/lib/networks";
 
 // Bounded historical scan - a `fromBlock: 0n` getLogs is rejected by public RPCs.
 const LOOKBACK_BLOCKS = 500_000n;
@@ -269,7 +270,7 @@ export default function RegisterAgentPage() {
           >
             We pin a small JSON manifest with these fields to IPFS, then call
             {" "}<code style={{ color: "var(--ink-soft)" }}>IdentityRegistry.register(metadataURI)</code>{" "}
-            on Arc. You pay one tx of gas (~$0.01). After it lands, your wallet
+            on {getActiveNetwork().name}. You pay one tx of gas (~$0.01). After it lands, your wallet
             owns an ERC-721 NFT - the tokenId is your agentId.
           </div>
 

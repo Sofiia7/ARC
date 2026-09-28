@@ -79,7 +79,7 @@ export default function StatsPage() {
             >
               {shortAddress(CONTRACTS.BOUNTY_ADAPTER)}
             </a>{" "}
-            on ArcScan. &quot;Gross&quot; amounts are face-value rewards; workers receive that minus the 1%
+            on {network.explorerName}. &quot;Gross&quot; amounts are face-value rewards; workers receive that minus the 1%
             protocol fee and the escrow&apos;s own platform fee.
           </p>
         </>
