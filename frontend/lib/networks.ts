@@ -221,9 +221,11 @@ export const NETWORKS = {
     },
     // One adapter, baked in. Unlike Base Sepolia, NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS
     // is ignored here: lib/contracts.ts honours it on testnets only.
-    bountyAdapterAddress: "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c",
-    // V4.6 mainnet deploy, 2026-08-14 (from the forge broadcast receipt).
-    adapterDeployBlock: 50_576_208n,
+    bountyAdapterAddress: "0x32c215908a46Eb5D34e4E5146c99891eD3014Fee",
+    // V4.7 (the 2026-09-07 audit fixes) on the same escrow, deployed 2026-09-28;
+    // supersedes the V4.6 adapter 0x9b0B…4c2c (block 50,576,208). Block from the
+    // forge broadcast receipt.
+    adapterDeployBlock: 51_898_559n,
     // Verified on-chain, not assumed: eth_getCode at the canonical Multicall3
     // address returns bytecode on both Base Sepolia and Base mainnet.
     multicall3: true,

@@ -182,9 +182,11 @@ export const NETWORKS = {
       REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     },
-    defaultBountyAdapter: "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c",
-    // V4.6 mainnet deploy, 2026-08-14 (from the forge broadcast receipt).
-    adapterDeployBlock: 50_576_208,
+    defaultBountyAdapter: "0x32c215908a46Eb5D34e4E5146c99891eD3014Fee",
+    // V4.7 (the 2026-09-07 audit fixes) on the same escrow, deployed 2026-09-28;
+    // supersedes the V4.6 adapter 0x9b0B…4c2c (block 50,576,208). Block from the
+    // forge broadcast receipt.
+    adapterDeployBlock: 51_898_559,
     testnet: false,
     blocksPerDay: 43_200, // ≈2s blocks
   },

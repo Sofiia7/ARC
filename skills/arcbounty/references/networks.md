@@ -59,7 +59,7 @@ enough for the first `createBounty` to spend actual money.
 
 | Field | Value |
 |---|---|
-| BountyAdapter | `0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c` |
+| BountyAdapter | `0x32c215908a46Eb5D34e4E5146c99891eD3014Fee` (V4.7 since 2026-09-28) |
 | RPC | `https://mainnet.base.org` |
 | Explorer | https://basescan.org |
 | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |

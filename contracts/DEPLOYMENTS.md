@@ -279,13 +279,39 @@ These addresses appear in `broadcast/Deploy.s.sol/5042002/*.json` but are
   dispute response/ruling fields.
 - `0x2f5171317be1c912153c4760af03d6ee77d52894` - empty, abandoned.
 
-## Base Mainnet (chain id `8453`) - BaseBounty, V4.6 live
+## Base Mainnet (chain id `8453`) - BaseBounty, V4.7 live
 
 > Arc Testnet above remains the deployment cited in the submitted grant
 > application. This is the separate **BaseBounty** brand on Base mainnet
-> (`basebounty.app`), same V4.6 contracts, its own signer set.
+> (`basebounty.app`), its own signer set. Since 2026-09-28 it runs the same
+> V4.7 adapter code as Arc mainnet, on the escrow deployed with V4.6.
 
-### BountyAdapter (V4.6 - live)
+### BountyAdapter (V4.7 - live since 2026-09-28)
+
+| Field | Value |
+|---|---|
+| Address | `0x32c215908a46Eb5D34e4E5146c99891eD3014Fee` |
+| Source | `src/BountyAdapter.sol` at V4.7, the same code as Arc mainnet: the 2026-09-07 audit fixes C-01 (a cancelled bounty could be taken again), C-02 (AC's own refund could fire while the adapter's windows were open), M-01, M-07, M-08 (the `paused` switch) |
+| AgenticCommerce (proxy) | `0x6D9317eC0Fca3aFd5439d539064DBA94197c4AC4` - reused, not redeployed: C-01/C-02 lived in how the adapter called AC, not in AC |
+| Deployed | 2026-09-28 by `contracts/script/MigrateBaseMainnet.s.sol` (dry run first), block `51898559`, tx `0xd61519de6bf9cf9957e31907ef544094be81a339ee2d337ea7f1b5e7ac9b3645`, 5,223,077 gas at 0.0054 gwei ≈ 0.0000283 ETH; `setPaused(true)` in the same run, block `51898567`, tx `0xbb3c266c4a94d25c1304846b2c8669587999e988811a3013ae69d7f0cf2c41a6` |
+| Opened | `setPaused(false)`, block `51898681`, tx `0xd00d7fad728b5db22c6ab97701a3a5e415546d22787a7b1681dd20ef799b9071` (`scripts/finish-base-migration.ts`) |
+| Owner | deployer `0x6abc2b575eC66701c17DAD96dDA97F22b837849E` |
+| Arbitrator | deployer, handoff started: `transferArbitrator(Safe)`, block `51898651`, tx `0x6958057ac3943c73023cb3fa260851271f0df7d18b78b3e50799d5cbe8e22485`; `pendingArbitrator()` = Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54`. **Waits for `acceptArbitrator()` from the Safe** (app.safe.global, Base, 2 of 3); until then one EOA rules disputes, as on V4.6. |
+| Fee, recipient, cap | 100 bps, `0xADac7534d3fE868E28c77df5CD930f2635bcb63A`, 500 USDC - unchanged from V4.6 |
+| Read back 2026-09-28 | `agenticCommerce()` = the proxy above, `AC_EXPIRY_BUFFER()` = 7,776,000 s (90 days, V4.7 only), `paused()` = false, `totalBounties()` = 0 |
+| `adapterDeployBlock` for the network maps | `51898559` |
+| Basescan | verified 2026-09-28 (`forge verify-contract`, Etherscan V2 key): "Pass - Verified" |
+
+**Left on the V4.6 adapter below:** two jobs taken before the cutover. `#3`
+(1 USDC, in dispute; the 48 h response window passed, so anyone can call
+`claimDefaultRuling` and the worker gets the payout) and `#4` (1 USDC, taken,
+nothing submitted, deadline 2026-11-26, then `expireBounty` refunds the poster).
+Together they are the 2 USDC the escrow held on 2026-09-28. basebounty.app now
+reads only V4.7, so they are closed with the SDK and `bountyAdapterAddress`
+set to the old address. Close them before 2026-11-26, when V4.6's C-02 window
+opens for them.
+
+### BountyAdapter (V4.6 - superseded 2026-09-28)
 
 | Field | Value |
 |---|---|

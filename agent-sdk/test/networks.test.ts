@@ -135,8 +135,8 @@ describe("resolveNetwork - base-mainnet", () => {
       REPUTATION_REGISTRY: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
       USDC:                "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     });
-    expect(net.defaultBountyAdapter).toBe("0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c");
-    expect(net.adapterDeployBlock).toBe(50_576_208);
+    expect(net.defaultBountyAdapter).toBe("0x32c215908a46Eb5D34e4E5146c99891eD3014Fee");
+    expect(net.adapterDeployBlock).toBe(51_898_559);
     expect(net.blocksPerDay).toBe(43_200);
   });
 

@@ -41,7 +41,7 @@ const NETWORKS = {
   },
   "base-mainnet": {
     brand: "BaseBounty",
-    adapter: "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c",
+    adapter: "0x32c215908a46Eb5D34e4E5146c99891eD3014Fee", // V4.7 since 2026-09-28 (V4.6 was 0x9b0B…4c2c)
     poster: "0x6abc2b575ec66701c17dad96dda97f22b837849e",
     // Two public endpoints: base.org rate-limits a catch-up burst, publicnode
     // serves the same 1,000-block range for recent blocks and takes over.

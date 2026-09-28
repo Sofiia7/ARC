@@ -5,7 +5,16 @@ Arc mainnet itself has not launched yet (publicly confirmed for summer 2026)
 checklist for everything that needs to happen **before that becomes
 possible**, split by who has to act.
 
-## Base mainnet: V4.7 migration checklist (prepared 2026-09-08, not yet run)
+## Base mainnet: V4.7 migration checklist (prepared 2026-09-08, run 2026-09-28)
+
+> **Done 2026-09-28:** V4.7 adapter `0x32c215908a46Eb5D34e4E5146c99891eD3014Fee`
+> (block `51898559`, verified on Basescan), opened with `setPaused(false)`,
+> arbitrator handoff to the Safe started (`scripts/finish-base-migration.ts`
+> does steps 7 and 8). Steps 5 and 9 are in the SDK, frontend, alerts and
+> skill docs; on mainnet the adapter is baked into `frontend/lib/networks.ts`,
+> so no Vercel env var is involved. **Still open: `acceptArbitrator()` from the
+> Safe**, and the two jobs left on V4.6 (see `contracts/DEPLOYMENTS.md`). The
+> checklist below is kept as the record of how it was done.
 
 Base mainnet already exists and is already live on the buggy V4.6 adapter -
 this is a separate, more urgent track than the Arc-mainnet section below.
