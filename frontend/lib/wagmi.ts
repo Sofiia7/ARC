@@ -1,4 +1,4 @@
-import { createConfig, http } from "wagmi";
+import { createConfig, fallback, http } from "wagmi";
 import { defineChain } from "viem";
 import { injected, walletConnect } from "wagmi/connectors";
 import { porto } from "porto/wagmi";
@@ -49,11 +49,12 @@ export const activeChain = defineChain({
 // The public Arc RPC rate-limits aggressively per IP, so a single visitor can
 // exhaust it on one page load. `batch` coalesces concurrent eth_calls into one
 // JSON-RPC request; the retries ride out the 429s that still slip through.
-const arcTransport = http(rpcUrl, {
-  batch: { wait: 16 },
-  retryCount: 3,
-  retryDelay: 400,
-});
+const transportOptions = { batch: { wait: 16 }, retryCount: 3, retryDelay: 400 };
+// A network with fallbackRpcUrls moves to the next endpoint when one refuses
+// (rate limit, outage) instead of leaving the counters on "-".
+const arcTransport = network.fallbackRpcUrls?.length
+  ? fallback([rpcUrl, ...network.fallbackRpcUrls].map(url => http(url, transportOptions)))
+  : http(rpcUrl, transportOptions);
 
 export const config = createConfig({
   chains: [activeChain],

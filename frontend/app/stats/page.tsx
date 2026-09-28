@@ -3,6 +3,7 @@
 import { formatUsdc, shortAddress } from "@/lib/format";
 import { CONTRACTS } from "@/lib/contracts";
 import { getActiveNetwork } from "@/lib/networks";
+import { HISTORY_ADAPTERS } from "@/lib/bountyMetas";
 import { useProtocolStats } from "@/hooks/useProtocolStats";
 
 // Public dashboard: every number here is derived from contract events read
@@ -79,8 +80,24 @@ export default function StatsPage() {
             >
               {shortAddress(CONTRACTS.BOUNTY_ADAPTER)}
             </a>{" "}
-            on {network.explorerName}. &quot;Gross&quot; amounts are face-value rewards; workers receive that minus the 1%
-            protocol fee and the escrow&apos;s own platform fee.
+            on {network.explorerName}
+            {HISTORY_ADAPTERS.length > 0 && (
+              <>
+                , and on the earlier adapter{HISTORY_ADAPTERS.length > 1 ? "s" : ""}{" "}
+                {HISTORY_ADAPTERS.map((a, i) => (
+                  <span key={a}>
+                    {i > 0 && ", "}
+                    <a href={`${EXPLORER}${a}`} target="_blank" rel="noreferrer" style={{ color: "var(--honey)" }}>
+                      {shortAddress(a)}
+                    </a>
+                  </span>
+                ))}{" "}
+                for the bounties that ran before the upgrade
+              </>
+            )}
+            . &quot;Gross&quot; amounts are face-value rewards; workers receive that minus the 1%
+            protocol fee and the escrow&apos;s own platform fee. A bounty its own poster took and approved is
+            not counted as completed.
           </p>
         </>
       )}

@@ -50,6 +50,8 @@ function activeNetworkOrigins() {
     // lives on its own host, and the CSP must allow both.
     return {
       rpc: originOf(rpcUrl),
+      // lib/networks.ts fallbackRpcUrls: the site moves here when base.org rate-limits.
+      rpcFallbacks: [originOf("https://base-rpc.publicnode.com")],
       explorer: originOf("https://basescan.org"),
       explorerApi: originOf("https://api.etherscan.io"),
     };
@@ -64,7 +66,7 @@ function activeNetworkOrigins() {
   throw new Error(`[arcbounty] next.config.mjs: NEXT_PUBLIC_ARC_NETWORK="${network}" is not a valid network.`);
 }
 
-const { rpc: RPC_ORIGIN, explorer: EXPLORER_ORIGIN, explorerApi: EXPLORER_API_ORIGIN } = activeNetworkOrigins();
+const { rpc: RPC_ORIGIN, rpcFallbacks: RPC_FALLBACK_ORIGINS = [], explorer: EXPLORER_ORIGIN, explorerApi: EXPLORER_API_ORIGIN } = activeNetworkOrigins();
 // Same-origin today for both networks' known values; kept as a set in case that changes.
 const EXPLORER_ORIGINS = [...new Set([EXPLORER_ORIGIN, EXPLORER_API_ORIGIN].filter(Boolean))];
 
@@ -106,6 +108,7 @@ const CSP = [
   [
     "connect-src 'self'",
     RPC_ORIGIN,
+    ...RPC_FALLBACK_ORIGINS,
     ...EXPLORER_ORIGINS,
     "https://*.pinata.cloud", "https://uploads.pinata.cloud",
     "https://ipfs.io", "https://dweb.link", "https://nftstorage.link",

@@ -29,14 +29,14 @@ export function useProtocolStats() {
   const publicClient = usePublicClient();
 
   return useQuery<ProtocolStats>({
-    queryKey: ["protocol-stats", CONTRACTS.BOUNTY_ADAPTER],
+    queryKey: ["protocol-stats", CONTRACTS.BOUNTY_ADAPTER, "with-history"],
     enabled: !!publicClient,
     staleTime: 60_000,
     queryFn: async () => {
       if (!publicClient) throw new Error("no public client");
 
       const [metas, feeBps] = await Promise.all([
-        fetchAllBountyMetas(publicClient),
+        fetchAllBountyMetas(publicClient, { withHistory: true }),
         publicClient.readContract({
           address: CONTRACTS.BOUNTY_ADAPTER, abi: BOUNTY_ADAPTER_ABI, functionName: "feeBps",
         }) as Promise<bigint>,

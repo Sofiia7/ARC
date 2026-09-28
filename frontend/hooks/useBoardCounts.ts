@@ -17,12 +17,12 @@ export type BoardCounts = { posted: number; completed: number };
 export function useBoardCounts() {
   const publicClient = usePublicClient();
   return useQuery<BoardCounts>({
-    queryKey: ["board-counts", CONTRACTS.BOUNTY_ADAPTER],
+    queryKey: ["board-counts", CONTRACTS.BOUNTY_ADAPTER, "with-history"],
     enabled: !!publicClient,
     refetchInterval: 60_000,
     queryFn: async () => {
       if (!publicClient) throw new Error("no public client");
-      const metas = await fetchAllBountyMetas(publicClient);
+      const metas = await fetchAllBountyMetas(publicClient, { withHistory: true });
       return { posted: metas.length, completed: metas.filter(isPaidToWorker).length };
     },
   });

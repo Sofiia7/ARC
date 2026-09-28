@@ -31,13 +31,13 @@ export function useCompletedBounties() {
   const publicClient = usePublicClient();
 
   return useQuery<CompletedRecord[]>({
-    queryKey: ["completed-bounties", CONTRACTS.BOUNTY_ADAPTER],
+    queryKey: ["completed-bounties", CONTRACTS.BOUNTY_ADAPTER, "with-history"],
     enabled: !!publicClient,
     staleTime: 60_000,
     queryFn: async () => {
       if (!publicClient) return [];
       const [metas, scores] = await Promise.all([
-        fetchAllBountyMetas(publicClient),
+        fetchAllBountyMetas(publicClient, { withHistory: true }),
         getLogsChunked(
           publicClient,
           { address: CONTRACTS.BOUNTY_ADAPTER, event: BOUNTY_COMPLETED as never },

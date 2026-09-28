@@ -47,6 +47,13 @@ export type NetworkConfig = {
   chainId: number;
   name: string;
   rpcUrl: string;
+  /**
+   * Public endpoints tried when rpcUrl refuses a request. mainnet.base.org
+   * answers "over rate limit" to a single page load once the counters read
+   * two adapters (2026-09-28), so Base carries publicnode (CORS open, checked
+   * the same day), the same second endpoint the Telegram alerts use.
+   */
+  fallbackRpcUrls?: string[];
   explorerUrl: string;
   explorerApiUrl: string;
   /** Explorer's display name, e.g. for wallet "view on …" links. */
@@ -77,6 +84,13 @@ export type NetworkConfig = {
    * there, and this keeps that behavior unchanged.
    */
   bountyAdapterAddress?: Address;
+  /**
+   * Earlier adapters of this network that still hold its history. The counts
+   * on the home page, /stats and the leaderboard read them too, so a contract
+   * upgrade does not reset the public record to zero; nothing is ever sent to
+   * them from the site.
+   */
+  legacyBountyAdapters?: Address[];
   /** Deployment block of the adapter - lower bound for chunked event scans. */
   adapterDeployBlock: bigint;
   /**
@@ -202,6 +216,7 @@ export const NETWORKS = {
     chainId: 8_453,
     name: "Base",
     rpcUrl: process.env.NEXT_PUBLIC_BASE_MAINNET_RPC_URL ?? "https://mainnet.base.org",
+    fallbackRpcUrls: ["https://base-rpc.publicnode.com"],
     explorerUrl: "https://basescan.org",
     // Etherscan V2: one multichain endpoint keyed by `chainid`.
     explorerApiUrl: "https://api.etherscan.io/v2/api?chainid=8453",
@@ -222,6 +237,8 @@ export const NETWORKS = {
     // One adapter, baked in. Unlike Base Sepolia, NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS
     // is ignored here: lib/contracts.ts honours it on testnets only.
     bountyAdapterAddress: "0x32c215908a46Eb5D34e4E5146c99891eD3014Fee",
+    // V4.6, superseded 2026-09-28: BaseBounty #1-#7 live there.
+    legacyBountyAdapters: ["0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c"],
     // V4.7 (the 2026-09-07 audit fixes) on the same escrow, deployed 2026-09-28;
     // supersedes the V4.6 adapter 0x9b0B…4c2c (block 50,576,208). Block from the
     // forge broadcast receipt.
