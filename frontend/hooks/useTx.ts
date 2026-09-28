@@ -1,8 +1,10 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { toast } from "sonner";
 import type { Abi } from "viem";
+import { SITE_CHAIN_ID, WrongChainError, useEnsureChain } from "./useEnsureChain";
 
 type WriteParams = {
   address: `0x${string}`;
@@ -19,6 +21,12 @@ export function useTx() {
   const { writeContractAsync, isPending } = useWriteContract();
   const { isConnected, address } = useAccount();
   const publicClient = usePublicClient();
+  const ensureChain = useEnsureChain();
+  // One transaction at a time: a second click while the wallet prompt was
+  // still open queued a duplicate request ("1 of 2" in MetaMask, the second
+  // one flagged as likely to fail - bounty #14's onboarding report).
+  const inFlight = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   async function send(
     params: WriteParams,
@@ -30,9 +38,13 @@ export function useTx() {
       toast.error("Connect your wallet first (top right) to do this.");
       return null;
     }
+    if (inFlight.current) return null;
+    inFlight.current = true;
+    setBusy(true);
     const toastId = toast.loading(labels.pending ?? "Sending transaction…");
 
     try {
+      await ensureChain();
       // Pad the estimate generously: functions with a `try/catch` around an
       // external call (e.g. approveBounty's reputationRegistry.giveFeedback)
       // can need meaningfully more gas on a cold storage write than
@@ -50,6 +62,7 @@ export function useTx() {
       }
       const hash = await writeContractAsync({
         ...(params as Parameters<typeof writeContractAsync>[0]),
+        chainId: SITE_CHAIN_ID,
         ...(gas ? { gas } : {}),
       });
 
@@ -68,13 +81,18 @@ export function useTx() {
       return hash;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      const friendly = msg.includes("User rejected")
+      const friendly = e instanceof WrongChainError
+        ? e.message
+        : msg.includes("User rejected")
         ? "Transaction rejected"
         : labels.error ?? "Transaction failed";
       toast.error(friendly, { id: toastId });
       return null;
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
     }
   }
 
-  return { send, isPending };
+  return { send, isPending, busy };
 }

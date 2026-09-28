@@ -5,6 +5,7 @@ import { useWriteContract, usePublicClient } from "wagmi";
 import { toast } from "sonner";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { pinText } from "@/lib/ipfs";
+import { SITE_CHAIN_ID, WrongChainError, useEnsureChain } from "@/hooks/useEnsureChain";
 import { FileAttacher } from "./FileAttacher";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { Modal } from "./Modal";
@@ -22,6 +23,7 @@ export function WorkSubmitModal({ jobId, onSuccess, onClose }: Props) {
 
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
+  const ensureChain = useEnsureChain();
 
   function insertSnippet(snippet: string) {
     setText(prev => {
@@ -45,19 +47,24 @@ export function WorkSubmitModal({ jobId, onSuccess, onClose }: Props) {
   async function handleSubmit() {
     const body = text.trim();
     if (!body) return;
+    let tid2: string | number | undefined;
     try {
       setStep("pinning");
+      // Before the pin: a wallet on the wrong chain should be asked to switch
+      // first, not after it has already signed the upload.
+      await ensureChain();
       const tid = toast.loading("Uploading result to IPFS…");
       const cid = await pinText(body);
       toast.success("Uploaded to IPFS!", { id: tid });
 
       setStep("submitting");
-      const tid2 = toast.loading("Submitting on-chain…");
+      tid2 = toast.loading("Submitting on-chain…");
       const hash = await writeContractAsync({
         address: CONTRACTS.BOUNTY_ADAPTER,
         abi: BOUNTY_ADAPTER_ABI,
         functionName: "submitWork",
         args: [jobId, cid],
+        chainId: SITE_CHAIN_ID,
       });
       const receipt = await publicClient?.waitForTransactionReceipt({ hash });
       // waitForTransactionReceipt resolves for a reverted-but-mined tx too
@@ -73,7 +80,11 @@ export function WorkSubmitModal({ jobId, onSuccess, onClose }: Props) {
       onSuccess?.();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error(msg.includes("User rejected") ? "Transaction rejected" : "Submission failed");
+      const friendly = e instanceof WrongChainError
+        ? e.message
+        : msg.includes("User rejected") ? "Transaction rejected" : "Submission failed";
+      // Replaces the "Submitting on-chain…" spinner when there is one, so it does not spin on forever.
+      toast.error(friendly, tid2 === undefined ? undefined : { id: tid2 });
       setStep("idle");
     }
   }

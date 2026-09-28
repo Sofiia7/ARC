@@ -7,6 +7,7 @@ import { decodeEventLog, type Hash } from "viem";
 import { toast } from "sonner";
 import { CONTRACTS, IDENTITY_REGISTRY_ABI } from "@/lib/contracts";
 import { appendAgentIdToCache } from "@/hooks/useMyAgentId";
+import { SITE_CHAIN_ID, useEnsureChain } from "@/hooks/useEnsureChain";
 import { pinText } from "@/lib/ipfs";
 
 // Bounded historical scan - a `fromBlock: 0n` getLogs is rejected by public RPCs.
@@ -21,6 +22,7 @@ export default function RegisterAgentPage() {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const ensureChain = useEnsureChain();
 
   const [name, setName]               = useState("");
   const [description, setDescription] = useState("");
@@ -77,6 +79,7 @@ export default function RegisterAgentPage() {
 
     try {
       setStep("pinning");
+      await ensureChain();
       const metadata = {
         name: trimmedName,
         description: description.trim(),
@@ -92,6 +95,7 @@ export default function RegisterAgentPage() {
         abi: IDENTITY_REGISTRY_ABI,
         functionName: "register",
         args: [metadataCid],
+        chainId: SITE_CHAIN_ID,
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       // waitForTransactionReceipt resolves for a reverted-but-mined tx too

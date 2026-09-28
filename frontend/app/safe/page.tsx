@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAccount, useChainId, usePublicClient, useSignTypedData, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useSignTypedData, useWriteContract } from "wagmi";
 import {
   concat, encodeFunctionData, encodePacked, hashTypedData, isHex, parseAbi, recoverTypedDataAddress, size,
   type Address, type Hex,
 } from "viem";
 import { CONTRACTS } from "@/lib/contracts";
 import { getActiveNetwork, getActiveNetworkName } from "@/lib/networks";
+import { SITE_CHAIN_ID, useEnsureChain } from "@/hooks/useEnsureChain";
 
 // ─── Arbitrator Safe handoff ─────────────────────────────────────────────────
 //
@@ -121,9 +122,10 @@ const CODE: React.CSSProperties = {
 
 export default function SafePage() {
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
   const publicClient = usePublicClient();
-  const { switchChainAsync } = useSwitchChain();
+  // useChainId() never sees a chain outside the config, so the old
+  // `chainId !== network.chainId` check skipped the switch for a wallet on Ethereum.
+  const ensureChain = useEnsureChain();
   const { signTypedDataAsync } = useSignTypedData();
   const { writeContractAsync } = useWriteContract();
 
@@ -199,7 +201,7 @@ export default function SafePage() {
     if (!built) return;
     setError(null); setMessage(null); setBusy("sign");
     try {
-      if (chainId !== network.chainId) await switchChainAsync({ chainId: network.chainId });
+      await ensureChain();
       const signature = await signTypedDataAsync({ domain: DOMAIN, types: SAFE_TX_TYPES, primaryType: "SafeTx", message: built.tx });
       const owner = await addSignature(signature);
       setMessage(`Signed by ${owner}.`);
@@ -234,12 +236,13 @@ export default function SafePage() {
     if (!built || !packedSignatures || !publicClient || !safeTxHash) return;
     setError(null); setMessage(null); setBusy("execute");
     try {
-      if (chainId !== network.chainId) await switchChainAsync({ chainId: network.chainId });
+      await ensureChain();
       await publicClient.readContract({ address: SAFE, abi: SAFE_ABI, functionName: "checkSignatures", args: [safeTxHash, "0x", packedSignatures] });
       const t = built.tx;
       const hash = await writeContractAsync({
         address: SAFE, abi: SAFE_ABI, functionName: "execTransaction",
         args: [t.to, t.value, t.data, t.operation, t.safeTxGas, t.baseGas, t.gasPrice, t.gasToken, t.refundReceiver, packedSignatures],
+        chainId: SITE_CHAIN_ID,
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       setMessage(`Executed in block ${receipt.blockNumber}: ${hash}`);

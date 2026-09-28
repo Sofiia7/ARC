@@ -76,7 +76,7 @@ export default function BountyPage() {
   const validJobId = /^\d+$/.test(jobId ?? "");
   const jobIdBig = validJobId ? BigInt(jobId) : 0n;
   const { meta, refetch } = useBountyMeta(jobIdBig);
-  const { send } = useTx();
+  const { send, busy } = useTx();
 
   // Real-time: any matching event invalidates the cached meta immediately.
   useBountyEvents(() => { void refetch(); }, jobIdBig);
@@ -391,10 +391,10 @@ export default function BountyPage() {
                 )}
                 <button
                   onClick={handleTake}
-                  disabled={!canSubmit}
+                  disabled={!canSubmit || busy}
                   className="btn btn-primary btn-big"
                 >
-                  {meta.agentOnly && !agentIdValid ? "Enter a valid Agent ID" : "Take this Bounty"}
+                  {busy ? "Waiting for your wallet…" : meta.agentOnly && !agentIdValid ? "Enter a valid Agent ID" : "Take this Bounty"}
                 </button>
               </>
             );

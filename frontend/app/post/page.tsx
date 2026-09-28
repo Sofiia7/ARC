@@ -13,6 +13,7 @@ import { ConnectWalletModal } from "@/components/ConnectWalletModal";
 import { PostTemplates } from "@/components/PostTemplates";
 import { PostExamples } from "@/components/PostExamples";
 import { getActiveNetwork, getActiveNetworkName } from "@/lib/networks";
+import { SITE_CHAIN_ID, WrongChainError, useEnsureChain } from "@/hooks/useEnsureChain";
 import {
   getPostTemplates, hasPlaceholder, firstPlaceholder, type PostTemplate,
 } from "@/lib/postTemplates";
@@ -27,6 +28,7 @@ export default function PostPage() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
+  const ensureChain = useEnsureChain();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [form, setForm] = useState({
@@ -135,6 +137,7 @@ export default function PostPage() {
 
     try {
       setStep("pinning");
+      await ensureChain();
       const cid = await pinText(form.description);
 
       setStep("approving");
@@ -143,6 +146,7 @@ export default function PostPage() {
         abi: ERC20_ABI,
         functionName: "approve",
         args: [CONTRACTS.BOUNTY_ADAPTER, rewardRaw],
+        chainId: SITE_CHAIN_ID,
       });
       if (publicClient) {
         await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -164,6 +168,7 @@ export default function PostPage() {
           humanOnly:    form.humanOnly,
           requireWorkerBond: form.requireWorkerBond,
         }],
+        chainId: SITE_CHAIN_ID,
       });
       if (publicClient) {
         await publicClient.waitForTransactionReceipt({ hash: receiptHash });
@@ -173,7 +178,11 @@ export default function PostPage() {
       setTimeout(() => router.push("/"), 1500);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(msg.includes("User rejected") ? "Transaction rejected" : `Failed: ${msg}`);
+      setError(
+        e instanceof WrongChainError ? e.message
+        : msg.includes("User rejected") ? "Transaction rejected"
+        : `Failed: ${msg}`,
+      );
       setStep("idle");
     }
   }
