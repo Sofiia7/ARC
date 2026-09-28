@@ -11,7 +11,8 @@
  *
  * Reads the job first and refuses if anything about it is off: wrong poster,
  * no submission yet, already resolved. Approving is irreversible and pays out,
- * so every check happens before the write.
+ * so every check happens before the write, and then it shows the submission
+ * link and waits for yes (or another score) before paying.
  *
  * The poster key is resolved exactly as agent-proof-of-life.ts resolves it -
  * POSTER_PRIVATE_KEY, else the network's own (BASE_MAINNET_DEPLOYER_KEY on
@@ -26,6 +27,7 @@
  * default 95.
  */
 
+import { createInterface } from "node:readline/promises";
 import { ArcBountyAgent } from "arcbounty-agent-sdk";
 import { createPublicClient, http, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -99,8 +101,24 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`submission: ${meta.submittedResultHash}`);
-  const res = await poster.approveBounty(jobId, score);
+  const link = meta.submittedResultHash.startsWith("ipfs://")
+    ? `https://gateway.pinata.cloud/ipfs/${meta.submittedResultHash.slice("ipfs://".length)}`
+    : meta.submittedResultHash;
+  console.log(`submission: ${link}`);
+  // Approving pays out and cannot be undone, and the Telegram alert for Base
+  // hands out this very command next to the work link, so it asks before
+  // paying: the review has to happen first, not after.
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = (await rl.question(
+    `\nType yes to approve with score ${score}, or another score 0-100, and release ${reward} to ${meta.assignedProvider} (Enter stops): `,
+  )).trim().toLowerCase();
+  rl.close();
+  const finalScore = answer === "yes" ? score : /^\d{1,3}$/.test(answer) && Number(answer) <= 100 ? Number(answer) : undefined;
+  if (finalScore === undefined) {
+    console.log("Stopped. Nothing sent.");
+    return;
+  }
+  const res = await poster.approveBounty(jobId, finalScore);
   console.log(`approve: ${res.hash}`);
   console.log(`${reward} released to ${meta.assignedProvider}, minus the 1% protocol fee.`);
 }
