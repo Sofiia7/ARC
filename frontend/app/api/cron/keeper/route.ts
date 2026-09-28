@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import {
-  createPublicClient, createWalletClient, http, type Address,
+  createPublicClient, createWalletClient, fallback, http, type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+import { getActiveNetwork } from "@/lib/networks";
 import { activeChain } from "@/lib/wagmi";
 
 // Plain !== leaks comparison time proportional to the matching prefix length.
@@ -92,6 +93,16 @@ type Meta = {
 const RECEIPT_TIMEOUT_MS = 60_000;
 
 export async function GET(req: NextRequest) {
+  try {
+    return await runKeeper(req);
+  } catch (e) {
+    // An RPC failure used to surface as an empty 500, which says nothing in
+    // the cron log. The message names the failing call, never a key.
+    return NextResponse.json({ error: errMsg(e) }, { status: 502 });
+  }
+}
+
+async function runKeeper(req: NextRequest) {
   const pk = process.env.KEEPER_PRIVATE_KEY;
   if (!pk) {
     return NextResponse.json(
@@ -123,21 +134,26 @@ export async function GET(req: NextRequest) {
 
   const chain = activeChain;
   const rpc = chain.rpcUrls.default.http[0];
-  const pub = createPublicClient({ chain, transport: http(rpc) });
+  // The same endpoints the site uses. On Base the first run died with a 500:
+  // mainnet.base.org answered "over rate limit" to six reads fired at once, so
+  // the reads below go one at a time and a refused request moves on to the
+  // network's fallback endpoint.
+  const urls = [rpc, ...(getActiveNetwork().fallbackRpcUrls ?? [])];
+  const transport = urls.length > 1 ? fallback(urls.map(u => http(u))) : http(rpc);
+  const pub = createPublicClient({ chain, transport });
   const account = privateKeyToAccount(pk as `0x${string}`);
-  const wallet = createWalletClient({ account, chain, transport: http(rpc) });
+  const wallet = createWalletClient({ account, chain, transport });
 
   const now = BigInt(Math.floor(Date.now() / 1000));
 
-  const [total, approvalTimeout, rejectionChallengeWindow, disputeResponseWindow, arbitratorTimeout, acExpiryBuffer] =
-    await Promise.all([
-      pub.readContract({ address: adapter, abi: BOUNTY_ADAPTER_ABI, functionName: "totalBounties" }) as Promise<bigint>,
-      pub.readContract({ address: adapter, abi: BOUNTY_ADAPTER_ABI, functionName: "APPROVAL_TIMEOUT" }) as Promise<bigint>,
-      pub.readContract({ address: adapter, abi: BOUNTY_ADAPTER_ABI, functionName: "REJECTION_CHALLENGE_WINDOW" }) as Promise<bigint>,
-      pub.readContract({ address: adapter, abi: BOUNTY_ADAPTER_ABI, functionName: "DISPUTE_RESPONSE_WINDOW" }) as Promise<bigint>,
-      pub.readContract({ address: adapter, abi: BOUNTY_ADAPTER_ABI, functionName: "ARBITRATOR_TIMEOUT" }) as Promise<bigint>,
-      pub.readContract({ address: adapter, abi: BOUNTY_ADAPTER_ABI, functionName: "AC_EXPIRY_BUFFER" }) as Promise<bigint>,
-    ]);
+  const readConstant = (functionName: string) =>
+    pub.readContract({ address: adapter, abi: BOUNTY_ADAPTER_ABI, functionName } as never) as Promise<bigint>;
+  const total = await readConstant("totalBounties");
+  const approvalTimeout = await readConstant("APPROVAL_TIMEOUT");
+  const rejectionChallengeWindow = await readConstant("REJECTION_CHALLENGE_WINDOW");
+  const disputeResponseWindow = await readConstant("DISPUTE_RESPONSE_WINDOW");
+  const arbitratorTimeout = await readConstant("ARBITRATOR_TIMEOUT");
+  const acExpiryBuffer = await readConstant("AC_EXPIRY_BUFFER");
 
   const expireCandidates: string[] = [];
   const autoApproveCandidates: string[] = [];
