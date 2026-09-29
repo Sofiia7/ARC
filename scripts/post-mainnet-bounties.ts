@@ -53,6 +53,32 @@ type Listing = {
 
 const ADAPTER_ADDRESS = "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D";
 
+// Judge Protocol's criteria for the Poster leads bounty, copied byte for byte
+// from https://github.com/Sofiia7/ARC/issues/4 (2026-09-29). Judge reads it
+// out of the fenced judge-criteria block in the pinned description.
+const POSTER_LEADS_CRITERIA = `{
+  "version": 1,
+  "passThreshold": 100,
+  "checks": [{
+    "kind": "json",
+    "params": { "shape": {
+      "type": "array", "minItems": 10, "maxItems": 10,
+      "uniqueBy": { "field": "website", "key": "domain" },
+      "items": {
+        "type": "object",
+        "required": ["name", "website", "network", "paid_work_evidence", "contact"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "website": { "type": "string", "format": "url" },
+          "network": { "enum": ["Arc", "Base"] },
+          "paid_work_evidence": { "type": "string", "format": "url" },
+          "contact": { "anyOf": [{ "type": "string", "format": "email" }, { "type": "string", "format": "url" }] }
+        }
+      }
+    } }
+  }]
+}`;
+
 const LISTINGS: Listing[] = [
   {
     title: "Translate the ArcBounty README to Spanish",
@@ -294,6 +320,32 @@ const LISTINGS: Listing[] = [
     rewardUsdc: 2,
     days: 7,
     humanOnly: true,
+  },
+  // Added 2026-09-29: the first Judge Protocol trial (Sofiia7/ARC#4). The
+  // judge-criteria block is vijaygopalbalasa's, checked against the acceptance
+  // written above it; Judge scores each submission after our own review.
+  {
+    title: "Poster leads: 10 teams on Arc or Base that pay for work",
+    body:
+      "Find 10 teams building on Arc or Base that pay for work (bounties, paid tasks or grants they have posted), " +
+      "so we can invite them to post on ArcBounty.\n\n" +
+      "Submit a JSON array of exactly 10 objects, one per team, with these fields:\n" +
+      "- `name`: the team or project name\n" +
+      "- `website`: their website URL\n" +
+      "- `network`: exactly \"Arc\" or \"Base\"\n" +
+      "- `paid_work_evidence`: URL of a page where they posted paid work (a bounty, a paid task or a grant)\n" +
+      "- `contact`: a plain email address or URL taken from their own website (not a mailto: link)\n\n" +
+      "No two entries with the same website domain. Every entry has to be a real team that really pays for work; " +
+      "a well-formed but padded or made-up list is rejected.\n\n" +
+      "**Submit:** paste only the JSON array into the submit box, with nothing before or after it: no Markdown, " +
+      "no link and no attached file. The submission is checked as raw JSON.\n\n" +
+      "This bounty is part of a trial with Judge Protocol (https://github.com/vijaygopalbalasa/judge-protocol): " +
+      "after our own review, Judge scores the submission against the block below, and anyone can recompute its verdict.\n\n" +
+      "```judge-criteria\n" + POSTER_LEADS_CRITERIA + "\n```",
+    category: "data",
+    tags: ["research", "leads", "json"],
+    rewardUsdc: 2,
+    days: 7,
   },
 ];
 
