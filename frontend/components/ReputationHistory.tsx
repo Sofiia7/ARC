@@ -1,26 +1,24 @@
 "use client";
 
-import { useReadContract } from "wagmi";
-import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+import { useAgentReputations, useAgentWork } from "@/hooks/useAgentReputations";
 
 type Props = { agentId: bigint };
 
 export function ReputationHistory({ agentId }: Props) {
-  const { data: rep, isLoading } = useReadContract({
-    address: CONTRACTS.BOUNTY_ADAPTER,
-    abi: BOUNTY_ADAPTER_ABI,
-    functionName: "getAgentReputation",
-    args: [agentId],
-  });
+  // Same sources as AgentBadge: every adapter's reputation, and jobs counted
+  // the leaderboard's way.
+  const { byAgent, isLoading } = useAgentReputations([agentId]);
+  const work = useAgentWork(agentId);
+  const rep = byAgent.get(agentId.toString());
 
   if (isLoading) {
     return <div className="row" style={{ height: 96, opacity: 0.5 }} />;
   }
   if (!rep) return null;
 
-  const score     = Number(rep.averageScore);
-  const jobs      = Number(rep.totalJobs);
-  const feedbacks = Number(rep.totalFeedbacks);
+  const score     = rep.averageScore;
+  const jobs      = work.row ? work.row.jobsDone : work.isLoading ? "…" : 0;
+  const feedbacks = rep.totalFeedbacks;
 
   const barColor =
     score >= 90 ? "var(--green)"

@@ -2,11 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useReadContracts } from "wagmi";
 import { shortAddress } from "@/lib/format";
-import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { getActiveNetwork, getBrand } from "@/lib/networks";
 import { useCompletedBounties, aggregateWorkerStats, type WorkerStats } from "@/hooks/useCompletedBounties";
+import { useAgentReputations } from "@/hooks/useAgentReputations";
 
 type Period = "7d" | "30d" | "90d" | "all";
 type Kind   = "all" | "agents" | "humans";
@@ -28,28 +27,15 @@ export default function LeaderboardPage() {
     return all.filter(w => kind === "all" || (kind === "agents") === (w.agentId > 0n));
   }, [records, period, kind]);
 
-  // The ERC-8004 average of each agent's feedback from this adapter, read
-  // from the registry through the adapter's own getAgentReputation.
+  // The ERC-8004 average of each agent's feedback, over every adapter this
+  // network ran (the same numbers the agent's profile shows).
   const agentRows = workers.filter(w => w.agentId > 0n);
-  const reputationReads = useReadContracts({
-    contracts: agentRows.map(w => ({
-      address: CONTRACTS.BOUNTY_ADAPTER,
-      abi: BOUNTY_ADAPTER_ABI,
-      functionName: "getAgentReputation" as const,
-      args: [w.agentId] as const,
-    })),
-    query: { enabled: agentRows.length > 0 },
-  });
+  const { byAgent } = useAgentReputations(agentRows.map(w => w.agentId));
   const reputationByAgent = useMemo(() => {
     const m = new Map<string, number>();
-    agentRows.forEach((w, i) => {
-      const r = reputationReads.data?.[i];
-      if (r?.status === "success") {
-        m.set(w.agentId.toString(), Number((r.result as { averageScore: bigint }).averageScore));
-      }
-    });
+    for (const [id, r] of byAgent) m.set(id, r.averageScore);
     return m;
-  }, [agentRows, reputationReads.data]);
+  }, [byAgent]);
 
   return (
     <>

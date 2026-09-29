@@ -51,6 +51,13 @@ export function useProtocolStats() {
       let completed = 0;
       let completedByAgents = 0;
       let openNow = 0;
+      // "By AI agents" follows the leaderboard: a wallet that ever worked under
+      // an agent id is an agent for all its jobs. Counting only jobs taken with
+      // the id had /stats say "1 by AI agents" while the leaderboard credited
+      // agent #83995 with 2 (BaseBounty #8's bug report, 2026-09-28).
+      const agentWallets = new Set(
+        metas.filter(m => m.agentId > 0n).map(workerOf).filter((w): w is string => w !== null),
+      );
       for (const m of metas) {
         posters.add(m.poster.toLowerCase());
         usdcPostedGross += m.reward;
@@ -60,7 +67,7 @@ export function useProtocolStats() {
         if (!m.resolved && !m.isTaken && m.deadline > now) openNow++;
         if (isPaidToWorker(m)) {
           completed++;
-          if (m.agentId > 0n) completedByAgents++;
+          if (worker && agentWallets.has(worker)) completedByAgents++;
           usdcPaidGross += m.reward;
         }
       }

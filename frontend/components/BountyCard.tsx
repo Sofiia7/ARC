@@ -89,13 +89,16 @@ function BountyTitle({ cid }: { cid: string }) {
   return <div className="bounty-title">{title}</div>;
 }
 
-export function BountyCard({ meta }: { meta: BountyMeta }) {
+/**
+ * `href={null}` renders the card without a link: a bounty that ran on an
+ * earlier adapter has no page on this site, which reads the current one.
+ */
+export function BountyCard({ meta, href }: { meta: BountyMeta; href?: string | null }) {
   const { label: timeLabel } = secondsToDeadline(meta.deadline);
   const catClass = KNOWN_CATS.has(meta.category) ? `cat-${meta.category}` : "cat-other";
   const status = statusFor(meta);
 
-  return (
-    <Link href={`/bounty/${meta.jobId}`} style={{ textDecoration: "none", color: "inherit" }}>
+  const card = (
       <article className="row">
         <div>
           <div className="top-line">
@@ -122,6 +125,11 @@ export function BountyCard({ meta }: { meta: BountyMeta }) {
           <div className="time">{timeLabel}</div>
         </div>
       </article>
+  );
+  if (href === null) return card;
+  return (
+    <Link href={href ?? `/bounty/${meta.jobId}`} style={{ textDecoration: "none", color: "inherit" }}>
+      {card}
     </Link>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { usePublicClient } from "wagmi";
+import type { Address } from "viem";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI, BOUNTY_ADAPTER_DEPLOY_BLOCK } from "@/lib/contracts";
 import { getLogsChunked } from "@/lib/chainLogs";
 import { fetchAllBountyMetas, isPaidToWorker, workerOf } from "@/lib/bountyMetas";
@@ -14,6 +15,7 @@ export type CompletedRecord = {
   reward:          bigint;          // gross reward (6-decimal USDC)
   submittedAt:     bigint;          // unix seconds
   reputationScore: bigint | null;   // the score the payout wrote; null when the log scan failed
+  adapter:         Address;         // the adapter that ran it (an earlier one for history)
 };
 
 const BOUNTY_COMPLETED = BOUNTY_ADAPTER_ABI.find(
@@ -27,12 +29,12 @@ const BOUNTY_COMPLETED = BOUNTY_ADAPTER_ABI.find(
  * joined in from BountyCompleted logs when that scan works and left null when
  * it does not.
  */
-export function useCompletedBounties() {
+export function useCompletedBounties({ enabled = true }: { enabled?: boolean } = {}) {
   const publicClient = usePublicClient();
 
   return useQuery<CompletedRecord[]>({
     queryKey: ["completed-bounties", CONTRACTS.BOUNTY_ADAPTER, "with-history"],
-    enabled: !!publicClient,
+    enabled: enabled && !!publicClient,
     staleTime: 60_000,
     queryFn: async () => {
       if (!publicClient) return [];
@@ -63,6 +65,7 @@ export function useCompletedBounties() {
         reward:          m.reward,
         submittedAt:     m.submittedAt,
         reputationScore: scores.get(m.jobId.toString()) ?? null,
+        adapter:         m.adapter,
       }));
     },
   });

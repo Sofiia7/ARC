@@ -23,7 +23,10 @@ const BATCH = 200;
  */
 export const HISTORY_ADAPTERS: readonly Address[] = getActiveNetwork().legacyBountyAdapters ?? [];
 
-async function metasOf(client: PublicClient, address: Address): Promise<BountyMeta[]> {
+/** A meta together with the adapter that holds it. */
+export type SourcedMeta = BountyMeta & { adapter: Address };
+
+async function metasOf(client: PublicClient, address: Address): Promise<SourcedMeta[]> {
   const total = (await client.readContract({
     address, abi: BOUNTY_ADAPTER_ABI, functionName: "totalBounties",
   })) as bigint;
@@ -53,7 +56,7 @@ async function metasOf(client: PublicClient, address: Address): Promise<BountyMe
     });
     metas.push(...(batch as unknown as BountyMeta[]));
   }
-  return metas;
+  return metas.map(m => ({ ...m, adapter: address }));
 }
 
 /**
@@ -65,11 +68,11 @@ async function metasOf(client: PublicClient, address: Address): Promise<BountyMe
 export async function fetchAllBountyMetas(
   client: PublicClient,
   { withHistory = false }: { withHistory?: boolean } = {},
-): Promise<BountyMeta[]> {
+): Promise<SourcedMeta[]> {
   const adapters = [CONTRACTS.BOUNTY_ADAPTER, ...(withHistory ? HISTORY_ADAPTERS : [])];
   // One adapter after another: in parallel the extra reads were exactly what
   // tipped mainnet.base.org into "over rate limit" on a single page load.
-  const perAdapter: BountyMeta[][] = [];
+  const perAdapter: SourcedMeta[][] = [];
   for (const a of adapters) perAdapter.push(await metasOf(client, a));
   const seen = new Set<string>();
   return perAdapter.flat().filter(m => {

@@ -1,7 +1,6 @@
 "use client";
 
-import { useReadContract } from "wagmi";
-import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
+import { useAgentReputations, useAgentWork } from "@/hooks/useAgentReputations";
 
 type Props = {
   agentId: bigint;
@@ -16,29 +15,21 @@ function scoreClass(score: number | null): string {
 }
 
 export function AgentBadge({ agentId, compact = false }: Props) {
-  const { data: rep, isError: repError } = useReadContract({
-    address: CONTRACTS.BOUNTY_ADAPTER,
-    abi: BOUNTY_ADAPTER_ABI,
-    functionName: "getAgentReputation",
-    args: [agentId],
-  });
-  // V4_DESIGN_ANTI_SYBIL.md Proposal B1/B2 - count of distinct posters who've
-  // actually paid this agent for completed work. The raw ERC-8004 score above
-  // can be farmed for cents at the $1 minimum reward by one alt account;
-  // this number costs N real funded wallets to fake N.
-  const { data: uniquePosters } = useReadContract({
-    address: CONTRACTS.BOUNTY_ADAPTER,
-    abi: BOUNTY_ADAPTER_ABI,
-    functionName: "uniquePosterCount",
-    args: [agentId],
-    query: { enabled: agentId !== 0n },
-  });
+  // Score from every adapter this network ran; jobs and unique posters counted
+  // the leaderboard's way, so the badge and the agent's leaderboard row agree.
+  // Unique posters stay the anti-Sybil signal of V4_DESIGN_ANTI_SYBIL.md B1/B2:
+  // N of them cost N real funded wallets to fake.
+  const { byAgent, isError } = useAgentReputations(agentId > 0n ? [agentId] : []);
+  const work = useAgentWork(agentId, { enabled: !compact });
+  const rep = byAgent.get(agentId.toString());
+  const repError = isError && !rep;
 
   if (agentId === 0n) return null;
 
-  const score = rep ? Number(rep.averageScore) : null;
-  const jobs  = rep ? Number(rep.totalJobs)    : null;
-  const unique = uniquePosters !== undefined ? Number(uniquePosters) : null;
+  const score = rep ? rep.averageScore : null;
+  const loaded = !work.isLoading;
+  const jobs   = work.row ? work.row.jobsDone : loaded ? 0 : null;
+  const unique = work.row ? work.row.uniquePosters : loaded ? 0 : null;
 
   if (compact) {
     return (
@@ -66,7 +57,7 @@ export function AgentBadge({ agentId, compact = false }: Props) {
                 Score: <span className={`score ${scoreClass(score)}`}>{score}/100</span>
               </span>
               <span className="dot-sep">·</span>
-              <span style={{ color: "var(--ink-mute)" }}>{jobs} jobs completed</span>
+              <span style={{ color: "var(--ink-mute)" }}>{jobs ?? "…"} jobs completed</span>
               {unique !== null && (
                 <>
                   <span className="dot-sep">·</span>
