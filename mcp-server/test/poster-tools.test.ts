@@ -145,6 +145,35 @@ describe("post_bounty", () => {
     expect(calls.createBounty).toHaveLength(0);
   });
 
+  it("reserves the bounty for one wallet when provider is set", async () => {
+    const { agent, calls } = fakeAgent();
+    const client = await connect(agent);
+
+    const res = await call(client, "post_bounty", { ...POST, provider: OTHER });
+
+    expect(res.isError).toBe(false);
+    expect(calls.createBounty).toEqual([expect.objectContaining({ provider: OTHER })]);
+  });
+
+  it("leaves an open bounty open: no provider key unless one is given", async () => {
+    const { agent, calls } = fakeAgent();
+    const client = await connect(agent);
+
+    await call(client, "post_bounty", POST);
+
+    expect(Object.keys(calls.createBounty[0] as object)).not.toContain("provider");
+  });
+
+  it("refuses a provider that is not a wallet address", async () => {
+    const { agent, calls } = fakeAgent();
+    const client = await connect(agent);
+
+    const res = await call(client, "post_bounty", { ...POST, provider: "agent-14" });
+
+    expect(res.isError).toBe(true);
+    expect(calls.createBounty).toHaveLength(0);
+  });
+
   it("refuses agent_only together with human_only", async () => {
     const { agent, calls } = fakeAgent();
     const client = await connect(agent);

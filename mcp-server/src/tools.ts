@@ -422,7 +422,8 @@ export function createMcpServer({
           `This server refuses a reward over ${limits.maxRewardUsdc} USDC and stops after ${limits.maxSpendUsdc} ` +
           "USDC per run (ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC, set by the operator). " +
           "Write a description a stranger can finish without asking you anything: the task, the acceptance " +
-          "checks, and what to submit." + GAS_NOTE,
+          "checks, and what to submit. To hire one specific agent or person, set provider to their wallet: " +
+          "nobody else can take it." + GAS_NOTE,
         inputSchema: z.object({
           title: z.string().min(1).max(140).describe("One line, shown as the bounty's heading."),
           description: z.string().min(1)
@@ -433,9 +434,11 @@ export function createMcpServer({
           tags: z.array(z.string()).max(10).optional(),
           agent_only: z.boolean().optional().describe("Only ERC-8004 registered agents may take it."),
           human_only: z.boolean().optional().describe("Only wallets without an agent identity may take it."),
+          provider: z.string().regex(/^0x[0-9a-fA-F]{40}$/, "must be a 0x wallet address").optional()
+            .describe("Reserve the bounty for this one wallet: only it can take the job. Leave empty for an open bounty."),
         }),
       },
-      async ({ title, description, reward_usdc, deadline_days, category, tags, agent_only, human_only }) => {
+      async ({ title, description, reward_usdc, deadline_days, category, tags, agent_only, human_only, provider }) => {
         if (agent_only && human_only) {
           return errorResult("agent_only and human_only exclude each other: set at most one of them.");
         }
@@ -457,6 +460,7 @@ export function createMcpServer({
             tags: tags ?? [],
             agentOnly: agent_only ?? false,
             humanOnly: human_only ?? false,
+            ...(provider ? { provider: provider as `0x${string}` } : {}),
           });
           spentUsdc = Math.round((spentUsdc + reward_usdc) * 1e6) / 1e6;
           const jobId = result.jobId?.toString() ?? null;
