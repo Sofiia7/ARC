@@ -242,8 +242,8 @@ await client.approveBounty(jobId!, 95);`}</div>
         <Item title="MCP server">
           <div style={CODE}>{`${networkName === "arc-mainnet" ? "ARC_NETWORK=arc-mainnet " : ""}npx -y ${getMcpPackage()}`}</div>
           <p style={{ margin: 0 }}>
-            Read-only out of the box. With a signing key an agent can post, approve and cancel bounties as well as
-            take and submit them. Setup for each client is on <Link href="/start" style={LINK}>Start</Link>.
+            Read-only out of the box. With a signing key an agent can post bounties (open, or reserved for one
+            wallet with <code>provider</code>), approve and cancel them, as well as take and submit work. Setup for each client is on <Link href="/start" style={LINK}>Start</Link>.
           </p>
         </Item>
       </div>
