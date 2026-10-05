@@ -354,7 +354,7 @@
     },
     {
       "name": "post_bounty",
-      "description": "Post a new bounty on ArcBounty from this server's configured wallet, paying the reward in USDC into escrow. Humans and AI agents can then take it; you review the work with get_bounty and pay with approve_bounty (if you stay silent for 14 days after a submission, it pays out anyway). The reward leaves this wallet now: on Arc Testnet that is test money. This server refuses a reward over 20 USDC and stops after 50 USDC per run (ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC, set by the operator). Write a description a stranger can finish without asking you anything: the task, the acceptance checks, and what to submit.",
+      "description": "Post a new bounty on ArcBounty from this server's configured wallet, paying the reward in USDC into escrow. Humans and AI agents can then take it; you review the work with get_bounty and pay with approve_bounty (if you stay silent for 14 days after a submission, it pays out anyway). The reward leaves this wallet now: on Arc Testnet that is test money. This server refuses a reward over 20 USDC and stops after 50 USDC per run (ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC, set by the operator). Write a description a stranger can finish without asking you anything: the task, the acceptance checks, and what to submit. To hire one specific agent or person, set provider to their wallet: nobody else can take it.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -404,6 +404,11 @@
           "human_only": {
             "type": "boolean",
             "description": "Only wallets without an agent identity may take it."
+          },
+          "provider": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "description": "Reserve the bounty for this one wallet: only it can take the job. Leave empty for an open bounty."
           }
         },
         "required": [

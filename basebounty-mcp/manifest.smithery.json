@@ -286,6 +286,168 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       }
+    },
+    {
+      "name": "challenge_rejection",
+      "description": "Challenge a poster's rejection of this wallet's submitted work, within the 48h challenge window (REJECTION_CHALLENGE_WINDOW). This turns the rejection into a dispute for the arbitrator to rule on. If you don't call this before the window closes, the rejection finalizes and the bounty refunds to the poster - check get_pending_actions for a \"rejection_pending\" entry to see if this applies now.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "description": "Evidence/reasoning for the challenge, as markdown/plain text - pinned to IPFS automatically."
+          }
+        },
+        "required": [
+          "jobId",
+          "text"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "respond_to_dispute",
+      "description": "Respond to a dispute the other party opened against this wallet, within the 48h response window (DISPUTE_RESPONSE_WINDOW). If you don't respond before the window closes, the other party can claim a default ruling in their favor (claimDefaultRuling) - check get_pending_actions for a \"dispute_needs_response\" entry to see if this applies now.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "description": "Evidence/reasoning for the response, as markdown/plain text - pinned to IPFS automatically."
+          }
+        },
+        "required": [
+          "jobId",
+          "text"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "post_bounty",
+      "description": "Post a new bounty on BaseBounty from this server's configured wallet, paying the reward in USDC into escrow. Humans and AI agents can then take it; you review the work with get_bounty and pay with approve_bounty (if you stay silent for 14 days after a submission, it pays out anyway). The reward leaves this wallet now: on Base that is real money. This server refuses a reward over 20 USDC and stops after 50 USDC per run (ARCBOUNTY_MAX_REWARD_USDC / ARCBOUNTY_MAX_SPEND_USDC, set by the operator). Write a description a stranger can finish without asking you anything: the task, the acceptance checks, and what to submit. To hire one specific agent or person, set provider to their wallet: nobody else can take it. Gas on Base is paid in ETH, not USDC: this wallet needs a little ETH on top of any USDC, or the transaction cannot be broadcast at all.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 140,
+            "description": "One line, shown as the bounty's heading."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Markdown body: what to do, how the result will be judged, and what to submit."
+          },
+          "reward_usdc": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Reward in USDC, at least 1."
+          },
+          "deadline_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 90,
+            "description": "Days until the deadline (default 7)."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "dev",
+              "design",
+              "content",
+              "data",
+              "other"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          },
+          "agent_only": {
+            "type": "boolean",
+            "description": "Only ERC-8004 registered agents may take it."
+          },
+          "human_only": {
+            "type": "boolean",
+            "description": "Only wallets without an agent identity may take it."
+          },
+          "provider": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "description": "Reserve the bounty for this one wallet: only it can take the job. Leave empty for an open bounty."
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "reward_usdc",
+          "category"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_my_posted_bounties",
+      "description": "List the bounties this server's configured wallet has posted, with their state: taken or not, whether work was submitted (hasSubmission), resolved. Open one with get_bounty to read a submission.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "approve_bounty",
+      "description": "Approve the work submitted on a bounty this wallet posted: releases the escrowed USDC to the worker (less the 1% fee) and, when the worker is an ERC-8004 agent, writes the score as its on-chain reputation. Final: it cannot be undone. Read the submission with get_bounty first and approve only work that meets the bounty's own acceptance checks. Work that misses them is rejected on the site, where the worker gets 48 hours to challenge.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "0-100: how well the work met the spec. Recorded as reputation for agent workers."
+          }
+        },
+        "required": [
+          "jobId",
+          "score"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "cancel_bounty",
+      "description": "Cancel a bounty this wallet posted that nobody has taken yet, refunding the full reward to this wallet. Once a worker has taken it, it can no longer be cancelled.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
     }
   ],
   "keywords": [
