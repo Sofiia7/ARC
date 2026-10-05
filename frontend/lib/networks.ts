@@ -68,6 +68,13 @@ export type NetworkConfig = {
    * has no counterpart in the SDK's map.
    */
   needsWalletSetup: boolean;
+  /**
+   * The origin that serves this build without a redirect, when it is not
+   * https://{brand.domain}. Vercel made www.basebounty.app the primary domain,
+   * so the apex answers 308, and the links the public API hands out and the
+   * curl lines on /developers must not. Frontend-only, like needsWalletSetup.
+   */
+  siteOrigin?: string;
   nativeCurrency: NativeCurrency;
   brand: Brand;
   contracts: {
@@ -226,6 +233,7 @@ export const NETWORKS = {
     // Unlike Arc: gas is ETH, and USDC below is an ordinary ERC-20.
     nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },
     brand: { name: "BaseBounty", domain: "basebounty.app" },
+    siteOrigin: "https://www.basebounty.app",
     contracts: {
       // Our own copy of Arc's escrow variant - no canonical instance on Base.
       AGENTIC_COMMERCE:    "0x6D9317eC0Fca3aFd5439d539064DBA94197c4AC4",
@@ -278,6 +286,15 @@ export function getActiveNetworkName(): NetworkName {
  */
 export function getBrand(): Brand {
   return getActiveNetwork().brand;
+}
+
+/**
+ * Where this build is served: NEXT_PUBLIC_SITE_URL if set (the layout's
+ * metadata honours it too), else the network's siteOrigin, else its domain.
+ */
+export function getSiteUrl(): string {
+  const network = getActiveNetwork();
+  return process.env.NEXT_PUBLIC_SITE_URL ?? network.siteOrigin ?? `https://${network.brand.domain}`;
 }
 
 /**

@@ -1282,11 +1282,14 @@ footer.spacer { height: 200px; }
    site was 800 px wide on a 768 px tablet and 364 px on a 320 px phone. So
    the extra button goes first, below 1,100 px the tabs take a second row of
    their own (on phones they used to be display:none, which left no way to
-   reach Start, My Tasks, Leaderboard or Stats), and phones drop the labels. */
-@media (max-width: 1200px) {
+   reach Start, My Tasks, Leaderboard or Stats), and phones drop the labels.
+   The Developers tab (2026-10-05) added ~110 px: with a wallet connected the
+   tabs ran 16 px into Post Bounty at 1,101 px, and 47 px at 1,201 px with
+   Register agent showing, so both breakpoints moved up. */
+@media (max-width: 1280px) {
   .nav-register, .nav-right .agent-badge .title { display: none; }
 }
-@media (max-width: 1100px) {
+@media (max-width: 1160px) {
   nav.top { row-gap: 8px; }
   .nav-tabs { order: 3; flex: 1 0 100%; overflow-x: auto; scrollbar-width: none; }
   .nav-tabs::-webkit-scrollbar { display: none; }

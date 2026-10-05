@@ -16,6 +16,7 @@ const NAV = [
   { href: "/my",          label: "My Tasks" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/stats",       label: "Stats" },
+  { href: "/developers",  label: "Developers" },
 ];
 
 function isActive(pathname: string | null, href: string): boolean {
