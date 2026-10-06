@@ -43,16 +43,20 @@ const NETWORKS = {
     brand: "BaseBounty",
     adapter: "0x32c215908a46Eb5D34e4E5146c99891eD3014Fee", // V4.7 since 2026-09-28 (V4.6 was 0x9b0B…4c2c)
     poster: "0x6abc2b575ec66701c17dad96dda97f22b837849e",
-    // Two public endpoints: base.org rate-limits a catch-up burst, publicnode
-    // serves the same 1,000-block range for recent blocks and takes over.
+    // Two public endpoints: base.org rate-limits a catch-up burst and
+    // publicnode takes over, but only for recent blocks: since 2026-10-05 it
+    // answers "Archive requests require a personal token" further back than
+    // a few hours (5,000 blocks served, 20,000 refused, checked 2026-10-06).
     rpcs: [process.env.BASE_MAINNET_RPC_URL, "https://mainnet.base.org", "https://base-rpc.publicnode.com"],
     site: "https://basebounty.app",
     tx: "https://basescan.org/tx/",
     // mainnet.base.org tightened eth_getLogs from 2,000 blocks to 1,000 on
-    // 2026-09-22 and every Base run failed until this came down with it.
-    chunk: 1_000n,
+    // 2026-09-22, then to "a 500 range" (toBlock - fromBlock <= 500) by
+    // 2026-10-05, and every Base run failed until this came down with it.
+    // A chunk of 500 asks for toBlock - fromBlock = 499.
+    chunk: 500n,
     firstRunLookback: 900n, // ~30 minutes at 2 s blocks
-    maxCatchUp: 43_200n, // ~1 day, 44 requests on the public RPC
+    maxCatchUp: 43_200n, // ~1 day, 87 requests on the public RPC
     payCommand: jobId => `cd /d C:\\Server\\ARC\\scripts && set "ARC_NETWORK=base-mainnet" && set "ALLOW_MAINNET=yes" && npx tsx --env-file=..\\.env approve-bounty.ts ${jobId} 95`,
   },
 };

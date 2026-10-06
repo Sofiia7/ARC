@@ -166,9 +166,9 @@ export const NETWORKS = {
     caip2: "eip155:8453",
     rpcUrl: "https://mainnet.base.org",
     explorerUrl: "https://basescan.org",
-    // Etherscan V2: one multichain endpoint keyed by `chainid`, not a
-    // per-chain host (see docs/INTEGRATION_NOTES.md).
-    explorerApiUrl: "https://api.etherscan.io/v2/api?chainid=8453",
+    // Blockscout's Etherscan-style API, not Etherscan V2: in 2026-10 the
+    // Etherscan free plan stopped serving Base. Mirrors frontend/lib/networks.ts.
+    explorerApiUrl: "https://base.blockscout.com/api",
     explorerName: "Basescan",
     // Unlike Arc: gas is ETH, and USDC below is an ordinary ERC-20.
     nativeCurrency: { symbol: "ETH", decimals: 18, isUsdc: false },

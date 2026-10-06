@@ -225,8 +225,13 @@ export const NETWORKS = {
     rpcUrl: process.env.NEXT_PUBLIC_BASE_MAINNET_RPC_URL ?? "https://mainnet.base.org",
     fallbackRpcUrls: ["https://base-rpc.publicnode.com"],
     explorerUrl: "https://basescan.org",
-    // Etherscan V2: one multichain endpoint keyed by `chainid`.
-    explorerApiUrl: "https://api.etherscan.io/v2/api?chainid=8453",
+    // Blockscout's Etherscan-style API, not Etherscan's: since 2026-10 the
+    // Etherscan V2 free plan answers "Free API access is not supported for
+    // this chain" for Base, and the RPC fallback cannot cover for it (base.org
+    // caps eth_getLogs at 500 blocks, publicnode refuses older blocks without
+    // a token). base.blockscout.com serves logs keyless with CORS open
+    // (checked 2026-10-06). Links still go to Basescan (explorerUrl).
+    explorerApiUrl: "https://base.blockscout.com/api",
     explorerName: "Basescan",
     // Every wallet has shipped Base for years.
     needsWalletSetup: false,

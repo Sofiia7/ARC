@@ -46,14 +46,14 @@ function activeNetworkOrigins() {
 
   if (network === "base-mainnet") {
     const rpcUrl = readEnv("NEXT_PUBLIC_BASE_MAINNET_RPC_URL") ?? "https://mainnet.base.org";
-    // Same split as Base Sepolia: Basescan serves the UI, the Etherscan V2 API
-    // lives on its own host, and the CSP must allow both.
+    // Basescan serves the UI; logs come from Blockscout's API on its own host
+    // (lib/networks.ts explains why not Etherscan), and the CSP must allow both.
     return {
       rpc: originOf(rpcUrl),
       // lib/networks.ts fallbackRpcUrls: the site moves here when base.org rate-limits.
       rpcFallbacks: [originOf("https://base-rpc.publicnode.com")],
       explorer: originOf("https://basescan.org"),
-      explorerApi: originOf("https://api.etherscan.io"),
+      explorerApi: originOf("https://base.blockscout.com"),
     };
   }
 
