@@ -6,7 +6,8 @@
   "scripts": {
     "codegen": "envio codegen",
     "dev": "envio dev",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/events.test.ts"
   },
   "dependencies": {
     "envio": "3.14.0",

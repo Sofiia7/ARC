@@ -6,10 +6,12 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src",
+    "test",
     "envio-env.d.ts"
   ]
 }
