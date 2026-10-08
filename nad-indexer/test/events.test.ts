@@ -28,7 +28,7 @@ test('mirror invalidation clears one source while retaining the other',async()=>
 test('two events in one transaction retain distinct provenance and exact bigint payloads',async()=>{
   const indexer=createTestIndexer(),at=70000000;
   await indexer.process({chains:{10143:{startBlock:at,endBlock:at+1,simulate:[
-    {contract:'Nad',event:'ContestAwarded',block:{number:at,timestamp:1800000000},transaction:{hash},logIndex:2,params:{jobId:10n,entryIndex:0,amount:9007199254740993n,scored:true,score:91}},
+    {contract:'Nad',event:'ContestAwarded',block:{number:at,timestamp:1800000000},transaction:{hash},logIndex:2,params:{jobId:10n,entryIndex:0n,amount:9007199254740993n,scored:true,score:91n}},
     {contract:'Nad',event:'ContestSettled',block:{number:at,timestamp:1800000000},transaction:{hash},logIndex:3,params:{jobId:10n,scored:true,escrowRecovery:false}},
   ]}}});
   const events=await indexer.BountyEvent.getAll();assert.equal(events.length,2);
