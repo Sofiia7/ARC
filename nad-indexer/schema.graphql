@@ -1,0 +1,39 @@
+type BountyEvent @crossChain {
+  id: ID!
+  chainId: Int! @index
+  adapter: String! @index
+  jobId: BigInt! @index
+  kind: String! @index
+  blockNumber: Int! @index
+  timestamp: Int!
+  logIndex: Int!
+  transactionHash: String!
+  payload: String!
+}
+type IdentityTransfer @crossChain {
+  id: ID!
+  chainId: Int! @index
+  agentId: BigInt! @index
+  previousOwner: String!
+  owner: String! @index
+  blockNumber: Int! @index
+  logIndex: Int!
+}
+type Identity @crossChain {
+  id: ID!
+  chainId: Int! @index
+  agentId: BigInt! @index
+  owner: String! @index
+  sourceBlock: Int!
+}
+type MirrorRecord @crossChain {
+  id: ID!
+  chainId: Int! @index
+  mirror: String!
+  identityOwner: String! @index
+  sourceChain: BigInt!
+  sourceBlock: BigInt!
+  paidJobs: BigInt!
+  scoreSum: BigInt!
+  valid: Boolean!
+}

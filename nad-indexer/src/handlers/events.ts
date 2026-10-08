@@ -1,0 +1,138 @@
+import { indexer } from "envio";
+const encode=(value:unknown)=>JSON.stringify(value,(_,v)=>typeof v==='bigint'?String(v):v);
+indexer.onEvent({contract:'Legacy',event:'ArbitratorTimeoutClaimed'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ArbitratorTimeoutClaimed',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'BountyCancelled'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyCancelled',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'BountyCompleted'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyCompleted',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'BountyCreated'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyCreated',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'BountyExpired'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyExpired',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'BountyTaken'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyTaken',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'DisputeRaised'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'DisputeRaised',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'DisputeResolved'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'DisputeResolved',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'DisputeResponded'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'DisputeResponded',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'ExternalRefundReconciled'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ExternalRefundReconciled',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'RejectionChallenged'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionChallenged',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'RejectionFinalized'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionFinalized',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'RejectionProposed'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionProposed',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'RejectionWithdrawn'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionWithdrawn',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Legacy',event:'WorkSubmitted'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'WorkSubmitted',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ArbitratorTimeoutClaimed'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ArbitratorTimeoutClaimed',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'BountyCancelled'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyCancelled',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'BountyCompleted'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyCompleted',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'BountyCreated'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyCreated',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'BountyExpired'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyExpired',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'BountyTaken'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'BountyTaken',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestArbitratorTimeout'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestArbitratorTimeout',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestAwarded'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestAwarded',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestChallengeResponded'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestChallengeResponded',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestChallenged'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestChallenged',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestClosed'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestClosed',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestCreated'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestCreated',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestEntered'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestEntered',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestEntryReplaced'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestEntryReplaced',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestRefunded'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestRefunded',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestRejected'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestRejected',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ContestSettled'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ContestSettled',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'DisputeRaised'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'DisputeRaised',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'DisputeResolved'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'DisputeResolved',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'DisputeResponded'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'DisputeResponded',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'ExternalRefundReconciled'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'ExternalRefundReconciled',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'RejectionChallenged'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionChallenged',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'RejectionFinalized'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionFinalized',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'RejectionProposed'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionProposed',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'RejectionWithdrawn'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'RejectionWithdrawn',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Nad',event:'WorkSubmitted'},async({event,context})=>{
+  context.BountyEvent.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,adapter:event.srcAddress.toLowerCase(),jobId:event.params.jobId,kind:'WorkSubmitted',blockNumber:event.block.number,timestamp:event.block.timestamp,logIndex:event.logIndex,transactionHash:event.transaction.hash,payload:encode(event.params)});
+});
+indexer.onEvent({contract:'Identity',event:'Transfer'},async({event,context})=>{
+  const p=event.params,id=`${event.chainId}:${p.tokenId}`;
+  context.IdentityTransfer.set({id:`${event.chainId}:${event.transaction.hash}:${event.logIndex}`,chainId:event.chainId,agentId:p.tokenId,previousOwner:p.from.toLowerCase(),owner:p.to.toLowerCase(),blockNumber:event.block.number,logIndex:event.logIndex});
+  context.Identity.set({id,chainId:event.chainId,agentId:p.tokenId,owner:p.to.toLowerCase(),sourceBlock:event.block.number});
+});
+indexer.onEvent({contract:'Mirror',event:'ReputationUpdated'},async({event,context})=>{
+  const p=event.params;context.MirrorRecord.set({id:`${event.chainId}:${event.srcAddress.toLowerCase()}:${p.identityOwner.toLowerCase()}:${p.sourceChain}`,chainId:event.chainId,mirror:event.srcAddress.toLowerCase(),identityOwner:p.identityOwner.toLowerCase(),sourceChain:p.sourceChain,sourceBlock:p.sourceBlock,paidJobs:p.paidJobs,scoreSum:p.scoreSum,valid:true});
+});
+indexer.onEvent({contract:'Mirror',event:'RecordInvalidated'},async({event,context})=>{
+  const p=event.params,id=`${event.chainId}:${event.srcAddress.toLowerCase()}:${p.identityOwner.toLowerCase()}:${p.sourceChain}`;
+  const previous=await context.MirrorRecord.get(id);
+  if(previous)context.MirrorRecord.set({...previous,sourceBlock:0n,paidJobs:0n,scoreSum:0n,valid:false});
+});

@@ -1,0 +1,23 @@
+{
+  "name": "nadbounty-indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "codegen": "envio codegen",
+    "dev": "envio dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "envio": "3.14.0",
+    "viem": "^2.55.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^24"
+  },
+  "overrides": {
+    "express": "^4.22.3",
+    "viem": "^2.55.0"
+  }
+}
