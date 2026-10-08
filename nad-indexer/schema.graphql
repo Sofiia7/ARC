@@ -1,4 +1,4 @@
-type BountyEvent {
+type BountyEvent @crossChain {
   id: ID!
   chainId: Int! @index
   adapter: String! @index
@@ -10,7 +10,7 @@ type BountyEvent {
   transactionHash: String!
   payload: String!
 }
-type IdentityTransfer {
+type IdentityTransfer @crossChain {
   id: ID!
   chainId: Int! @index
   agentId: BigInt! @index
@@ -19,14 +19,14 @@ type IdentityTransfer {
   blockNumber: Int! @index
   logIndex: Int!
 }
-type Identity {
+type Identity @crossChain {
   id: ID!
   chainId: Int! @index
   agentId: BigInt! @index
   owner: String! @index
   sourceBlock: Int!
 }
-type MirrorRecord {
+type MirrorRecord @crossChain {
   id: ID!
   chainId: Int! @index
   mirror: String!
