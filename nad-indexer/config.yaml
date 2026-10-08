@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: nadbounty
+handlers: src/handlers
+disable_default_cross_chain: true
+field_selection:
+  transaction_fields: [hash]
+contracts:
+  - name: Legacy
+    events:
+      - event: "ArbitratorTimeoutClaimed(uint256 indexed jobId, uint256 posterAmount, uint256 providerAmount)"
+      - event: "BountyCancelled(uint256 indexed jobId, string reason)"
+      - event: "BountyCompleted(uint256 indexed jobId, uint256 agentId, uint256 reputationScore)"
+      - event: "BountyCreated(uint256 indexed jobId, address indexed poster, uint256 reward, string category, uint256 deadline)"
+      - event: "BountyExpired(uint256 indexed jobId)"
+      - event: "BountyTaken(uint256 indexed jobId, address indexed provider, uint256 agentId)"
+      - event: "DisputeRaised(uint256 indexed jobId, address indexed initiator, string reasonHash)"
+      - event: "DisputeResolved(uint256 indexed jobId, bool payProvider, string rulingHash, bool defaultRuling)"
+      - event: "DisputeResponded(uint256 indexed jobId, address indexed responder, string responseHash)"
+      - event: "ExternalRefundReconciled(uint256 indexed jobId, address indexed poster, address indexed worker, uint256 posterAmount, uint256 workerAmount)"
+      - event: "RejectionChallenged(uint256 indexed jobId, address indexed worker, string reasonHash)"
+      - event: "RejectionFinalized(uint256 indexed jobId)"
+      - event: "RejectionProposed(uint256 indexed jobId, address indexed poster, string reasonHash)"
+      - event: "RejectionWithdrawn(uint256 indexed jobId)"
+      - event: "WorkSubmitted(uint256 indexed jobId, address indexed provider, string ipfsResultHash)"
+  - name: Nad
+    events:
+      - event: "ArbitratorTimeoutClaimed(uint256 indexed jobId, uint256 posterAmount, uint256 providerAmount)"
+      - event: "BountyCancelled(uint256 indexed jobId, string reason)"
+      - event: "BountyCompleted(uint256 indexed jobId, uint256 agentId, uint256 reputationScore)"
+      - event: "BountyCreated(uint256 indexed jobId, address indexed poster, uint256 reward, string category, uint256 deadline)"
+      - event: "BountyExpired(uint256 indexed jobId)"
+      - event: "BountyTaken(uint256 indexed jobId, address indexed provider, uint256 agentId)"
+      - event: "ContestArbitratorTimeout(uint256 indexed jobId, uint256 posterAmount, uint256 challengerAmount, bool escrowRecovery)"
+      - event: "ContestAwarded(uint256 indexed jobId, uint8 indexed entryIndex, uint256 amount, bool scored, uint8 score)"
+      - event: "ContestChallengeResponded(uint256 indexed jobId, uint8 indexed entryIndex, string responseHash)"
+      - event: "ContestChallenged(uint256 indexed jobId, uint8 indexed entryIndex, string evidenceHash, uint256 responseDeadline)"
+      - event: "ContestClosed(uint256 indexed jobId, uint256 closedAt)"
+      - event: "ContestCreated(uint256 indexed jobId, uint8 maxEntries, uint8 winners)"
+      - event: "ContestEntered(uint256 indexed jobId, uint8 indexed entryIndex, bytes32 indexed identity, uint256 agentId, address entrant, string resultHash)"
+      - event: "ContestEntryReplaced(uint256 indexed jobId, uint8 indexed entryIndex, string resultHash)"
+      - event: "ContestRefunded(uint256 indexed jobId, bool escrowRecovery)"
+      - event: "ContestRejected(uint256 indexed jobId, string reasonHash, uint256 challengeDeadline)"
+      - event: "ContestSettled(uint256 indexed jobId, bool scored, bool escrowRecovery)"
+      - event: "DisputeRaised(uint256 indexed jobId, address indexed initiator, string reasonHash)"
+      - event: "DisputeResolved(uint256 indexed jobId, bool payProvider, string rulingHash, bool defaultRuling)"
+      - event: "DisputeResponded(uint256 indexed jobId, address indexed responder, string responseHash)"
+      - event: "ExternalRefundReconciled(uint256 indexed jobId, address indexed poster, address indexed worker, uint256 posterAmount, uint256 workerAmount)"
+      - event: "RejectionChallenged(uint256 indexed jobId, address indexed worker, string reasonHash)"
+      - event: "RejectionFinalized(uint256 indexed jobId)"
+      - event: "RejectionProposed(uint256 indexed jobId, address indexed poster, string reasonHash)"
+      - event: "RejectionWithdrawn(uint256 indexed jobId)"
+      - event: "WorkSubmitted(uint256 indexed jobId, address indexed provider, string ipfsResultHash)"
+  - name: Mirror
+    events:
+      - event: "RecordInvalidated(address indexed identityOwner, uint256 indexed sourceChain, uint64 previousSourceBlock)"
+      - event: "ReputationUpdated(address indexed identityOwner, uint256 indexed sourceChain, uint64 sourceBlock, uint64 paidJobs, uint128 scoreSum)"
+  - name: Identity
+    events:
+      - event: "Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
+chains:
+  - id: 10143
+    start_block: 0
+    rpc:
+      - url: ${MONAD_TESTNET_RPC_URL}
+        for: sync
+        initial_block_interval: 100
+        interval_ceiling: 100
+    contracts:
+      - name: Nad
+        address: "0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020"
+        start_block: 69191994
+      - name: Mirror
+        address: "0x59e970574D9aDc30892d094C893DA4B73EBE40a0"
+        start_block: 69191994
+      - name: Identity
+        address: "0x8004A818BFB912233c491871b3d84c89A494BD9e"
+  - id: 8453
+    start_block: 0
+    contracts:
+      - name: Legacy
+        address:
+          - "0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c"
+          - "0x32c215908a46Eb5D34e4E5146c99891eD3014Fee"
+        start_block: 50576208
+      - name: Identity
+        address: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+  - id: 5042
+    start_block: 0
+    rpc:
+      - url: ${ARC_MAINNET_RPC_URL}
+        for: sync
+        initial_block_interval: 10000
+        interval_ceiling: 10000
+    contracts:
+      - name: Legacy
+        address: "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D"
+        start_block: 21153190
+      - name: Identity
+        address: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
