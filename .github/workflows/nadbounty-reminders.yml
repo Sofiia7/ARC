@@ -1,0 +1,31 @@
+name: NadBounty testnet Telegram reminders
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+permissions: {}
+concurrency:
+  group: nadbounty-testnet-reminders
+  cancel-in-progress: false
+jobs:
+  reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Run the protected testnet reminder endpoint
+        env:
+          NAD_CRON_SECRET: ${{ secrets.NAD_REMINDER_CRON_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$NAD_CRON_SECRET" ]; then
+            echo 'Dedicated NadBounty reminder credential is required.'
+            exit 1
+          fi
+          header_file="$(mktemp)"
+          trap 'rm -f "$header_file"' EXIT
+          chmod 600 "$header_file"
+          printf 'Authorization: Bearer %s\n' "$NAD_CRON_SECRET" > "$header_file"
+          curl --fail --silent --show-error --max-time 270 \
+            --header "@$header_file" \
+            'https://nadbounty-testnet.vercel.app/api/cron/nad-reminders'
