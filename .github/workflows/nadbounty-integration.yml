@@ -1,0 +1,28 @@
+name: NadBounty integration
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['nad-facade/**', 'nad-cre/**', '.github/workflows/nadbounty-integration.yml']
+  push:
+    branches: [main]
+    paths: ['nad-facade/**', 'nad-cre/**', '.github/workflows/nadbounty-integration.yml']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '22'}
+      - run: npm ci --ignore-scripts --prefix nad-facade
+      - run: npm run typecheck --prefix nad-facade
+      - run: npm test --prefix nad-facade
+      - run: npm ci --ignore-scripts --prefix nad-cre/reputation-sync
+      - run: npm run typecheck --prefix nad-cre/reputation-sync
+      - name: Check canonical model copies
+        run: |
+          cmp nad-automation/src/model.ts nad-facade/src/model.ts
+          cmp nad-automation/src/model.ts nad-cre/reputation-sync/reputationModel.ts
+          cmp nad-automation/src/reputation.ts nad-facade/src/reputation.ts

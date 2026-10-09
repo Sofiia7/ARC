@@ -1,0 +1,6 @@
+{
+  "name":"nadbounty-facade","version":"0.1.0","private":true,"type":"module",
+  "scripts":{"start":"tsx src/server.ts","typecheck":"tsc --noEmit","test":"tsx --test test/*.test.ts"},
+  "dependencies":{"@x402/core":"2.28.0","@x402/evm":"2.28.0","@x402/express":"2.28.0","arcbounty-agent-sdk":"0.10.0","express":"^4.22.3","viem":"^2.55.0"},
+  "devDependencies":{"@types/express":"^4.17.25","@types/node":"^24","tsx":"^4.21.0","typescript":"5.9.3"}
+}

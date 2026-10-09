@@ -1,0 +1,1 @@
+{"schedule":"0 */30 * * * *","sourceUrl":"https://nadbounty-facade-testnet.vercel.app/v1/reputation-sources","baseSelector":"15971525489660198786","targetSelector":"2183018362218727504","mirror":"0x59e970574D9aDc30892d094C893DA4B73EBE40a0","safe":"0x74678c072Ca546f11466CD44eB7e21730a312a54","authorizedCaller":"0xa4F409D83312300EfbE009De615F91618Ee09183","writeReports":false}
