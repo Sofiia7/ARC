@@ -15,6 +15,7 @@ jobs:
       - name: Validate deployment and backup scripts
         run: |
           bash -n nad-indexer/backup.vps.sh nad-indexer/publish.vps.sh
+          touch nad-indexer/.env
           ENVIO_PG_PASSWORD=ci-placeholder HASURA_GRAPHQL_ADMIN_SECRET=ci-placeholder docker compose -f nad-indexer/compose.vps.yaml config -q
       - name: Build pinned Envio image with codegen, typecheck and event tests
         run: docker build --progress plain -t nadbounty-indexer:ci nad-indexer
