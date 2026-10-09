@@ -4,7 +4,7 @@ Reviewed: 2026-10-09. This document records internal verification and launch gat
 
 ## Scope and reviewable source
 
-The Monad adapter, mirror, receiver and deployment checks are in `contracts/src/monad/` and `contracts/script/BountyAdapterV48Deployment.s.sol`. The source publication is [PR12](https://github.com/Sofiia7/ARC/pull/12); its fresh Linux checks must pass before merging. The SDK source reproduces the already published `arcbounty-agent-sdk@0.10.0`. Legacy escrow logic is reused; Safe retains its upgrade authority.
+The Monad adapter, mirror, receiver and deployment checks are in `contracts/src/monad/` and `contracts/script/BountyAdapterV48Deployment.s.sol`. The source publication [PR12](https://github.com/Sofiia7/ARC/pull/12) merged after all fresh Linux checks passed, including V4.8 tests, invariants, size bounds, gas snapshots and configured Slither. The SDK source reproduces the already published `arcbounty-agent-sdk@0.10.0`. Legacy escrow logic is reused; Safe retains its upgrade authority.
 
 The review should cover contest admission and identity deduplication, winner/challenger selection, rejection and dispute deadlines, expired escrow reconciliation, current-owner payouts, blocked-token payout parking, outstanding obligations, reentrancy, bounded receiver execution and mirror reporter revocation/invalidation. The specification is `docs/superpowers/specs/2026-10-06-nadbounty-v48-contest-design.md`.
 
@@ -14,7 +14,7 @@ The review should cover contest admission and identity deduplication, winner/cha
 - Monad-aware forks exercised real registries, working-wallet admission, current-owner payouts, feedback writes and deployed keeper/mirror contracts. Local fork time travel was used only for positive deadline tests; it does not prove real-clock settlement.
 - Live testnet rehearsal settled six immediate scenarios and verified exact recipient/treasury token changes, Safe handoff and paused configuration. All five deployments received Sourcify exact matches.
 - Exact finalized Base/Arc reputation records were delivered by the approved testnet relayer and independently reread. This is a trusted reporter, not DON attestation. Registry feedback revocations and identity transfers are included in the source reader.
-- Permissionless keeper and mirror delivery run every 30 minutes with separate wallets, Redis leases, bounded spending and receipt/state verification. No Safe owner or deployer signing key is uploaded to those jobs.
+- Permissionless keeper and mirror delivery are configured for every 30 minutes with separate wallets, Redis leases, bounded spending and receipt/state verification. Two manual Linux live runs succeeded; actual scheduled dispatch has not yet been observed. No Safe owner or deployer signing key is uploaded to those jobs.
 - Envio HyperSync caught up Monad Testnet, Base and Arc with ownership history preserved. Actual GraphQL readback confirms job7 event provenance, its current agent owner and all five mirrored records.
 - Hosted x402 facade passed a real 0.001 test-USDC request with exact payer/Safe balance deltas. Unpaid, invalid and nonexistent requests were checked separately.
 - Both actual CRE reputation WASM simulations (cron and HTTP) passed with default limits and identical reports. Base is verified natively; Arc remains trusted HTTP evidence. Broadcasting is disabled. Gateway authentication and multi-node DON consensus are not implied by local simulation.
@@ -24,7 +24,7 @@ Internal Slither evidence is in the stage verification documents. Accepted lifec
 
 ## Remaining gates
 
-1. Pass fresh Linux checks for the actual V4.8 source publication and resolve any new failures.
+1. Publish and pass fresh Linux checks for the remaining Monad interface, public API and isolated MCP product sources.
 2. Verify real testnet job7 settlement after **2026-10-10 10:12:35 UTC / 12:12:35 Budapest**, including scheduler receipt, resolved state, payout/bond changes and indexed events.
 3. Complete external security review before enabling public funds. No external auditor has yet signed off.
 4. Fund the mainnet deployer for gas. The latest verified inventory had 0 MON and 0 USDC; the intended Safe is absent on chain143. USDC is required for funded mainnet scenarios, not merely for contract creation.
