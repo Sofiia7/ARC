@@ -6,6 +6,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { getActiveNetwork } from "@/lib/networks";
+import { runNadCron } from '@/lib/nadCron';
 import { activeChain } from "@/lib/wagmi";
 
 // Plain !== leaks comparison time proportional to the matching prefix length.
@@ -103,6 +104,13 @@ export async function GET(req: NextRequest) {
 }
 
 async function runKeeper(req: NextRequest) {
+  if(getActiveNetwork().nativeCurrency.symbol==='MON'){
+    const secret=process.env.CRON_SECRET;
+    if(!secret)return NextResponse.json({error:'CRON_SECRET missing; keeper inert'},{status:503});
+    if(!safeEqual(req.headers.get('authorization')??'',`Bearer ${secret}`))return NextResponse.json({error:'unauthorized'},{status:401});
+    try{return NextResponse.json(await runNadCron(req.nextUrl.searchParams.get('dryRun')==='1'));}
+    catch{return NextResponse.json({error:'Monad keeper failed; inspect configuration, RPC and transaction state'},{status:502});}
+  }
   const pk = process.env.KEEPER_PRIVATE_KEY;
   if (!pk) {
     return NextResponse.json(

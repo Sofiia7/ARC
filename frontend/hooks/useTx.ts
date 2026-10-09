@@ -5,6 +5,7 @@ import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { toast } from "sonner";
 import type { Abi } from "viem";
 import { SITE_CHAIN_ID, WrongChainError, useEnsureChain } from "./useEnsureChain";
+import { getActiveNetwork } from '@/lib/networks';
 
 type WriteParams = {
   address: `0x${string}`;
@@ -48,16 +49,18 @@ export function useTx() {
       // Pad the estimate generously: functions with a `try/catch` around an
       // external call (e.g. approveBounty's reputationRegistry.giveFeedback)
       // can need meaningfully more gas on a cold storage write than
-      // eth_estimateGas accounts for, and since EVM only charges for gas
-      // actually used, a fat ceiling here costs nothing on a success path.
+      // eth_estimateGas accounts for. Monad charges for the gas limit, so use
+      // the same bounded +50% buffer as the SDK and show it in the wallet.
       let gas: bigint | undefined;
       try {
         const estimate = await publicClient?.estimateContractGas({
           ...(params as Parameters<typeof writeContractAsync>[0]),
           account: address,
         });
-        if (estimate) gas = (estimate * 150n) / 100n;
-      } catch {
+        if (estimate) gas = estimate + (estimate + 1n) / 2n;
+        if (!estimate && getActiveNetwork().nativeCurrency.symbol === 'MON') throw new Error('Monad gas estimate unavailable');
+      } catch (error) {
+        if (getActiveNetwork().nativeCurrency.symbol === 'MON') throw error;
         // fall back to wallet/RPC default estimation
       }
       const hash = await writeContractAsync({

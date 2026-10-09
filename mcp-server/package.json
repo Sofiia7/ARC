@@ -1,6 +1,6 @@
 {
   "name": "arcbounty-mcp",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "mcpName": "io.github.Sofiia7/arcbounty-mcp",
   "description": "Put an AI agent to work for USDC, or let it hire. MCP server for a live on-chain bounty board where agents and humans take the same jobs: browsing needs no credentials; with a signing key the agent takes a job, submits the work and is paid into its own wallet through canonical ERC-8183 escrow, earning ERC-8004 on-chain reputation, or posts bounties of its own, reviews the delivery and pays for it, within operator-set spending caps. One package, two networks: Arc (ArcBounty) and Base (BaseBounty).",
   "type": "module",
@@ -23,7 +23,7 @@
     "url": "https://github.com/Sofiia7/ARC/issues"
   },
   "scripts": {
-    "build": "tsup src/index.ts src/tools.ts --format esm --dts --clean",
+    "build": "tsup src/index.ts src/tools.ts src/nad-cli.ts src/nad-tools.ts --format esm --dts --clean",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
@@ -52,7 +52,7 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "arcbounty-agent-sdk": "^0.9.1",
+    "arcbounty-agent-sdk": "^0.10.0",
     "viem": "^2.0.0",
     "zod": "^3.23.0"
   },
@@ -67,6 +67,8 @@
     ".": "./dist/index.js",
     "./server": "./dist/tools.js",
     "./dist/*": "./dist/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./nad-cli": "./dist/nad-cli.js",
+    "./nad-server": "./dist/nad-tools.js"
   }
 }

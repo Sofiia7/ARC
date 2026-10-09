@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 
 export function GET() {
   const network = getActiveNetwork();
+  if(network.nativeCurrency.symbol==='MON')return apiJson({name:'NadBounty V4.8 API',chainId:network.chainId,adapter:CONTRACTS.BOUNTY_ADAPTER,endpoints:['/api/nad/bounties?limit=25&offset=0','/api/nad/bounties/{jobId}'],note:'Use the V4.8 endpoints; legacy aggregate APIs do not describe contest payouts.'});
   const { current, history } = adapters();
   return apiJson({
     name: `${getBrand().name} public API`,

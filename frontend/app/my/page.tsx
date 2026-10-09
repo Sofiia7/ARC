@@ -1,5 +1,7 @@
 "use client";
 
+import {NadMyTasks} from '@/components/NadMyTasks';
+import {getActiveNetwork} from '@/lib/networks';
 import { useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
@@ -9,7 +11,8 @@ import Link from "next/link";
 
 type Tab = "posted" | "assigned";
 
-export default function MyPage() {
+export default function MyPage(){return getActiveNetwork().nativeCurrency.symbol==='MON'?<NadMyTasks/>:<LegacyMyPage/>;}
+function LegacyMyPage() {
   const { address, isConnected } = useAccount();
   const [tab, setTab] = useState<Tab>("posted");
 

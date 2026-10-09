@@ -1,0 +1,11 @@
+{
+  "name": "nadbounty-mcp",
+  "version": "0.1.0",
+  "description": "NadBounty V4.8 MCP on Monad: encrypted contests, owner payouts and paid-job reputation gates.",
+  "type": "module",
+  "bin": { "nadbounty-mcp": "bin/nadbounty-mcp.mjs" },
+  "files": ["bin", "README.md"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/Sofiia7/ARC.git", "directory": "nadbounty-mcp" },
+  "dependencies": { "arcbounty-mcp": "^0.7.0" }
+}

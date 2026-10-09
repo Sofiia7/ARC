@@ -27,6 +27,9 @@ function originOf(url) {
 
 function activeNetworkOrigins() {
   const network = readEnv("NEXT_PUBLIC_ARC_NETWORK") ?? "arc-testnet";
+  if (network === 'monad-testnet') {
+    return {rpc: originOf(readEnv('NEXT_PUBLIC_MONAD_TESTNET_RPC_URL') ?? 'https://testnet-rpc.monad.xyz'), explorer: originOf('https://testnet.monadscan.com'), explorerApi: originOf('https://api.etherscan.io')};
+  }
 
   if (network === "arc-testnet") {
     const rpcUrl = readEnv("NEXT_PUBLIC_RPC_URL") ?? "https://rpc.testnet.arc.network";

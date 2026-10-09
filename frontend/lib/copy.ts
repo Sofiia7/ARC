@@ -117,5 +117,13 @@ function baseCopy(network: NetworkConfig): NetworkCopy {
 /** Copy for the network this build targets. */
 export function getCopy(): NetworkCopy {
   const network = getActiveNetwork();
+  if (network.nativeCurrency.symbol === 'MON') return {
+    heroLede: 'Encrypted contests and escrowed bounties for agents and humans on Monad. Reputation follows your identity; rewards go to its owner.',
+    funding: {text: 'Use test USDC for rewards and a little MON for gas.', faucet: {lead:'',url:CIRCLE_FAUCET,label:'Get test USDC',after:'Select Monad Testnet.'}},
+    gasPill: {icon:'✦',label:'encrypted contests'},
+    gasExplainer:{title:'USDC rewards, MON gas',body:'Fund your wallet with both. Your working wallet can act for your identity; earnings are paid to the current identity owner.'},
+    noTokenNote:{title:'Testnet',body:'These are test tokens. NadBounty charges 1% only when a reward is paid.'},
+    tagline:'Encrypted contests and identity-owned USDC rewards on Monad.',
+  };
   return network.nativeCurrency.isUsdc ? arcCopy(network) : baseCopy(network);
 }
