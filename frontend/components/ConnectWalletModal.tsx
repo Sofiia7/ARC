@@ -12,6 +12,7 @@ type Props = {
 const PORTO_ID = "xyz.ithaca.porto";
 
 function copyFor(connector: Connector): { title: string; hint: string } {
+  if(connector.type==='mera')return {title:connector.name,hint:connector.id.endsWith('create')?'Creates a new wallet tied to this site. Keep this passkey; fund it with MON for gas.':'Recover your wallet for this site. MON is needed for gas; session expires after 10 minutes.'};
   if (connector.id === PORTO_ID || connector.name.toLowerCase().includes("porto")) {
     // "gas paid in USDC" is an Arc property, not a Porto one - on Base gas is
     // ETH, so stating it unconditionally would be a lie on that build.
@@ -33,6 +34,7 @@ function copyFor(connector: Connector): { title: string; hint: string } {
 // Passkey first (no-install path), then browser extension, then QR - matches
 // the order they were previously offered as separate navbar buttons.
 function sortOrder(connector: Connector): number {
+  if (connector.type==='mera')return connector.id.endsWith('recover')?-2:-1;
   if (connector.id === PORTO_ID) return 0;
   if (connector.type === "injected") return 1;
   if (connector.id === "walletConnect") return 2;

@@ -17,6 +17,8 @@ jobs:
         with: { node-version: "20" }
       - name: Address & docs consistency
         run: npx -y tsx scripts/check-consistency.ts
+      - name: NadBounty ABI and encryption consistency
+        run: node scripts/check-nad-consistency.mjs
 
   gitleaks:
     runs-on: ubuntu-latest
@@ -43,14 +45,20 @@ jobs:
         with: { version: v1.7.1 }
       - name: forge fmt
         run: forge fmt --check
-      - name: forge build
-        run: forge build --sizes
+      - name: forge build (Ethereum size gate for Arc/Base)
+        run: forge build --sizes --skip BountyAdapterV48
       - name: forge test (unit + invariants, skip fork)
-        run: forge test -vvv --no-match-contract BountyAdapterForkTest
+        run: forge test -vvv --no-match-contract 'BountyAdapterForkTest|BountyAdapterV48.*'
+      - name: V4.8 local logic and Monad size bounds
+        env:
+          FOUNDRY_PROFILE: monad_local
+        # Pinned 1.7.1 exercises logic with Monad's 128 KiB size limit. This
+        # does not validate Monad gas/opcodes; a 1.8+ Monad fork is still required.
+        run: forge test -vvv --match-contract 'BountyAdapterV48.*'
       - name: gas snapshot - no regressions
         run: |
           if [ -f .gas-snapshot ]; then
-            forge snapshot --check --no-match-contract BountyAdapterForkTest
+            forge snapshot --check --fuzz-seed 0x48 --no-match-contract 'BountyAdapterForkTest|BountyAdapterV48.*|KeeperReceiver.*|ReputationMirror.*'
           else
             echo "::warning::no .gas-snapshot yet - run forge snapshot locally and commit it"
           fi

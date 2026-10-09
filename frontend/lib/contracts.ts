@@ -17,7 +17,7 @@ const network = getActiveNetwork();
 // arc-testnet has no default, so there the variable stays exactly as
 // mandatory as it always was.
 function requireAdapterAddress(): Address {
-  const envOverride = network.testnet ? process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS : undefined;
+  const envOverride = network.testnet ? (network.nativeCurrency.symbol === 'MON' ? process.env.NEXT_PUBLIC_NAD_BOUNTY_ADAPTER_ADDRESS : process.env.NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS) : undefined;
   const raw = envOverride ?? network.bountyAdapterAddress;
   if (!raw) {
     throw new Error(

@@ -13,7 +13,7 @@ import type { Address } from "viem";
 // guards the two maps against drifting apart, so keep field names and
 // per-network values mirrored when editing either one.
 
-export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base-mainnet";
+export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base-mainnet" | "monad-testnet";
 
 /**
  * The chain's native (gas) token - mirrors `NativeCurrency` in the SDK.
@@ -123,6 +123,24 @@ export const MULTICALL3_ADDRESS: Address = "0xcA11bde05977b3631167028862bE2a1739
  * Never hardcode guessed values here.
  */
 export const NETWORKS = {
+  'monad-testnet': {
+    chainId: 10143, name: 'Monad Testnet',
+    rpcUrl: process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC_URL ?? 'https://testnet-rpc.monad.xyz',
+    explorerUrl: 'https://testnet.monadscan.com',
+    explorerApiUrl: 'https://api.etherscan.io/v2/api?chainid=10143',
+    explorerName: 'Monadscan', needsWalletSetup: true,
+    nativeCurrency: { symbol: 'MON', decimals: 18, isUsdc: false },
+    brand: { name: 'NadBounty', domain: 'testnet.nadbounty.app' },
+    contracts: {
+      AGENTIC_COMMERCE: '0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2',
+      IDENTITY_REGISTRY: '0x8004A818BFB912233c491871b3d84c89A494BD9e',
+      REPUTATION_REGISTRY: '0x8004B663056A597Dffe9eCcC1965A193B7388713',
+      USDC: '0x534b2f3A21130d7a60830c2Df862319e593943A3',
+    },
+    bountyAdapterAddress: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020',
+    adapterDeployBlock: 69191994n, multicall3: false, testnet: true,
+    blocksPerDay: 216000n, maxLookbackBlocks: 100n,
+  },
   "arc-testnet": {
     chainId: 5_042_002,
     name: "Arc Testnet",
@@ -277,6 +295,7 @@ export function getActiveNetworkName(): NetworkName {
   if (raw === "arc-mainnet") return "arc-mainnet";
   if (raw === "base-sepolia") return "base-sepolia";
   if (raw === "base-mainnet") return "base-mainnet";
+  if (raw === 'monad-testnet') return 'monad-testnet';
   throw new Error(
     `[arcbounty] NEXT_PUBLIC_ARC_NETWORK="${raw}" is not a valid network - ` +
     `expected "arc-testnet", "arc-mainnet", "base-sepolia" or "base-mainnet".`,

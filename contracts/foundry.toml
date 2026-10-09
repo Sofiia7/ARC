@@ -21,6 +21,12 @@ runs = 64
 depth = 64
 fail_on_revert = false
 
+# Chain-independent logic checks with Monad's real 128 KiB runtime limit.
+# Foundry 1.7.1 cannot model Monad gas/opcode pricing; use 1.8+ with network
+# = "monad" for forks/rehearsal. Arc/Base's default profile stays unchanged.
+[profile.monad_local]
+code_size_limit = 131072
+
 [rpc_endpoints]
 arc_testnet = "${ARC_TESTNET_RPC_URL}"
 arc_mainnet = "${ARC_MAINNET_RPC_URL}"
