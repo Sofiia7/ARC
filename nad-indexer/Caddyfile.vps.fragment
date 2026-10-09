@@ -1,0 +1,21 @@
+nadbounty-indexer.89-124-77-59.sslip.io {
+    @graphql {
+        path /v1/graphql
+        method GET POST OPTIONS
+    }
+    handle @graphql {
+        request_body {
+            max_size 1MB
+        }
+        reverse_proxy nadbounty-graphql:8080 {
+            header_up -X-Hasura-Admin-Secret
+            header_up X-Hasura-Role public
+            transport http {
+                response_header_timeout 20s
+            }
+        }
+    }
+    handle {
+        respond "Not found" 404
+    }
+}

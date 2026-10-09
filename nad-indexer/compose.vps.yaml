@@ -1,0 +1,85 @@
+name: nadbounty-indexer
+services:
+  nad-postgres:
+    image: postgres:17.5
+    restart: unless-stopped
+    mem_limit: 320m
+    cpus: 0.5
+    environment:
+      POSTGRES_USER: nadbounty
+      POSTGRES_DB: nadbounty
+      POSTGRES_PASSWORD: ${ENVIO_PG_PASSWORD:?required}
+    volumes:
+      - data:/var/lib/postgresql/data
+    networks: [private]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U nadbounty -d nadbounty']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: &logging
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+  nad-graphql:
+    image: hasura/graphql-engine:v2.43.0
+    restart: unless-stopped
+    mem_limit: 320m
+    cpus: 0.5
+    depends_on:
+      nad-postgres: { condition: service_healthy }
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://nadbounty:${ENVIO_PG_PASSWORD}@nad-postgres:5432/nadbounty
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:?required}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: 'false'
+      HASURA_GRAPHQL_DEV_MODE: 'false'
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
+      HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES: 'true'
+      HASURA_GRAPHQL_PG_CONNECTIONS: '10'
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup,http-log
+    networks:
+      private: {}
+      proxy: { aliases: [nadbounty-graphql] }
+    healthcheck:
+      test: [CMD-SHELL, 'timeout 2s bash -c ":> /dev/tcp/127.0.0.1/8080"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+  indexer:
+    build: .
+    restart: unless-stopped
+    mem_limit: 900m
+    cpus: 0.8
+    depends_on:
+      nad-graphql: { condition: service_healthy }
+    env_file: .env
+    environment:
+      ENVIO_PG_HOST: nad-postgres
+      ENVIO_PG_PORT: '5432'
+      ENVIO_PG_USER: nadbounty
+      ENVIO_PG_DATABASE: nadbounty
+      ENVIO_PG_SCHEMA: public
+      HASURA_GRAPHQL_ENDPOINT: http://nad-graphql:8080/v1/metadata
+      HASURA_SERVICE_HOST: nad-graphql
+      HASURA_SERVICE_PORT: '8080'
+      ENVIO_INDEXER_HOST: 0.0.0.0
+      ENVIO_INDEXER_PORT: '9898'
+      LOG_LEVEL: info
+      TUI_OFF: 'true'
+    ports: ['127.0.0.1:9899:9898']
+    networks: [private]
+    healthcheck:
+      test: [CMD, node, -e, 'fetch("http://127.0.0.1:9898/healthz").then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))']
+      interval: 30s
+      timeout: 5s
+      retries: 4
+      start_period: 60s
+    logging: *logging
+volumes:
+  data:
+networks:
+  private:
+  proxy:
+    external: true
+    name: deploy_default
+
