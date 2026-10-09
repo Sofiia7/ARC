@@ -1,0 +1,11 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!config.yaml
+!schema.graphql
+!tsconfig.json
+!src
+!src/**
+!test
+!test/**
