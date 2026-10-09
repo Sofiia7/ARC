@@ -58,7 +58,7 @@ jobs:
       - name: gas snapshot - no regressions
         run: |
           if [ -f .gas-snapshot ]; then
-            forge snapshot --check --fuzz-seed 0x48 --no-match-contract 'BountyAdapterForkTest|BountyAdapterV48.*'
+            forge snapshot --check --fuzz-seed 0x48 --no-match-contract 'BountyAdapterForkTest|BountyAdapterV48.*|ReputationMirrorLiveSourceForkTest'
           else
             echo "::warning::no .gas-snapshot yet - run forge snapshot locally and commit it"
           fi
