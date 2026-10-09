@@ -60,11 +60,6 @@ contracts:
 chains:
   - id: 10143
     start_block: 0
-    rpc:
-      - url: ${ENVIO_MONAD_TESTNET_RPC_URL}
-        for: sync
-        initial_block_interval: 100
-        interval_ceiling: 100
     contracts:
       - name: Nad
         address: "0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020"
@@ -86,11 +81,6 @@ chains:
         address: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
   - id: 5042
     start_block: 0
-    rpc:
-      - url: ${ENVIO_ARC_MAINNET_RPC_URL}
-        for: sync
-        initial_block_interval: 10000
-        interval_ceiling: 10000
     contracts:
       - name: Legacy
         address: "0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D"
