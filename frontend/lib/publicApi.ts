@@ -50,6 +50,7 @@ let board: Board | null = null;
 let inflight: Promise<Board> | null = null;
 
 export async function loadBoard(): Promise<Board> {
+  if(network.nativeCurrency.symbol==='MON')throw Error('V4.8 uses the /api/nad endpoints');
   if (board && Date.now() - board.readAt.getTime() < BOARD_TTL_MS) return board;
   if (inflight) return inflight;
   inflight = (async () => {

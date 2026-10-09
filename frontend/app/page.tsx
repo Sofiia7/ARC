@@ -10,6 +10,8 @@ import type { BountyMeta } from "@/components/BountyCard";
 import { useAllOpenBountyMetas } from "@/hooks/useBountyMeta";
 import { useBountyEvents } from "@/hooks/useBountyEvents";
 import { useBoardCounts } from "@/hooks/useBoardCounts";
+import { NadBoard } from '@/components/NadBounty';
+import { getActiveNetwork } from '@/lib/networks';
 
 const PAGE_SIZE = 20;
 
@@ -29,6 +31,10 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function HomePage() {
+  if (getActiveNetwork().nativeCurrency.symbol==='MON') return <NadBoard/>;
+  return <LegacyHomePage/>;
+}
+function LegacyHomePage() {
   const copy = getCopy();
   const [category, setCategory]   = useState<Category | "">("");
   const [agentOnly, setAgentOnly] = useState(false);

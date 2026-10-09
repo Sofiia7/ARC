@@ -1,0 +1,40 @@
+name: NadBounty product
+on:
+  push:
+    branches: [main]
+    paths: ['frontend/**', 'mcp-server/**', 'nadbounty-mcp/**', '.github/workflows/nadbounty-product.yml']
+  pull_request:
+    paths: ['frontend/**', 'mcp-server/**', 'nadbounty-mcp/**', '.github/workflows/nadbounty-product.yml']
+permissions:
+  contents: read
+jobs:
+  monad-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: frontend }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '22' }
+      - run: npm install --no-audit --no-fund
+      - name: Contest actions, reminder deadlines, request bounds and wallet policy
+        run: npx --yes --package tsx@4.21.0 tsx --test test/nad-*.test.ts
+      - name: Build actual Monad routes and components
+        env:
+          NEXT_PUBLIC_ARC_NETWORK: monad-testnet
+          NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020'
+          NEXT_PUBLIC_RPC_URL: https://testnet-rpc.monad.xyz
+        run: npm run build
+  nad-mcp:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: mcp-server }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '22' }
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - name: MCP read-only mode, exact amounts, concurrent spending and invalid contest input
+        run: npm test
+      - run: npm run build

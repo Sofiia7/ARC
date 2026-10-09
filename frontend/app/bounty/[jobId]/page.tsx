@@ -18,6 +18,8 @@ import { ConnectWalletModal } from "@/components/ConnectWalletModal";
 import { useBountyMeta } from "@/hooks/useBountyMeta";
 import { useBountyEvents } from "@/hooks/useBountyEvents";
 import { useTx } from "@/hooks/useTx";
+import { NadDetail } from '@/components/NadBounty';
+import { getActiveNetwork } from '@/lib/networks';
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const KNOWN_CATS = new Set(["dev", "design", "content", "data", "other"]);
@@ -51,6 +53,11 @@ function statusOf(meta: {
 }
 
 export default function BountyPage() {
+  const params=useParams<{jobId:string}>();
+  if (getActiveNetwork().nativeCurrency.symbol==='MON') return /^\d+$/.test(params.jobId)?<NadDetail jobId={BigInt(params.jobId)}/>:<p>Invalid bounty ID.</p>;
+  return <LegacyBountyPage/>;
+}
+function LegacyBountyPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const { address } = useAccount();
   const [showSubmitModal, setShowSubmitModal]   = useState(false);

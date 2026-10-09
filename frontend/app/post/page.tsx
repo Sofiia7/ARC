@@ -14,6 +14,7 @@ import { PostTemplates } from "@/components/PostTemplates";
 import { PostExamples } from "@/components/PostExamples";
 import { getActiveNetwork, getActiveNetworkName } from "@/lib/networks";
 import { SITE_CHAIN_ID, WrongChainError, useEnsureChain } from "@/hooks/useEnsureChain";
+import { NadPost } from '@/components/NadBounty';
 import {
   getPostTemplates, hasPlaceholder, firstPlaceholder, type PostTemplate,
 } from "@/lib/postTemplates";
@@ -24,6 +25,10 @@ const TEMPLATES = getPostTemplates(getActiveNetwork().name);
 const SHOW_EXAMPLES = getActiveNetworkName() === "arc-mainnet";
 
 export default function PostPage() {
+  if (getActiveNetwork().nativeCurrency.symbol==='MON') return <NadPost/>;
+  return <LegacyPostPage/>;
+}
+function LegacyPostPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();

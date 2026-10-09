@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount, useDisconnect } from "wagmi";
 import { shortAddress } from "@/lib/format";
-import { getBrand } from "@/lib/networks";
+import { getBrand, getActiveNetwork } from "@/lib/networks";
 import { useMyAgentId } from "@/hooks/useMyAgentId";
 import { ConnectWalletModal } from "@/components/ConnectWalletModal";
+import { NadNavbar } from './NadNavbar';
 import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV = [
@@ -25,7 +26,8 @@ function isActive(pathname: string | null, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Navbar() {
+export function Navbar(){return getActiveNetwork().nativeCurrency.symbol==='MON'?<NadNavbar/>:<LegacyNavbar/>;}
+function LegacyNavbar() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const [showConnectModal, setShowConnectModal] = useState(false);
