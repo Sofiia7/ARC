@@ -1,0 +1,8 @@
+staging-settings:
+  user-workflow:
+    workflow-name: nadbounty-keeper-staging
+    deployment-registry: private
+  workflow-artifacts:
+    workflow-path: ../reputation-sync/keeper.ts
+    config-path: ./config.staging.json
+    secrets-path: ""
