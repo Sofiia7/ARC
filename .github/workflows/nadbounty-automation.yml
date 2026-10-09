@@ -1,0 +1,51 @@
+name: NadBounty testnet automation
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,37 * * * *'
+  push:
+    branches: [main]
+    paths: ['nad-automation/**', '.github/workflows/nadbounty-automation.yml']
+  pull_request:
+    paths: ['nad-automation/**', '.github/workflows/nadbounty-automation.yml']
+permissions:
+  contents: read
+concurrency:
+  group: nadbounty-testnet-automation
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: nad-automation }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '22' }
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck && npm test
+  live:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run: { working-directory: nad-automation }
+    env:
+      NAD_RPC_URL: ${{ secrets.NAD_AUTOMATION_RPC_URL }}
+      BASE_MAINNET_RPC_URL: ${{ secrets.NAD_AUTOMATION_BASE_RPC_URL }}
+      ARC_MAINNET_RPC_URL: ${{ secrets.NAD_AUTOMATION_ARC_RPC_URL }}
+      NAD_UPSTASH_REDIS_REST_URL: ${{ secrets.NAD_AUTOMATION_REDIS_URL }}
+      NAD_UPSTASH_REDIS_REST_TOKEN: ${{ secrets.NAD_AUTOMATION_REDIS_TOKEN }}
+      NAD_REPUTATION_RELAYER_PRIVATE_KEY: ${{ secrets.NAD_AUTOMATION_REPUTATION_KEY }}
+      NAD_KEEPER_PRIVATE_KEY: ${{ secrets.NAD_AUTOMATION_KEEPER_KEY }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '22' }
+      - run: npm ci --ignore-scripts
+      - name: Settle mature jobs using a dedicated permissionless keeper
+        run: npm run keeper -- --broadcast
+      - name: Synchronize changed finalized Base and Arc records
+        if: success() || failure()
+        run: npm run sync -- --broadcast
