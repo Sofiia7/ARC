@@ -1,0 +1,14 @@
+{
+  "name": "nadbounty-automation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "tsx src/sync.ts",
+    "keeper": "tsx src/keeper.ts",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {"arcbounty-agent-sdk":"0.10.0","viem":"2.55.0"},
+  "devDependencies": {"@types/node":"24.0.0","tsx":"4.21.0","typescript":"5.9.3"}
+}
