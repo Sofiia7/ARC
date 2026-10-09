@@ -48,3 +48,14 @@ export {
   type AgentMetadata,
   type ArcBountySection,
 } from "./metadata.js";
+
+export { NadBountyAgent, MONAD_NETWORKS } from "./NadBountyAgent.js";
+export type { NadBountyAgentConfig, NadBountyCreateParams, MonadNetworkName } from "./NadBountyAgent.js";
+export { BOUNTY_ADAPTER_V48_ABI } from "./abi-v48.js";
+export { REPUTATION_MIRROR_ABI } from "./reputationMirrorAbi.js";
+export { KEEPER_RECEIVER_ABI } from "./keeperReceiverAbi.js";
+
+export { generateContestKeypair, contestKeypairFromSeed, deriveContestKeypair, encryptContestEntry, decryptContestEntry } from "./contestEncryption.js";
+export type { ContestEncryptionKeypair, EncryptedContestEntry } from "./contestEncryption.js";
+export { selectNadSettlement, NAD_SETTLEMENTS } from './nadKeeper.js';
+export type { NadKeeperMeta, NadKeeperContest, NadSettlement } from './nadKeeper.js';

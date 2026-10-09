@@ -1,6 +1,7 @@
-import { createConfig, fallback, http } from "wagmi";
+import { createConfig, fallback, http, type CreateConnectorFn } from "wagmi";
 import { defineChain } from "viem";
 import { injected, walletConnect } from "wagmi/connectors";
+import { meraConnector } from './mera';
 import { porto } from "porto/wagmi";
 import { getActiveNetwork, MULTICALL3_ADDRESS } from "./networks";
 import { isPasskeySupported } from "./passkey";
@@ -24,7 +25,7 @@ export const activeChain = defineChain({
   // its USDC ERC-20 interface, not to eth_getBalance. With 6 here, wallets
   // render native balances off by 10^12 and MetaMask rejects the chain.
   nativeCurrency: {
-    name: network.nativeCurrency.isUsdc ? "USD Coin" : "Ether",
+    name: network.nativeCurrency.isUsdc ? "USD Coin" : network.nativeCurrency.symbol === 'MON' ? 'Monad' : "Ether",
     symbol: network.nativeCurrency.symbol,
     decimals: network.nativeCurrency.decimals,
   },
@@ -56,24 +57,16 @@ const arcTransport = network.fallbackRpcUrls?.length
   ? fallback([rpcUrl, ...network.fallbackRpcUrls].map(url => http(url, transportOptions)))
   : http(rpcUrl, transportOptions);
 
+const connectors:CreateConnectorFn[]=[
+  ...(network.nativeCurrency.symbol==='MON'?[meraConnector('recover'),meraConnector('create')]:isPasskeySupported()?[porto()]:[]),
+  injected(),
+  ...(process.env.NEXT_PUBLIC_WC_PROJECT_ID?[walletConnect({projectId:process.env.NEXT_PUBLIC_WC_PROJECT_ID})]:[]),
+];
 export const config = createConfig({
   chains: [activeChain],
   transports: {
     [activeChain.id]: arcTransport,
   },
-  connectors: [
-    // Passkey-based smart account (account abstraction). Gives the
-    // sponsored-transaction / SCA UX called for in the spec (§4.4) without a
-    // browser extension - sign in with a passkey. Only on chains Porto runs
-    // on, which excludes Arc (see lib/passkey.ts).
-    ...(isPasskeySupported() ? [porto()] : []),
-    injected(),
-    // Only register WalletConnect when a real project ID is configured - a
-    // placeholder ID produces a connector that renders but can never pair,
-    // which is worse than not offering the option at all.
-    ...(process.env.NEXT_PUBLIC_WC_PROJECT_ID
-      ? [walletConnect({ projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID })]
-      : []),
-  ],
+  connectors,
   ssr: true,
 });
