@@ -6,6 +6,7 @@ import {privateKeyToAccount} from 'viem/accounts';
 import {resolveNetwork} from 'arcbounty-agent-sdk';
 import {readReputationSource,encodeMirrorReport,needsMirrorUpdate} from './reputation.js';
 import {nadRedis} from './redis.js';
+import {scanHistory} from './discovery.js';
 const env=process.env;
 const plan=JSON.parse(readFileSync(new URL('../config/testnet.json',import.meta.url),'utf8').replace(/^\uFEFF/,''));
 if(!/^0x[0-9a-fA-F]{64}$/.test(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY??'')||/^0x0+$/.test(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY??''))throw Error('Dedicated reputation key is missing or invalid');
@@ -13,7 +14,7 @@ const mirror='0x59e970574D9aDc30892d094C893DA4B73EBE40a0' as Address;
 const rpc=env.NAD_RPC_URL??'https://testnet-rpc.monad.xyz';
 const chain=defineChain({id:10143,name:'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[rpc]}}});
 const client=createPublicClient({chain,transport:http(rpc,{timeout:20000,retryCount:2})});
-const logClient=createPublicClient({chain,transport:http('https://testnet-rpc.monad.xyz',{timeout:20000,retryCount:2})});
+const logClient=createPublicClient({chain,transport:http('https://testnet-rpc.monad.xyz',{timeout:20000,retryCount:2,batch:{batchSize:10,wait:5}})});
 const account=privateKeyToAccount(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY as Hex);
 const wallet=createWalletClient({chain,account,transport:http(rpc)});
 const abi=parseAbi(['function owner() view returns(address)','function relayer() view returns(address)','function onReport(bytes,bytes)','function records(address,uint256) view returns(uint64,uint128,uint64,uint256)']);
@@ -35,14 +36,25 @@ try {
  const cursor=await nadRedis<string|null>('GET',`${prefix}:discovery-cursor`);
  const saved=cursor?BigInt(cursor):69191994n;
  if(saved>target.number)throw Error('Recipient cursor is ahead of finalized chain');
- let from=saved>69192122n?saved-128n:69191994n,range=100n,calls=0;
- while(from<=target.number){
-   if(++calls>10000)throw Error('Recipient discovery exceeds bounded scan');
-   const to=from+range-1n>target.number?target.number:from+range-1n;
-   try{const logs=await logClient.getLogs({address:mirror,event,fromBlock:from,toBlock:to,strict:true});for(const log of logs){const set=recipients.get(Number(log.args.sourceChain));if(!set)throw Error('Unexpected mirror source');set.add(log.args.identityOwner);}from=to+1n;}
-   catch{if(range<=100n)throw Error('Recipient history discovery failed');range=range/2n<100n?100n:range/2n;}
-   if(calls%100===0)console.error(JSON.stringify({phase,calls,scannedThrough:String(from-1n),targetBlock:String(target.number)}));
- }
+ const calls=await scanHistory({from:saved>69192122n?saved-128n:69191994n,target:target.number,range:1000n,maxCalls:1000,checkpointEvery:10,
+  fetch:async(from,to)=>{
+   const requests=[];
+   // Each RPC method retains the provider's 100-block limit. HTTP batching
+   // cuts round trips without narrowing history or exceeding 10k log calls.
+   for(let start=from;start<=to;start+=100n)requests.push(logClient.getLogs({address:mirror,event,fromBlock:start,toBlock:start+99n>to?to:start+99n,strict:true}));
+   const logs=(await Promise.all(requests)).flat();
+   for(const log of logs){const set=recipients.get(Number(log.args.sourceChain));if(!set)throw Error('Unexpected mirror source');set.add(log.args.identityOwner);}
+  },
+  checkpoint:async through=>{
+   if(await nadRedis('GET',lease)!==leaseToken)throw Error('Sync lease lost');
+   if((await client.getBlock({blockNumber:target.number})).hash!==target.hash)throw Error('Target snapshot changed');
+   // Journal every discovered owner before advancing. Source sync may fail later;
+   // the next run still loads these owners and verifies their exact source state.
+   for(const [source,owners] of recipients)if(owners.size)await nadRedis('SADD',`${prefix}:recipients:${source}`,...owners);
+   await nadRedis('SET',`${prefix}:discovery-cursor`,String(through));
+  },
+  progress:(calls,through)=>console.error(JSON.stringify({phase,calls,scannedThrough:String(through),targetBlock:String(target.number)})),
+ });
  const check=await client.getBlock({blockNumber:target.number});if(check.hash!==target.hash)throw Error('Target snapshot changed');
  const snapshots=[];
  for(const name of ['base-mainnet','arc-mainnet'] as const){
