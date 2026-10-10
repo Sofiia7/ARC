@@ -49,6 +49,7 @@ jobs:
         if: always()
         env:
           NETWORK: base-mainnet
+          BASE_MAINNET_RPC_URL: ${{ secrets.BASE_ALERTS_RPC_URL }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_BOT_CHAT: ${{ secrets.TG_BOT_CHAT }}
         run: node "$RUNNER_TEMP/notify/arc-telegram-notify.mjs"

@@ -14,7 +14,7 @@ export async function runNadReminders(send:boolean){
   if(new URL(site).protocol!=='https:')throw Error('HTTPS site required');
   const pub=createPublicClient({transport:http(process.env.NAD_RPC_URL??network.rpcUrl,{timeout:15000,retryCount:2})});
   if(await pub.getChainId()!==network.chainId)throw Error('RPC chain mismatch');
-  const adapter=CONTRACTS.BOUNTY_ADAPTER,block=await pub.getBlock();
+  const adapter=CONTRACTS.BOUNTY_ADAPTER,block=await pub.getBlock({blockTag:'finalized'});
   const total=await pub.readContract({address:adapter,abi,functionName:'totalBounties',blockNumber:block.number});
   if(total>2000n)throw Error('Indexed reminder discovery required');
   const owner=randomBytes(16).toString('hex'),runKey=`nad:tg:runner:${network.chainId}:${adapter}`;
