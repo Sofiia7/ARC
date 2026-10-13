@@ -2,6 +2,8 @@
 
 Reviewed: 2026-10-13. This document records internal verification and launch gates. It is not an external audit report. Trust assumptions and the internal contract review findings are in [`SECURITY.md`](../../SECURITY.md).
 
+**Update 2026-10-13 (V4.8.1).** After the internal contract review the stack was redeployed the same day with the review fixes (a fresh escrow, mirror, adapter and keeper receiver). Current addresses, the deployment and Safe transactions and the role read-back are in `contracts/DEPLOYMENTS.md`; the findings and what changed are in `SECURITY.md`. The first deployment of 2026-10-12 is superseded. The gates below were first recorded for that deployment and were repeated for V4.8.1: paused deployment, exact Sourcify matches (and Monadscan verification) for all five contracts, a real-USDC demonstration before the handoff (job 1 single taker with bond, job 2 encrypted contest, job 3 cancelled contest; 2.97 USDC to the identity owner, 0.03 USDC fee), then the Safe executed `acceptOwner`, `acceptArbitrator`, `setRelayer` and `setPaused(false)` (nonces 4 to 7). External security review is still not done.
+
 ## Scope and reviewable source
 
 The Monad adapter, mirror, receiver and deployment checks are in `contracts/src/monad/` and `contracts/script/BountyAdapterV48Deployment.s.sol`. The source publication [PR12](https://github.com/Sofiia7/ARC/pull/12) merged after all fresh Linux checks passed, including V4.8 tests, invariants, size bounds, gas snapshots and configured Slither. The SDK source reproduces the already published `arcbounty-agent-sdk@0.10.0`. Legacy escrow logic is reused; Safe retains its upgrade authority.
@@ -36,7 +38,7 @@ This section replaces the earlier "Remaining gates" list, which still described 
 
 ## Contract review findings
 
-An internal review of the deployed V4.8 adapter on 2026-10-13 found two medium and five low issues plus stale comments (M-1, M-2, L-1 to L-5, N-1). They concern the reputation gate, contest timing, edge cases in contest and identity handling, and one administrative misconfiguration risk (L-4). The adapter is not upgradeable, so they are disclosed with mitigations in [`SECURITY.md`](../../SECURITY.md), together with the trust assumptions that matter most for the launch: one 2-of-3 Safe controls the adapter and the escrow upgrade, and the reputation relayer is a hot key. Operating rule that follows from L-4: the Safe must never set a non-zero fee on the escrow.
+An internal review of the first V4.8 adapter on 2026-10-13 found two medium and five low issues plus stale comments (M-1, M-2, L-1 to L-5, N-1). They concern the reputation gate, contest timing, edge cases in contest and identity handling, and one administrative misconfiguration risk (L-4). V4.8.1 fixes M-1 in part (self-dealt jobs earn no reputation), L-1, L-2 and N-1; the rest is disclosed with mitigations in [`SECURITY.md`](../../SECURITY.md), together with the trust assumptions that matter most for the launch: one 2-of-3 Safe controls the adapter and the escrow upgrade, and the reputation relayer is a hot key. Operating rule that follows from L-4: the Safe must never set a non-zero fee on the escrow.
 
 ## Launch controls and operational limits
 
