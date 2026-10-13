@@ -543,20 +543,26 @@ Rehearsal identity 2077: dedicated testnet owner plus distinct working wallet; s
 
 NadBounty V4.8, deployed 2026-10-12 from the deployer `0x6abc2b575eC66701c17DAD96dDA97F22b837849E`, paused at creation; owner/arbitrator handed to the Safe and the adapter opened by the Safe on 2026-10-13. No external audit.
 
-| Contract | Address |
-|---|---|
-| BountyAdapter V4.8 | `0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020` |
-| AgenticCommerce proxy (escrow) | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2` |
-| AgenticCommerce implementation | `0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f` |
-| ReputationMirror | `0x59e970574D9aDc30892d094C893DA4B73EBE40a0` |
-| KeeperReceiver | `0x5B7559f1973D371d1b6A1e6ED22BeCbb4594e17f` |
-| USDC (native Circle, 6 decimals) | `0x754704Bc059F8C67012fEd69BC8A327a5aafb603` |
-| Identity registry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` |
-| Reputation registry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` |
-| Owner / arbitrator / fee recipient (Safe 2-of-3) | `0x74678c072Ca546f11466CD44eB7e21730a312a54` |
-| Reputation relayer (mirror writer, revocable by the Safe) | `0x78B3D0e6703906be0509A4dE64f8a6010eeB6904` |
+| Contract | Address | Source on MonadVision |
+|---|---|---|
+| BountyAdapter V4.8 | `0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020` | [source, Sourcify exact match](https://monadvision.com/address/0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020?tab=Contract) |
+| AgenticCommerce proxy (escrow) | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2` | [source, Sourcify exact match](https://monadvision.com/address/0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2?tab=Contract) |
+| AgenticCommerce implementation | `0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f` | [source, Sourcify exact match](https://monadvision.com/address/0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f?tab=Contract) |
+| ReputationMirror | `0x59e970574D9aDc30892d094C893DA4B73EBE40a0` | [source, Sourcify exact match](https://monadvision.com/address/0x59e970574D9aDc30892d094C893DA4B73EBE40a0?tab=Contract) |
+| KeeperReceiver | `0x5B7559f1973D371d1b6A1e6ED22BeCbb4594e17f` | [source, Sourcify exact match](https://monadvision.com/address/0x5B7559f1973D371d1b6A1e6ED22BeCbb4594e17f?tab=Contract) |
+| USDC (native Circle, 6 decimals) | `0x754704Bc059F8C67012fEd69BC8A327a5aafb603` | |
+| Identity registry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` | |
+| Reputation registry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` | |
+| Owner / arbitrator / fee recipient (Safe 2-of-3) | `0x74678c072Ca546f11466CD44eB7e21730a312a54` | [address page](https://monadvision.com/address/0x74678c072Ca546f11466CD44eB7e21730a312a54) |
+| AgenticCommerce escrow upgrade admin (UUPS: `DEFAULT_ADMIN_ROLE` and `ADMIN_ROLE`): Safe | `0x74678c072Ca546f11466CD44eB7e21730a312a54` | |
+| ReputationMirror owner: Safe | `0x74678c072Ca546f11466CD44eB7e21730a312a54` | |
+| KeeperReceiver owner: Safe | `0x74678c072Ca546f11466CD44eB7e21730a312a54` | |
+| Reputation relayer (mirror writer, revocable by the Safe; hot key used by the mainnet GitHub Actions workflow) | `0x78B3D0e6703906be0509A4dE64f8a6010eeB6904` | [address page](https://monadvision.com/address/0x78B3D0e6703906be0509A4dE64f8a6010eeB6904) |
+| Demo cross-chain profile: Arc worker owner mirrored as 6 paid jobs, score sum 535, from Arc block 25703970 | `0x092F4483526eBc2476c247cB88d166aDb7C3232f` | [profile](https://nadbounty.app/profile?agent=0&wallet=0x092F4483526eBc2476c247cB88d166aDb7C3232f) |
 
-Adapter deployment block: **112847096**. Fee 100 bps; reward cap 100 USDC; mirror forwarder and receiver relayers disabled. All five contract sources are Sourcify exact matches on Monad's Sourcify instance (`https://sourcify-api-monad.blockvision.org`).
+Adapter deployment block: **112847096**. Fee 100 bps; reward cap 100 USDC; mirror forwarder and receiver relayers disabled. All five contract sources are Sourcify exact matches on Monad's Sourcify instance (`https://sourcify-api-monad.blockvision.org`), re-checked against its API on 2026-10-13 (creation and runtime `exact_match` for each of the five; the adapter source stored there is identical to `contracts/src/monad/BountyAdapterV48.sol`). MonadVision (BlockVision), which reads that Sourcify instance, shows the adapter as "Contract Source Code Verified (Full Match)", contract name BountyAdapterV48. The same five sources were also submitted to Monadscan through the Etherscan V2 API on 2026-10-13 (`forge verify-contract --chain 143 --verifier etherscan`, compiler 0.8.30, optimizer 200 runs, cancun, via-IR) and are reported as verified there: BountyAdapterV48, ReputationMirror, KeeperReceiver, AgenticCommerce and the ERC1967Proxy of the escrow (the Safe is a standard SafeProxy). Transaction links in this file and the README point to Monadscan.
+
+Roles read back on chain on 2026-10-13: adapter `owner()`, `arbitrator()` and `feeRecipient()`, ReputationMirror `owner()` and KeeperReceiver `owner()` are the Safe; on the escrow proxy `hasRole(DEFAULT_ADMIN_ROLE)` and `hasRole(ADMIN_ROLE)` are true for the Safe and `hasRole(DEFAULT_ADMIN_ROLE)` is false for the deployer; `platformFeeBP()` and `evaluatorFeeBP()` are 0 (do not change this, see L-4 in `SECURITY.md`); the adapter reports `paused()` false, `feeBps()` 100 and `maxBountyAmount()` 100000000; KeeperReceiver `relayer()` and `forwarder()` and the mirror `forwarder()` are zero; the mirror `relayer()` is the relayer above. The Safe is v1.4.1 with threshold 2 and three owners, no Safe modules enabled (so no timelock). The escrow's UUPS upgrade authority being held by this Safe is the largest trust assumption of the deployment. The keeper wallet that settles matured jobs has no on-chain role and is not recorded in this file.
 
 Safe creation: `0x4005746c81f90941866bf93ffda86a7a8e4be3c4bd1b32827dec457fb0f53169` (same address as the Base Safe, salt 0, same three owners, threshold 2).
 
