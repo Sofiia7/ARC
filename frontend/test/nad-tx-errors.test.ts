@@ -445,7 +445,7 @@ test("no friendly message ever carries a URL, call data or an API key", () => {
       contractAddress: ADAPTER,
     }),
     viemRevert(errorString(`weird ${secretUrl}`)),
-    { message: `wss://node.example/socket?key=ABCDEFGHIJKLMNOPQRSTUVWXYZ012345 ${calldata}` },
+    { message: `wss://node.example/socket?s=ABCDEFGHIJKLMNOPQRSTUVWXYZ012345 ${calldata}` },
     { shortMessage: `localhost:8545 and 10.0.0.5:8545 and node.example.com/path ${calldata}` },
   ];
   for (const sample of samples) {
