@@ -300,7 +300,7 @@ export function DisputePanel({
 
       {/* Arbitrator ruling form */}
       {canRule && (
-        <div className="sub-card" style={{ borderColor: "rgba(255,205,140,0.32)" }}>
+        <div className="sub-card" style={{ borderColor: "rgba(var(--a1-rgb),0.32)" }}>
           <div className="sub-card-head">
             <span className="label" style={{ color: "var(--honey)" }}>Arbitrator: cast ruling</span>
           </div>
@@ -376,7 +376,7 @@ export function DisputePanel({
 
       {/* Default ruling - anyone after window closed */}
       {canClaimDefault && (
-        <div className="sub-card" style={{ borderColor: "rgba(255,179,106,0.32)" }}>
+        <div className="sub-card" style={{ borderColor: "rgba(var(--a2-rgb),0.32)" }}>
           <p style={{ color: "var(--amber)", fontSize: 13, margin: "0 0 10px", lineHeight: 1.5 }}>
             48h passed with no response - anyone can apply the default ruling in favor of {initiatorLabel.toLowerCase()}.
           </p>

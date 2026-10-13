@@ -6,7 +6,8 @@ import {CONTRACTS} from '@/lib/contracts';
 import {BOUNTY_ADAPTER_V48_ABI as abi} from '@/lib/abi-v48';
 import {REPUTATION_MIRROR_ABI as mirrorAbi} from '@/lib/reputationMirrorAbi';
 const identityAbi=parseAbi(['function ownerOf(uint256) view returns(address)','function getAgentWallet(uint256) view returns(address)']);
-const average=(jobs:bigint,sum:bigint)=>jobs?`${Number(sum*100n/jobs)/100}`:'—';
+const average=(jobs:bigint,sum:bigint)=>jobs?`${Number(sum*100n/jobs)/100}`:'-';
+const mono:React.CSSProperties={fontFamily:'var(--font-jetbrains-mono), monospace',fontSize:13,overflowWrap:'anywhere'};
 export function NadProfile(){
   const{address}=useAccount(),client=usePublicClient();const[id,setId]=useState('0'),[human,setHuman]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
   const[data,setData]=useState<{owner:Address;working:Address|null;total:readonly[bigint,bigint];sources:{name:string;chainId:bigint;record:readonly[bigint,bigint,bigint,bigint]}[];relayer:Address}>();
@@ -24,5 +25,31 @@ export function NadProfile(){
     const relayer=await client.readContract({address:mirror,abi:mirrorAbi,functionName:'relayer'});
     setData({owner,working,total,sources,relayer});
   }catch(e){setError(e instanceof Error?e.message:'Could not read profile');}finally{setBusy(false);}}
-  return <main className="max-w-4xl mx-auto p-6 space-y-6"><h1 className="text-3xl">Identity reputation</h1><p>Scored paid jobs on Monad, plus Base and Arc records synchronized for the current identity owner. Working-wallet changes do not move the identity&apos;s reputation.</p><label className="block">Agent ID · 0 for a human<input className="bg-black/30 border p-3 block w-full" value={id} onChange={e=>setId(e.target.value)}/></label>{id==='0'&&<label className="block">Human wallet<input className="bg-black/30 border p-3 block w-full" value={human} onChange={e=>setHuman(e.target.value)}/></label>}<button className="btn btn-primary" disabled={busy} onClick={()=>void load()}>{busy?'Reading…':'Read on-chain profile'}</button>{error&&<p role="alert" className="break-words">{error}</p>}{data&&<><section className="border rounded-xl p-5 space-y-2"><p className="break-all">Current owner: {data.owner}</p>{data.working&&<p className="break-all">Current working wallet: {data.working}</p>}<p>Total qualifying jobs: {String(data.total[0])} · score sum: {String(data.total[1])} · weighted average: {average(...data.total)}</p><p>Proven: {data.total[0]>=3n&&data.total[1]>=80n*data.total[0]?'qualified':'not yet'} · Top: {data.total[0]>=10n&&data.total[1]>=90n*data.total[0]?'qualified':'not yet'}</p></section><div className="grid md:grid-cols-2 gap-4">{data.sources.map(source=><section className="border rounded-xl p-5" key={source.name}><h2 className="text-xl">{source.name}</h2>{source.record[2]===0n?<p>No synchronized record.</p>:<><p>{String(source.record[0])} paid jobs · score sum {String(source.record[1])} · average {average(source.record[0],source.record[1])}</p><p>Source block: {String(source.record[2])} · updated {new Date(Number(source.record[3])*1000).toLocaleString()}</p></>}</section>)}</div><p className="text-sm">Mirrored reputation trusts our relayer for Base and Arc. Arc data is supplied by our API. Every record includes its source block for verification. {data.relayer==='0x0000000000000000000000000000000000000000'?'The trusted relayer is currently disabled.':''}</p></>}</main>;
+  const proven=!!data&&data.total[0]>=3n&&data.total[1]>=80n*data.total[0],top=!!data&&data.total[0]>=10n&&data.total[1]>=90n*data.total[0];
+  return <>
+    <header className="page-head"><h1>Identity reputation</h1><p className="sub">Scored paid jobs on Monad, plus Base and Arc records synchronized for the current identity owner. Working-wallet changes do not move the identity&apos;s reputation.</p></header>
+    <form className="form-card" onSubmit={e=>{e.preventDefault();void load();}}>
+      <div className="form-grid-2">
+        <div className="form-row"><label className="form-label" htmlFor="profile-agent">Agent ID <span className="hint">0 for a human</span></label><input id="profile-agent" className="input" inputMode="numeric" value={id} onChange={e=>setId(e.target.value)}/></div>
+        {id==='0'&&<div className="form-row"><label className="form-label" htmlFor="profile-human">Human wallet</label><input id="profile-human" className="input" value={human} onChange={e=>setHuman(e.target.value)} placeholder="0x…"/></div>}
+      </div>
+      {error&&<p role="alert" style={{color:'#FFC9BC',margin:0,overflowWrap:'anywhere'}}>{error}</p>}
+      <button type="submit" className="btn btn-primary btn-big" disabled={busy}>{busy?'Reading…':'Read on-chain profile'}</button>
+    </form>
+    {data&&<>
+      <div className="stat-grid" style={{marginTop:22}}>
+        <div className="stat-card"><div className="stat-label">Qualifying jobs</div><div className="stat-value">{String(data.total[0])}</div><div className="stat-hint">Monad plus mirrored Base and Arc</div></div>
+        <div className="stat-card"><div className="stat-label">Score sum</div><div className="stat-value">{String(data.total[1])}</div><div className="stat-hint">exact, never rounded</div></div>
+        <div className="stat-card"><div className="stat-label">Weighted average</div><div className="stat-value">{average(...data.total)}</div><div className="stat-hint">{top?'Top tier':proven?'Proven tier':'no tier yet'}</div></div>
+      </div>
+      <section className="panel"><div className="panel-head"><span className="title">Identity</span></div>
+        <p style={{margin:0}}>Current owner <code style={mono}>{data.owner}</code></p>
+        {data.working&&<p style={{margin:0}}>Current working wallet <code style={mono}>{data.working}</code></p>}
+        <p style={{margin:0,fontSize:13,color:'var(--ink-mute)'}}>Proven: {proven?'qualified':'not yet'} · Top: {top?'qualified':'not yet'}</p>
+      </section>
+      <div className="form-grid-2" style={{marginTop:22,alignItems:'stretch'}}>{data.sources.map(source=><section className="panel" style={{marginTop:0}} key={source.name}><div className="panel-head"><span className="title">{source.name} record</span></div>{source.record[2]===0n?<p style={{margin:0,color:'var(--ink-soft)'}}>No synchronized record.</p>:<><p style={{margin:0}}>{String(source.record[0])} paid jobs · score sum {String(source.record[1])} · average {average(source.record[0],source.record[1])}</p><p style={{margin:0,fontSize:13,color:'var(--ink-mute)'}}>Source block {String(source.record[2])} · updated {new Date(Number(source.record[3])*1000).toLocaleString()}</p></>}</section>)}</div>
+      <p style={{fontSize:13,color:'var(--ink-mute)',marginTop:18}}>Mirrored reputation trusts our relayer for Base and Arc. Arc data is supplied by our API. Every record includes its source block for verification. {data.relayer==='0x0000000000000000000000000000000000000000'?'The trusted relayer is currently disabled.':''}</p>
+    </>}
+    <footer className="spacer"/>
+  </>;
 }

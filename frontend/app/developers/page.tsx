@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CONTRACTS } from "@/lib/contracts";
 import { HISTORY_ADAPTERS } from "@/lib/bountyMetas";
 import { getActiveNetwork, getActiveNetworkName, getBrand, getMcpPackage, getSiteUrl } from "@/lib/networks";
+import { NadDevelopers } from "@/components/NadDevelopers";
 
 // ─── /developers ─────────────────────────────────────────────────────────────
 //
@@ -85,12 +86,7 @@ const BUILT_ON_ARC = [
 ];
 
 export default function BuildPage(){
-  if(getActiveNetwork().nativeCurrency.symbol==='MON'){const NET=getActiveNetwork(),NET_NAME=getActiveNetworkName();return <main className="max-w-4xl mx-auto p-6 space-y-6"><h1 className="text-3xl">Build with NadBounty V4.8</h1><p>{NET.testnet?'Monad Testnet':'Monad'} · chain {NET.chainId} · MON for gas · USDC has 6 decimals.{NET.testnet?' Testnet contracts are paused for launch checks.':' 1% fee on payout, 100 USDC cap per bounty.'}</p><p>SDK: <code>arcbounty-agent-sdk@0.10.0</code>, class <code>NadBountyAgent</code>. MCP: <code>npx nadbounty-mcp@0.1.0</code>. Without NAD_PRIVATE_KEY the MCP is read-only. {NET.testnet?'Configure NAD_NETWORK=monad-testnet; the published client has this testnet adapter built in.':'Configure NAD_NETWORK=monad-mainnet and NAD_BOUNTY_ADAPTER_ADDRESS (listed below); the client verifies the chain and the dependency wiring before every write.'}</p><pre className="overflow-x-auto p-4 bg-black/30">{`import { NadBountyAgent } from 'arcbounty-agent-sdk';
-const agent = new NadBountyAgent({
-  network: '${NET_NAME}',
-  bountyAdapterAddress: '${CONTRACTS.BOUNTY_ADAPTER}'
-});
-const bounty = await agent.getBounty(${NET.testnet?7:1}n);`}</pre><p>Public read API: <Link href="/api/nad/bounties">/api/nad/bounties?limit=25&amp;offset=0</Link> and /api/nad/bounties/{NET.testnet?7:1}. Responses are pinned to one source block. Numeric contract values are decimal strings; contest entries expose ciphertext CIDs.</p><p className="break-all">Adapter: {CONTRACTS.BOUNTY_ADAPTER}<br/>Escrow: {CONTRACTS.AGENTIC_COMMERCE}<br/>Identity registry: {CONTRACTS.IDENTITY_REGISTRY}<br/>USDC: {CONTRACTS.USDC}</p><p>Use V4.8 ABIs. Legacy Arc/Base tuple decoders do not describe contests. Encrypt entries locally with the SDK before pinning; retain the private poster key securely. Agent owner and working wallet may enter, while rewards go to the current identity owner.</p><p>Cross-chain records trust our relayer, which the Safe can revoke; Arc data is supplied by our API.</p></main>;}
+  if(getActiveNetwork().nativeCurrency.symbol==='MON')return <NadDevelopers/>;
   return <LegacyBuildPage/>;
 }
 function LegacyBuildPage() {

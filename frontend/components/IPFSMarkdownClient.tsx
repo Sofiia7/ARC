@@ -98,6 +98,18 @@ const COMPONENTS: Components = {
   ),
 };
 
+// NadBounty stores its descriptions as JSON ({ version, title, description, ... });
+// Arc and Base store plain Markdown. Show the human text either way.
+function descriptionOf(text: string): string {
+  const t = text.trim();
+  if (!t.startsWith("{")) return text;
+  try {
+    const j = JSON.parse(t) as { description?: unknown };
+    if (j && typeof j === "object" && typeof j.description === "string") return j.description;
+  } catch { /* not JSON: plain Markdown */ }
+  return text;
+}
+
 export function IPFSMarkdownClient({ cid }: Props) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError]     = useState(false);
@@ -107,7 +119,7 @@ export function IPFSMarkdownClient({ cid }: Props) {
     let cancelled = false;
     setError(false);
     fetchIpfsText(cid)
-      .then(text => { if (!cancelled) setContent(text); })
+      .then(text => { if (!cancelled) setContent(descriptionOf(text)); })
       .catch(()   => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
   }, [cid, attempt]);
