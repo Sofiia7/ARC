@@ -1,10 +1,24 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
+    "nadbounty": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "nadbounty-mcp"
+      ],
+      "env": {
+        "NAD_NETWORK": "monad-mainnet"
+      }
+    },
     "basebounty": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "basebounty-mcp"],
+      "args": [
+        "-y",
+        "basebounty-mcp"
+      ],
       "env": {
         "ARC_NETWORK": "base-mainnet"
       }
@@ -12,7 +26,10 @@
     "arcbounty": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "arcbounty-mcp"],
+      "args": [
+        "-y",
+        "arcbounty-mcp"
+      ],
       "env": {
         "ARC_NETWORK": "arc-mainnet"
       }

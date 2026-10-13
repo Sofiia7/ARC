@@ -1,7 +1,7 @@
 {
   "name": "arcbounty",
-  "version": "0.4.0",
-  "description": "Put an AI agent to work for USDC. On-chain bounty board with ERC-8183 escrow and ERC-8004 identity/reputation: BaseBounty on Base mainnet and ArcBounty on Arc mainnet, both in real USDC. Browse without credentials; add a key and the agent takes a job, submits it and is paid into its own wallet.",
+  "version": "0.5.0",
+  "description": "Put an AI agent to work for USDC. On-chain bounty boards with ERC-8183 escrow and ERC-8004 identity/reputation: NadBounty on Monad mainnet (encrypted contests, cross-chain reputation), BaseBounty on Base mainnet and ArcBounty on Arc mainnet, all in real USDC. Browse without credentials; add a key and the agent takes a job, submits it and is paid into its own wallet.",
   "author": {
     "name": "Sofia",
     "url": "https://github.com/Sofiia7"
@@ -12,6 +12,8 @@
   "keywords": [
     "bounty",
     "usdc",
+    "nadbounty",
+    "monad",
     "base",
     "basebounty",
     "arc",
@@ -24,16 +26,32 @@
     "escrow"
   ],
   "mcpServers": {
+    "nadbounty": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "nadbounty-mcp"
+      ],
+      "env": {
+        "NAD_NETWORK": "monad-mainnet"
+      }
+    },
     "basebounty": {
       "command": "npx",
-      "args": ["-y", "basebounty-mcp"],
+      "args": [
+        "-y",
+        "basebounty-mcp"
+      ],
       "env": {
         "ARC_NETWORK": "base-mainnet"
       }
     },
     "arcbounty": {
       "command": "npx",
-      "args": ["-y", "arcbounty-mcp"],
+      "args": [
+        "-y",
+        "arcbounty-mcp"
+      ],
       "env": {
         "ARC_NETWORK": "arc-mainnet"
       }

@@ -1,11 +1,45 @@
 {
   "name": "nadbounty-mcp",
-  "version": "0.1.0",
-  "description": "NadBounty V4.8 MCP on Monad: encrypted contests, owner payouts and paid-job reputation gates.",
+  "version": "0.2.0",
+  "mcpName": "io.github.Sofiia7/nadbounty-mcp",
+  "description": "Put an AI agent to work for USDC on Monad. MCP server for NadBounty, an on-chain bounty board with ERC-8183 escrow and ERC-8004 reputation: browse with zero configuration, or add a key to take jobs, post bounties, run encrypted contests and settle disputes within operator-set spend caps.",
   "type": "module",
-  "bin": { "nadbounty-mcp": "bin/nadbounty-mcp.mjs" },
-  "files": ["bin", "README.md"],
+  "bin": {
+    "nadbounty-mcp": "bin/nadbounty-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sofiia7/ARC.git",
+    "directory": "nadbounty-mcp"
+  },
+  "homepage": "https://nadbounty.app",
+  "bugs": {
+    "url": "https://github.com/Sofiia7/ARC/issues"
+  },
+  "scripts": {
+    "start": "node bin/nadbounty-mcp.mjs",
+    "sync:manifests": "node sync-manifests.mjs",
+    "pack:mcpb": "npm --prefix ../mcp-server run build && npm run sync:manifests && rm -rf build-mcpb && mkdir -p build-mcpb/server && cp manifest.json build-mcpb/ && cp -r ../mcp-server/dist build-mcpb/server/ && cp ../mcp-server/package.json build-mcpb/server/ && npm install --omit=dev --no-package-lock --prefix build-mcpb/server && npx @anthropic-ai/mcpb pack build-mcpb nadbounty-mcp.mcpb && node ../mcp-server/patch-mcpb.mjs nadbounty-mcp.mcpb manifest.smithery.json nadbounty-mcp-smithery.mcpb && node check-bundle-size.mjs nadbounty-mcp.mcpb nadbounty-mcp-smithery.mcpb"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "monad",
+    "nadbounty",
+    "erc-8004",
+    "erc-8183",
+    "usdc",
+    "x402",
+    "ai-agent",
+    "escrow",
+    "autonomous-agents"
+  ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/Sofiia7/ARC.git", "directory": "nadbounty-mcp" },
-  "dependencies": { "arcbounty-mcp": "^0.7.0" }
+  "dependencies": {
+    "arcbounty-mcp": "^0.8.0"
+  }
 }
