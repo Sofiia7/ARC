@@ -1,4 +1,4 @@
-/** Testnet-only exact source sync. Dry by default; Safe must authorize the dedicated writer. */
+/** Exact Base/Arc source sync into the Monad ReputationMirror (testnet or mainnet by NAD_NETWORK). Dry by default; Safe must authorize the dedicated writer. */
 import {readFileSync,writeFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {createPublicClient,createWalletClient,defineChain,http,parseAbi,parseAbiItem,type Address,type Hex} from 'viem';
@@ -8,22 +8,26 @@ import {readReputationSource,encodeMirrorReport,needsMirrorUpdate} from './reput
 import {nadRedis} from './redis.js';
 import {scanHistory} from './discovery.js';
 const env=process.env;
-const plan=JSON.parse(readFileSync(new URL('../config/testnet.json',import.meta.url),'utf8').replace(/^\uFEFF/,''));
+const networkName=env.NAD_NETWORK??'monad-testnet';if(networkName!=='monad-testnet'&&networkName!=='monad-mainnet')throw Error('Invalid NAD_NETWORK');
+const mainnet=networkName==='monad-mainnet';
+const plan=JSON.parse(readFileSync(new URL(`../config/${mainnet?'mainnet':'testnet'}.json`,import.meta.url),'utf8').replace(/^\uFEFF/,''));
+const chainId=plan.chainId as number;if(chainId!==(mainnet?143:10143))throw Error('Config chain mismatch');
 if(!/^0x[0-9a-fA-F]{64}$/.test(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY??'')||/^0x0+$/.test(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY??''))throw Error('Dedicated reputation key is missing or invalid');
-const mirror='0x59e970574D9aDc30892d094C893DA4B73EBE40a0' as Address;
-const rpc=env.NAD_RPC_URL??'https://testnet-rpc.monad.xyz';
-const chain=defineChain({id:10143,name:'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[rpc]}}});
+const mirror=plan.mirror as Address;if(mirror.toLowerCase()!=='0x59e970574d9adc30892d094c893da4b73ebe40a0')throw Error('Unexpected mirror address');
+const rpc=env.NAD_RPC_URL??(mainnet?'https://rpc.monad.xyz':'https://testnet-rpc.monad.xyz');
+const logRpc=env.NAD_LOG_RPC_URL??(mainnet?'https://rpc.monad.xyz':'https://testnet-rpc.monad.xyz');
+const chain=defineChain({id:chainId,name:mainnet?'Monad':'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[rpc]}}});
 const client=createPublicClient({chain,transport:http(rpc,{timeout:20000,retryCount:2})});
-const logClient=createPublicClient({chain,transport:http('https://testnet-rpc.monad.xyz',{timeout:20000,retryCount:2,batch:{batchSize:10,wait:5}})});
+const logClient=createPublicClient({chain,transport:http(logRpc,{timeout:20000,retryCount:2,batch:{batchSize:10,wait:5}})});
 const account=privateKeyToAccount(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY as Hex);
 const wallet=createWalletClient({chain,account,transport:http(rpc)});
 const abi=parseAbi(['function owner() view returns(address)','function relayer() view returns(address)','function onReport(bytes,bytes)','function records(address,uint256) view returns(uint64,uint128,uint64,uint256)']);
 const event=parseAbiItem('event ReputationUpdated(address indexed identityOwner,uint256 indexed sourceChain,uint64 sourceBlock,uint64 paidJobs,uint128 scoreSum)');
-const prefix=`nad:rep:10143:${mirror.toLowerCase()}`,lease=`${prefix}:lease`,leaseToken=randomUUID();
+const prefix=`nad:rep:${chainId}:${mirror.toLowerCase()}`,lease=`${prefix}:lease`,leaseToken=randomUUID();
 let acquired=false;
 let phase='target-chain';
 try {
- if(await client.getChainId()!==10143||plan.mirror.toLowerCase()!==mirror.toLowerCase()||plan.relayer.toLowerCase()!==account.address.toLowerCase())throw Error('Target/key mismatch');
+ if(await client.getChainId()!==chainId||plan.mirror.toLowerCase()!==mirror.toLowerCase()||plan.relayer.toLowerCase()!==account.address.toLowerCase())throw Error('Target/key mismatch');
  phase='target-finalized-block';const target=await client.getBlock({blockTag:'finalized'});if(!target.number||!target.hash)throw Error('No finalized target');
  phase='target-governance';
  const owner=await client.readContract({address:mirror,abi,functionName:'owner',blockNumber:target.number});
@@ -34,9 +38,9 @@ try {
  for(const source of recipients.keys())for(const value of await nadRedis<Address[]>('SMEMBERS',`${prefix}:recipients:${source}`))recipients.get(source)!.add(value);
  // Chain history reconstructs ALL prior recipients even if the local cache or Redis is lost.
  const cursor=await nadRedis<string|null>('GET',`${prefix}:discovery-cursor`);
- const saved=cursor?BigInt(cursor):69191994n;
+ const deployBlock=BigInt(plan.deployBlock),saved=cursor?BigInt(cursor):deployBlock;
  if(saved>target.number)throw Error('Recipient cursor is ahead of finalized chain');
- const calls=await scanHistory({from:saved>69192122n?saved-128n:69191994n,target:target.number,range:1000n,maxCalls:1000,checkpointEvery:10,
+ const calls=await scanHistory({from:saved>deployBlock+128n?saved-128n:deployBlock,target:target.number,range:1000n,maxCalls:1000,checkpointEvery:10,
   fetch:async(from,to)=>{
    const requests=[];
    // Each RPC method retains the provider's 100-block limit. HTTP batching
@@ -96,7 +100,7 @@ try {
  }
  // Advance only after every old/new recipient has been durably journaled.
  await nadRedis('SET',`${prefix}:discovery-cursor`,String(target.number));
- const result={chainId:10143,mirror,relayer:account.address,authorized,broadcast,targetBlock:target.number,targetHash:target.hash,recipientDiscoveryCalls:calls,snapshots,unchangedRecords,transactions};
+ const result={chainId,mirror,relayer:account.address,authorized,broadcast,targetBlock:target.number,targetHash:target.hash,recipientDiscoveryCalls:calls,snapshots,unchangedRecords,transactions};
  const output=JSON.stringify(result,(_,v)=>typeof v==='bigint'?String(v):v,2);
  writeFileSync(env.NAD_SYNC_OUTPUT??'reputation-sync.json',output);console.log(output);
 }catch(error){console.error(JSON.stringify({phase,errorType:error instanceof Error?error.name:'Unknown',message:'Reputation sync stopped; private transport and keys suppressed'}));process.exitCode=1;}

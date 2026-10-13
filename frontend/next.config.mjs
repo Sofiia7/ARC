@@ -31,6 +31,10 @@ function activeNetworkOrigins() {
     return {rpc: originOf(readEnv('NEXT_PUBLIC_MONAD_TESTNET_RPC_URL') ?? 'https://testnet-rpc.monad.xyz'), explorer: originOf('https://testnet.monadscan.com'), explorerApi: originOf('https://api.etherscan.io')};
   }
 
+  if (network === 'monad-mainnet') {
+    return {rpc: originOf(readEnv('NEXT_PUBLIC_MONAD_RPC_URL') ?? 'https://rpc.monad.xyz'), explorer: originOf('https://monadscan.com'), explorerApi: originOf('https://api.etherscan.io')};
+  }
+
   if (network === "arc-testnet") {
     const rpcUrl = readEnv("NEXT_PUBLIC_RPC_URL") ?? "https://rpc.testnet.arc.network";
     return { rpc: originOf(rpcUrl), explorer: originOf("https://testnet.arcscan.app") };

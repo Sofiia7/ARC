@@ -13,7 +13,7 @@ import type { Address } from "viem";
 // guards the two maps against drifting apart, so keep field names and
 // per-network values mirrored when editing either one.
 
-export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base-mainnet" | "monad-testnet";
+export type NetworkName = "arc-testnet" | "arc-mainnet" | "base-sepolia" | "base-mainnet" | "monad-testnet" | "monad-mainnet";
 
 /**
  * The chain's native (gas) token - mirrors `NativeCurrency` in the SDK.
@@ -140,6 +140,26 @@ export const NETWORKS = {
     bountyAdapterAddress: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020',
     adapterDeployBlock: 69191994n, multicall3: false, testnet: true,
     blocksPerDay: 216000n, maxLookbackBlocks: 100n,
+  },
+  'monad-mainnet': {
+    chainId: 143, name: 'Monad',
+    rpcUrl: process.env.NEXT_PUBLIC_MONAD_RPC_URL ?? 'https://rpc.monad.xyz',
+    explorerUrl: 'https://monadscan.com',
+    explorerApiUrl: 'https://api.etherscan.io/v2/api?chainid=143',
+    explorerName: 'Monadscan', needsWalletSetup: false,
+    nativeCurrency: { symbol: 'MON', decimals: 18, isUsdc: false },
+    brand: { name: 'NadBounty', domain: 'nadbounty.app' },
+    contracts: {
+      AGENTIC_COMMERCE: '0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2',
+      IDENTITY_REGISTRY: '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432',
+      REPUTATION_REGISTRY: '0x8004BAa17C55a88189AE136b182e5fdA19dE9b63',
+      // Native Circle USDC on Monad: symbol USDC, 6 decimals, name() "USDC".
+      USDC: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
+    },
+    bountyAdapterAddress: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020',
+    // Adapter creation, block from the forge broadcast receipt (2026-10-12).
+    adapterDeployBlock: 112847096n, multicall3: true, testnet: false,
+    blocksPerDay: 286000n, maxLookbackBlocks: 100n,
   },
   "arc-testnet": {
     chainId: 5_042_002,
@@ -296,6 +316,7 @@ export function getActiveNetworkName(): NetworkName {
   if (raw === "base-sepolia") return "base-sepolia";
   if (raw === "base-mainnet") return "base-mainnet";
   if (raw === 'monad-testnet') return 'monad-testnet';
+  if (raw === 'monad-mainnet') return 'monad-mainnet';
   throw new Error(
     `[arcbounty] NEXT_PUBLIC_ARC_NETWORK="${raw}" is not a valid network - ` +
     `expected "arc-testnet", "arc-mainnet", "base-sepolia" or "base-mainnet".`,

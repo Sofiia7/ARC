@@ -1,0 +1,37 @@
+name: NadBounty mainnet automation
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '12,42 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: nadbounty-mainnet-automation
+  cancel-in-progress: false
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run: { working-directory: nad-automation }
+    env:
+      NAD_NETWORK: monad-mainnet
+      NAD_BOUNTY_ADAPTER_ADDRESS: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020'
+      NAD_RPC_URL: https://rpc1.monad.xyz
+      NAD_LOG_RPC_URL: https://rpc.monad.xyz
+      BASE_MAINNET_RPC_URL: ${{ secrets.NAD_AUTOMATION_BASE_RPC_URL }}
+      ARC_MAINNET_RPC_URL: ${{ secrets.NAD_AUTOMATION_ARC_RPC_URL }}
+      NAD_UPSTASH_REDIS_REST_URL: ${{ secrets.NAD_AUTOMATION_REDIS_URL }}
+      NAD_UPSTASH_REDIS_REST_TOKEN: ${{ secrets.NAD_AUTOMATION_REDIS_TOKEN }}
+      NAD_REPUTATION_RELAYER_PRIVATE_KEY: ${{ secrets.NAD_MAINNET_REPUTATION_RELAYER_PRIVATE_KEY }}
+      NAD_KEEPER_PRIVATE_KEY: ${{ secrets.NAD_MAINNET_KEEPER_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '22' }
+      - run: npm ci --ignore-scripts
+      - name: Settle mature mainnet jobs using the dedicated permissionless keeper
+        run: npm run keeper -- --broadcast
+      - name: Synchronize changed finalized Base and Arc records into the mainnet mirror
+        if: success() || failure()
+        run: npm run sync -- --broadcast
