@@ -1795,8 +1795,10 @@ contract BountyAdapterV48 is ReentrancyGuard {
     /// @dev V4: increments uniquePosterCount[agentId] the first time a given
     ///      poster completes a bounty with that agent as worker. No-op for
     ///      human workers (agentId == 0) or a poster already counted.
-    /// @dev True when the poster is also the worker: the same wallet, or the current owner of the
-    ///      worker's identity. Such a job still pays out; it just earns no reputation of any kind.
+    // True when the poster is also the worker: the same wallet, or the current owner of the worker's
+    // identity. Such a job still pays out; it just earns no reputation of any kind. At most 25 owner
+    // reads per contest settlement (one per winner), and a failed read only means "not self-dealt".
+    // slither-disable-next-line calls-loop
     function _isSelfDealt(address poster, address worker, uint256 agentId) internal view returns (bool) {
         if (worker == poster) return true;
         if (agentId == 0) return false;
