@@ -256,7 +256,8 @@ const ADAPTER_TITLES: Titles = {
   disputeBounty: (args) => ({ title: `Open a dispute on bounty #${args[0]}` }),
   pickContestWinners: (args) => ({
     title: `Pick the winners of contest #${args[0]}`,
-    note: "Winners are paid from escrow.",
+    note:
+      "Winners are paid from escrow. While the contest is still open an entrant can replace an entry, and you pay for what the entry holds when this goes through, so pick after the contest closes when you can.",
   }),
   withdraw: () => ({ title: "Withdraw your pending USDC", note: "Moves USDC owed to you into this wallet." }),
 };
