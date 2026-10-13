@@ -1,4 +1,4 @@
-# NadBounty CRE integration — in progress
+# NadBounty CRE integration - in progress
 
 The `keeper` staging workflow reads explicit job candidates, receiver wiring and real V4.8 state through CRE EVM capabilities. It shares the SDK's deadline planner and checks individual contest challenges plus recovered escrow status. Reports are disabled until reporter authority and Monad gas budgeting are verified; it cannot broadcast even if the config flag is changed. Candidate discovery above 100 jobs requires indexed pagination.
 
