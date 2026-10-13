@@ -515,14 +515,15 @@ export function NadDetail({ jobId }: { jobId: bigint }) {
   async function decrypt() {
     if (!meta) return;
     await run(async () => {
-      if (!["wallet-signature-v1", "mera-prf-v1"].includes(description?.contestEncryption?.keySource))
-        throw new UserError(
-          "This contest was posted using an SDK encryption key. Decrypt its entries with that SDK key.",
-        );
+      // A contest posted through the SDK or MCP is labelled "sdk-keypair-v1", but its key can still be the one this wallet
+      // derives (the poster signs the same key message). Try the wallet key first; only a public-key mismatch is an error.
+      const walletDerived = ["wallet-signature-v1", "mera-prf-v1"].includes(description?.contestEncryption?.keySource);
       const key = await recover(meta.poster);
       if (key.publicKey !== description.contestEncryption.publicKey)
         throw new UserError(
-          "This wallet returned a different encryption key. Use the wallet or passkey you posted with, or the original key backup.",
+          walletDerived
+            ? "This wallet returned a different encryption key. Use the wallet or passkey you posted with, or the original key backup."
+            : "This contest was posted using an SDK encryption key that this wallet does not match. Decrypt its entries with that SDK key.",
         );
       const values: Record<number, string> = {};
       for (let i = 0; i < entries.length; i++) {

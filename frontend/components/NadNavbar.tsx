@@ -2,10 +2,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { useAccount, useDisconnect } from "wagmi";
-import { shortAddress } from "@/lib/format";
+import { useAccount } from "wagmi";
 import { getBrand } from "@/lib/networks";
 import { ConnectWalletModal } from "./ConnectWalletModal";
+import { WalletMenu } from "./WalletMenu";
 
 const NAV = [
   { href: "/", label: "Browse" },
@@ -22,7 +22,6 @@ function isActive(pathname: string | null, href: string): boolean {
 
 export function NadNavbar() {
   const { address, isConnected } = useAccount(),
-    { disconnect } = useDisconnect(),
     [open, setOpen] = useState(false),
     pathname = usePathname();
   return (
@@ -50,10 +49,7 @@ export function NadNavbar() {
             <span className="nav-post-label">Post Bounty</span>
           </Link>
           {isConnected && address ? (
-            <button type="button" onClick={() => disconnect()} className="btn wallet" title="Click to disconnect">
-              <span className="dot" />
-              {shortAddress(address)}
-            </button>
+            <WalletMenu />
           ) : (
             <button type="button" onClick={() => setOpen(true)} className="btn btn-primary">
               Connect Wallet

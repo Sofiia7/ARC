@@ -22,7 +22,7 @@ function copyFor(connector: Connector): { title: string; hint: string } {
       return {
         title: connector.name,
         hint: create
-          ? `${passkey} Fund it with a little MON for gas.`
+          ? `${passkey} Afterwards, click your address at the top right to copy it, then send it a little MON for gas and USDC for rewards.`
           : `${passkey} Use the passkey you already created here; the session lasts 10 minutes.`,
       };
     }
