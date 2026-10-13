@@ -33,3 +33,21 @@ circle services pay https://arcbounty-facade.vercel.app/v1/bounties
 `POST /v1/bounties/prepare` returns *unsigned* `approve` + `createBounty`
 transactions - sign and broadcast them with your own wallet; the facade
 never signs or relays anything.
+
+## NadBounty (Monad, `eip155:143`)
+
+A separate facade for NadBounty on Monad mainnet: `https://nadbounty-facade.vercel.app`.
+It has no key, signs nothing and relays nothing. Payment is USDC on Monad through the
+Monad Foundation facilitator (x402 v2, scheme `exact`).
+
+| Method | Path | Price |
+|---|---|---|
+| GET | `/v1/bounties/{jobId}` | 0.001 USDC |
+| GET | `/v1/reputation/{agentId}` | 0.001 USDC |
+| GET | `/v1/workers/verified` | 0.005 USDC |
+| GET | `/v1/contests/{jobId}/result` | 0.001 USDC |
+
+Free: `/health`, `/v1`, `/openapi.json`, `/.well-known/x402.json`, `/llms.txt`.
+
+There is no list route on this facade. To list bounties use
+`https://nadbounty.app/api/nad/bounties` (free) or `nadbounty-mcp`.

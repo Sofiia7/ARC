@@ -6,11 +6,11 @@ Install dependencies in `reputation-sync`, then run `cre workflow simulate keepe
 
 Verified WASM binary hash: `4f87f0b8bd10116124bb7335b81b45cd607c6e2c32c6bbbcc6bfe2c7910d337b`; config hash: `ee83c67d362c71c773413feb7292fc469831fd1110ef4abd83dc9eb1a326cdae`. The generated Hello World template was removed: it is not evidence of an integration.
 
-Exact Base/Arc source reading is now implemented and live-verified by `scripts/nad-reputation-snapshot.ts`; see the source proof in `docs/superpowers/plans/2026-10-08-nadbounty-reputation-source-proof.md`. Remaining: durable recipient discovery, reputation workflow (cron plus HTTP trigger), Base keeper branch and receiver, positive-action/report simulation with gas budgeting, and Safe-authorized relayer configuration. The direct permissionless keeper remains the production design; its Nad hosted activation is still pending. Chainlink DON deployment is separate and commercial.
+Exact Base/Arc source reading is now implemented and was live-verified with a snapshot script and a source-proof note that are kept locally, not published. Remaining: durable recipient discovery, reputation workflow (cron plus HTTP trigger), Base keeper branch and receiver, positive-action/report simulation with gas budgeting, and Safe-authorized relayer configuration. The direct permissionless keeper remains the production design; its Nad hosted activation is still pending. Chainlink DON deployment is separate and commercial.
 
 ## Verified reputation workflow
 
-On 2026-10-09 both cron and HTTP trigger simulations compiled to actual WASM and completed with default CRE production limits. Binary hash: c72f7f9a1eca1049114e1ab49913e2295601bd4d83c05d351b079fb240ae9119. Both produced identical five-record reports from Base52376037 / Arc25058436. Base reads are batched through Multicall3 (https://github.com/mds1/multicall3/blob/main/src/Multicall3.sol), preserving a pinned finalized block and verifying registry wiring, candidate identities, owners and raw feedback. Monad checks Safe ownership and approved reporter. Arc evidence is trusted HTTP input.
+On 2026-10-09 both cron and HTTP trigger simulations compiled to actual WASM and completed with default CRE production limits. Binary hash: c72f7f9a1eca1049114e1ab49913e2295601bd4d83c05d351b079fb240ae9119. Both produced identical five-record reports from Base block 52376037 / Arc block 25058436. Base reads are batched through Multicall3 (https://github.com/mds1/multicall3/blob/main/src/Multicall3.sol), preserving a pinned finalized block and verifying registry wiring, candidate identities, owners and raw feedback. Monad checks Safe ownership and approved reporter. Arc evidence is trusted HTTP input.
 
 Run from this directory after installing reputation-sync dependencies:
 

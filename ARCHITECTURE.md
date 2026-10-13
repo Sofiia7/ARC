@@ -15,6 +15,10 @@ ArcBounty work *natively* on Arc's standards instead of reimplementing escrow:
 All three are uncommon on Arc today and are the core of why ArcBounty is
 infrastructure rather than a demo.
 
+This document covers the Arc and Base adapter (`contracts/src/BountyAdapter.sol`).
+The Monad contracts (NadBounty, V4.8.1) are described in
+[`SECURITY.md`](./SECURITY.md) and in `contracts/src/monad`.
+
 ---
 
 ## 1. Mapping a bounty board onto ERC-8183 (balance-delta payout)

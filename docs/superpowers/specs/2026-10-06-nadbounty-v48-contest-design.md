@@ -1,3 +1,5 @@
+> Historical document (written October 2026). It describes the project at that time and is not kept up to date. For the current state see README.md, SECURITY.md and contracts/DEPLOYMENTS.md.
+
 # NadBounty on Monad: adapter V4.8 (contests, reputation gate, cross-chain reputation)
 
 Date: 2026-10-06. Status: design approved by the owner, implementation not started.

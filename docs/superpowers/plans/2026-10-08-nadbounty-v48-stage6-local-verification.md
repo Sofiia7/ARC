@@ -1,3 +1,5 @@
+> Historical document (written October 2026). It describes the project at that time and is not kept up to date. For the current state see README.md, SECURITY.md and contracts/DEPLOYMENTS.md.
+
 # NadBounty V4.8 - Task 6 local verification
 
 Date: 2026-10-08. Local safety checks and deployment/rehearsal tooling are implemented. Task 6 remains open for Monad-aware fork execution and live testnet evidence; no network transaction, deployment, Safe handoff, unpause, commit or push was performed.

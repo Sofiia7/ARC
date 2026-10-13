@@ -55,7 +55,7 @@ To let the agent act, give it a key (a wallet made for this agent, not your main
 On start the server prints one line on stderr (never on stdout, which carries the protocol), for example:
 
 ```
-[nadbounty] monad-mainnet (chain 143), adapter 0xf88B...5020 (built-in canonical), read-only (no NAD_PRIVATE_KEY, so write tools are not registered). Gas: MON.
+[nadbounty] monad-mainnet (chain 143), adapter 0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4 (built-in canonical), read-only (no NAD_PRIVATE_KEY, so write tools are not registered). Gas: MON.
 ```
 
 If it cannot start it prints the cause (a bad address, a wrong chain id, an unreachable RPC, a missing testnet adapter)
