@@ -38,7 +38,8 @@ export async function createApp(config:ReturnType<typeof configuration>){
       next();
     }catch{res.status(503).json({error:'Could not read on-chain snapshot'});}
   });
-  const price=config.chainId===10143?{amount:'1000',asset:config.usdc,extra:{name:'USDC',version:'2'}}:'$0.001';
+  // Both Monad USDC deployments are EIP-3009 tokens with EIP-712 domain name "USDC", version "2" (verified on chain); state it explicitly instead of relying on a default asset table.
+  const price={amount:'1000',asset:config.usdc,extra:{name:'USDC',version:'2'}};
   app.use(paymentMiddleware({'GET /v1/bounties/*':{accepts:{scheme:'exact',network,payTo:config.payTo,price,maxTimeoutSeconds:60},description:'Block-pinned NadBounty V4.8 bounty and encrypted entry references',mimeType:'application/json'}},server));
   app.get('/v1/bounties/:jobId',(_req,res)=>res.json(res.locals.snapshot));
   app.use((_req,res)=>{res.status(404).json({error:'Not found'});});

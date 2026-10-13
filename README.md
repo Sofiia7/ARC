@@ -43,7 +43,7 @@ All five deployed contracts are exact matches on Monad's Sourcify instance. Depl
 
 - **No external audit.** Internal tests, invariants and Slither triage only (`docs/security/NADBounty_V48_LAUNCH_READINESS.md`). Funds at risk are capped at 100 USDC per bounty and the Safe can pause new bounties; settlement and withdrawals keep working while paused.
 - **Cross-chain reputation uses a trusted relayer** (a dedicated wallet the Safe can revoke), not a decentralized attestation. Arc data is supplied by our API. The Chainlink CRE workflows pass local simulations only; deploying them on the DON needs paid access.
-- The x402 facade and the Envio indexer run against the testnet deployment; the mainnet site reads the chain directly.
+- The Envio indexer runs against the testnet deployment only; the mainnet site reads the chain directly. The x402 facade is live on mainnet at https://nadbounty-facade.vercel.app (0.001 USDC per paid read, Monad Foundation facilitator, `eip155:143`); its paid settlement is exercised by `nad-facade/test/live-payment-mainnet.mjs`.
 - Passkey (Mera) recovery was verified on the testnet domain; the mainnet domain has its own credential.
 
 ### AI use disclosure
