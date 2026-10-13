@@ -21,7 +21,7 @@ export function configuration(env: NodeJS.ProcessEnv) {
   const adapter =
     env.NAD_BOUNTY_ADAPTER_ADDRESS ?? (chainId === 10143 ? "0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020" : "");
   const payTo = env.NAD_X402_PAY_TO;
-  if (!isAddress(adapter) || adapter === zeroAddress) throw Error("Missing deployed V4.8 adapter");
+  if (!isAddress(adapter) || adapter === zeroAddress) throw Error("Missing deployed V4.8.1 adapter");
   if (!payTo || !isAddress(payTo) || payTo === zeroAddress) {
     throw Error("NAD_X402_PAY_TO must be an explicit treasury address");
   }

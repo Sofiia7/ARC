@@ -1,0 +1,4 @@
+Contact: https://github.com/Sofiia7/ARC/security/advisories/new
+Expires: 2027-10-13T00:00:00.000Z
+Preferred-Languages: en
+Policy: https://github.com/Sofiia7/ARC/blob/main/SECURITY.md

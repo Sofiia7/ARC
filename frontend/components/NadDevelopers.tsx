@@ -15,6 +15,20 @@ import {
 import { CodeBlock } from "./NadDocBlocks";
 import styles from "./NadDocs.module.css";
 
+// Addresses that are not part of the per-network contract map: the reputation mirror, the keeper receiver and the Safe.
+const GOVERNED = {
+  mainnet: {
+    mirror: "0x05e17AaCBf7c8e47D4Db4B9108f66f846ceDdAC5",
+    receiver: "0xF55bE023F13F75C23EFbd04e5f6878F323838552",
+    safe: "0x74678c072Ca546f11466CD44eB7e21730a312a54",
+  },
+  testnet: {
+    mirror: "0x59e970574D9aDc30892d094C893DA4B73EBE40a0",
+    receiver: "0x5B7559f1973D371d1b6A1e6ED22BeCbb4594e17f",
+    safe: "0x74678c072Ca546f11466CD44eB7e21730a312a54",
+  },
+} as const;
+
 export function NadDevelopers() {
   const net = getActiveNetwork(),
     network: MonadNetworkName = net.testnet ? "monad-testnet" : "monad-mainnet",
@@ -23,11 +37,15 @@ export function NadDevelopers() {
     explorer = (address: string) => `${net.explorerUrl}/address/${address}`,
     text = styles.text,
     small = `${styles.text} ${styles.small}`;
+  const governed = net.testnet ? GOVERNED.testnet : GOVERNED.mainnet;
   const contracts: [string, string][] = [
     ["Adapter", CONTRACTS.BOUNTY_ADAPTER],
     ["Escrow", CONTRACTS.AGENTIC_COMMERCE],
     ["Identity registry", CONTRACTS.IDENTITY_REGISTRY],
     ["USDC", CONTRACTS.USDC],
+    ["Reputation mirror", governed.mirror],
+    ["Keeper receiver", governed.receiver],
+    ["Safe (2-of-3: owner, arbitrator, fee recipient, escrow admin)", governed.safe],
   ];
   // The mainnet SDK carries the adapter address; the testnet page keeps passing the one it is wired to.
   const sdk = sdkSnippet(network, BigInt(first), net.testnet ? CONTRACTS.BOUNTY_ADAPTER : undefined);
@@ -37,7 +55,7 @@ export function NadDevelopers() {
       <header className="page-head">
         <h1>Build with NadBounty</h1>
         <p className="sub">
-          {net.testnet ? "Monad Testnet" : "Monad"} · chain {net.chainId} · V4.8 · MON pays gas and USDC has 6 decimals.{" "}
+          {net.testnet ? "Monad Testnet" : "Monad"} · chain {net.chainId} · {net.testnet ? "V4.8" : "V4.8.1"} · MON pays gas and USDC has 6 decimals.{" "}
           {net.testnet
             ? "Testnet contracts are paused for launch checks."
             : "1% fee on payout, 100 USDC cap per bounty."}{" "}
@@ -192,7 +210,7 @@ export function NadDevelopers() {
           ))}
         </div>
         <p className={small}>
-          Use the V4.8 ABIs. The legacy Arc and Base tuple decoders do not describe contests. Encrypt entries locally
+          Use the BountyAdapterV48 ABI (V4.8.1 adds withdrawContestRejection). The legacy Arc and Base tuple decoders do not describe contests. Encrypt entries locally
           with the SDK before pinning and keep the poster key safe; an agent owner and its working wallet may both
           enter, and rewards go to the current identity owner.
         </p>
@@ -203,9 +221,10 @@ export function NadDevelopers() {
           <span className="title">Trust model</span>
         </div>
         <p className={text}>
-          Cross-chain records come from a relayer wallet that the Safe can revoke, and Arc data is supplied by our API.
-          Every mirrored record carries its source chain and block so you can verify it yourself. There is no external
-          audit yet.
+          One 2-of-3 Safe owns the adapter, is the arbitrator and the fee recipient, and can upgrade the escrow that holds
+          the USDC (no timelock). Cross-chain records come from a relayer wallet that the Safe can revoke, and Arc data
+          is supplied by our API. Every mirrored record carries its source chain and block so you can verify it
+          yourself. There is no external audit yet.
         </p>
       </section>
       <footer className="spacer" />

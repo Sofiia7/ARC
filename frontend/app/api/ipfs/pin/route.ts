@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clientKey, consumeAsync } from "@/lib/rate-limit";
+import { clientKey, consumeAsync, PIN_GLOBAL_RATE } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
 import { verifyWalletAuth } from "@/lib/wallet-auth";
 import { fetchIpfsServerCached } from "@/lib/ipfsServer";
@@ -89,6 +89,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: `Daily pin volume exceeded (${DAILY_BYTES_PER_WALLET} bytes/day per wallet)` },
       { status: 429, headers: { "Retry-After": String(dailyRl.retryAfterSec) } },
+    );
+  }
+
+  const globalRl = await consumeAsync("pin:global", PIN_GLOBAL_RATE, byteLength);
+  if (!globalRl.ok) {
+    return NextResponse.json(
+      { error: "Pinning is at its daily capacity, try again later" },
+      { status: 429, headers: { "Retry-After": String(globalRl.retryAfterSec) } },
     );
   }
 

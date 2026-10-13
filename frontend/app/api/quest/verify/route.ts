@@ -5,6 +5,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI, BOUNTY_ADAPTER_DEPLOY_BLOCK } from "@/li
 import { getActiveNetwork } from "@/lib/networks";
 import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { getLogsChunked } from "@/lib/chainLogs";
+import { monadGone } from "@/lib/publicApi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -377,10 +378,14 @@ async function handle(req: NextRequest, bodyRaw: unknown): Promise<NextResponse>
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  const gone = monadGone("/api/nad/bounties");
+  if (gone) return gone;
   return handle(req, null);
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const gone = monadGone("/api/nad/bounties");
+  if (gone) return gone;
   let body: unknown = null;
   try {
     body = await req.json();

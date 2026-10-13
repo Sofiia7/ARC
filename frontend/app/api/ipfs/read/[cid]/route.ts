@@ -46,9 +46,12 @@ const SAFE_INLINE_CONTENT_TYPES = new Set([
   "text/plain",
 ]);
 
+// A bare CID only: CIDv0 (Qm..., base58) or CIDv1 in base32 (b...). No paths, no schemes, no separators.
+const CID_PATTERN = /^(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{50,120})$/;
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ cid: string }> }) {
   const { cid } = await params;
-  if (!cid || cid.length > 200) {
+  if (!cid || cid.length > 200 || !CID_PATTERN.test(cid)) {
     return NextResponse.json({ error: "invalid cid" }, { status: 400 });
   }
 
