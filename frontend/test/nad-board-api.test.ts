@@ -50,7 +50,7 @@ function wireSample() {
   );
   const body = {
     chainId: 143,
-    adapter: "0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020",
+    adapter: "0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4",
     sourceBlock: "112984473",
     sourceBlockHash: "0xabc",
     generatedAt: "2026-10-13T10:00:00.000Z",
