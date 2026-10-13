@@ -13,7 +13,7 @@ const mainnet=networkName==='monad-mainnet';
 const plan=JSON.parse(readFileSync(new URL(`../config/${mainnet?'mainnet':'testnet'}.json`,import.meta.url),'utf8').replace(/^\uFEFF/,''));
 const chainId=plan.chainId as number;if(chainId!==(mainnet?143:10143))throw Error('Config chain mismatch');
 if(!/^0x[0-9a-fA-F]{64}$/.test(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY??'')||/^0x0+$/.test(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY??''))throw Error('Dedicated reputation key is missing or invalid');
-const mirror=plan.mirror as Address;if(mirror.toLowerCase()!=='0x59e970574d9adc30892d094c893da4b73ebe40a0')throw Error('Unexpected mirror address');
+const mirror=plan.mirror as Address;if(mirror.toLowerCase()!==(mainnet?'0x05e17aacbf7c8e47d4db4b9108f66f846ceddac5':'0x59e970574d9adc30892d094c893da4b73ebe40a0'))throw Error('Unexpected mirror address');
 const rpc=env.NAD_RPC_URL??(mainnet?'https://rpc.monad.xyz':'https://testnet-rpc.monad.xyz');
 const logRpc=env.NAD_LOG_RPC_URL??(mainnet?'https://rpc.monad.xyz':'https://testnet-rpc.monad.xyz');
 const chain=defineChain({id:chainId,name:mainnet?'Monad':'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[rpc]}}});
