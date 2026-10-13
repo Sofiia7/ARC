@@ -11,7 +11,7 @@ import { THROWAWAY_KEYS, addresses, mainnetWiring, mock, resetMocks, state } fro
 vi.mock("viem", async (importOriginal) => (await import("./helpers/nadMock.js")).viemMock(await importOriginal()));
 vi.mock("../src/signers/viemSigner.js", async () => (await import("./helpers/nadMock.js")).signerMock());
 
-const CANONICAL = "0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020";
+const CANONICAL = "0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4";
 const NOW = BigInt(Math.floor(Date.now() / 1000));
 const base: NadBountyCreateParams = {
   provider: "0x0000000000000000000000000000000000000000",

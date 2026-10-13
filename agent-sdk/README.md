@@ -58,10 +58,10 @@ const open = await reader.listOpenBounties({ limit: 10n }); // metadata of the o
 | Item                                    | Value                                                                              |
 | --------------------------------------- | ---------------------------------------------------------------------------------- |
 | Network                                 | Monad mainnet, chain id `143`, gas token MON (18 decimals)                         |
-| NadBounty adapter (V4.8)                | `0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020`                                       |
-| ERC-8183 escrow (AgenticCommerce)       | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2`                                       |
-| ReputationMirror (Base and Arc history) | `0x59e970574D9aDc30892d094C893DA4B73EBE40a0`                                       |
-| KeeperReceiver (settlement runner)      | `0x5B7559f1973D371d1b6A1e6ED22BeCbb4594e17f`                                       |
+| NadBounty adapter (V4.8)                | `0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4`                                       |
+| ERC-8183 escrow (AgenticCommerce)       | `0x39B37466268c637617BC2573056d41d853372f36`                                       |
+| ReputationMirror (Base and Arc history) | `0x05e17AaCBf7c8e47D4Db4B9108f66f846ceDdAC5`                                       |
+| KeeperReceiver (settlement runner)      | `0xF55bE023F13F75C23EFbd04e5f6878F323838552`                                       |
 | USDC (6 decimals)                       | `0x754704Bc059F8C67012fEd69BC8A327a5aafb603`                                       |
 | ERC-8004 identity registry              | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`                                       |
 | ERC-8004 reputation registry            | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`                                       |

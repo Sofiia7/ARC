@@ -83,7 +83,7 @@ Environment variables the service reads:
 | `PORT`                                                                                                      | no             | Local listener only (default 3402, loopback).                                                              |
 | `NAD_UPSTASH_REDIS_REST_URL`, `NAD_UPSTASH_REDIS_REST_TOKEN`, `BASE_MAINNET_RPC_URL`, `ARC_MAINNET_RPC_URL` | testnet only   | Used by `/v1/reputation-sources`; not needed on mainnet.                                                   |
 
-The mainnet instance runs with `NAD_NETWORK=monad-mainnet`, the adapter `0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020`, the Safe as `NAD_X402_PAY_TO` and the public RPC; it carries no key and no secret. See `.env.example`.
+The mainnet instance runs with `NAD_NETWORK=monad-mainnet`, the adapter `0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4`, the Safe as `NAD_X402_PAY_TO` and the public RPC; it carries no key and no secret. See `.env.example`.
 
 ## Develop and verify
 

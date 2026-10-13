@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { configuration } from "../src/config.js";
 
 const treasury = "0x74678c072Ca546f11466CD44eB7e21730a312a54";
-const adapter = "0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020";
+const adapter = "0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4";
 const mainnet = { NAD_NETWORK: "monad-mainnet", NAD_BOUNTY_ADAPTER_ADDRESS: adapter, NAD_X402_PAY_TO: treasury };
 
 test("public URL: mainnet defaults to the hosted facade, testnet to the local listener", () => {

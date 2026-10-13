@@ -382,7 +382,7 @@ describe("NadBountyAgent.getPendingActions", () => {
     await agent().getPendingActions();
     const escrowCalls = mock.read.mock.calls.filter(([call]) => call.functionName === "getJob");
     expect(escrowCalls.map(([call]) => call.args[0])).toEqual([5n]);
-    expect(escrowCalls[0]![0].address).toBe("0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2");
+    expect(escrowCalls[0]![0].address).toBe("0x39B37466268c637617BC2573056d41d853372f36");
   });
 
   it("scans only the newest maxJobs of each list", async () => {
