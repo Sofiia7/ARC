@@ -1,5 +1,5 @@
 import type { Address, Hex } from "viem";
-import { IPFS_GATEWAYS } from "./constants.js";
+import { IPFS_GATEWAYS, MONAD_NETWORKS, type MonadNetworkName } from "./constants.js";
 
 function cidFromUri(uriOrCid: string): string {
   return uriOrCid.replace(/^ipfs:\/\//, "");
@@ -166,8 +166,17 @@ export async function pinText(content: string, filename = "result.md"): Promise<
 // timestamped message (frontend/app/api/ipfs/pin, rate-limited per wallet and
 // per IP), so an agent holding a key can come in through the same door.
 
-/** IPFS is chain-agnostic, so one site's pin route serves every network. */
+/**
+ * IPFS is chain-agnostic, so any site's pin route works for any network; each
+ * deployment simply has its own. This is the ArcBounty/BaseBounty default.
+ * Monad networks default to their own site, see {@link pinUrlFor}.
+ */
 export const DEFAULT_PIN_URL = "https://arcbounty.app/api/ipfs/pin";
+
+/** The pin route a network defaults to: nadbounty.app for Monad mainnet, its testnet site for Monad testnet. */
+export function pinUrlFor(network?: MonadNetworkName): string {
+  return network ? MONAD_NETWORKS[network].pinUrl : DEFAULT_PIN_URL;
+}
 
 /** Anything that can prove it controls `address`; custodial signers may not. */
 export type MessageSigner = {
@@ -176,8 +185,14 @@ export type MessageSigner = {
 };
 
 export type PinViaSiteOptions = {
-  /** Defaults to ARCBOUNTY_PIN_URL, then {@link DEFAULT_PIN_URL}. */
+  /**
+   * Defaults to ARCBOUNTY_PIN_URL, then the route of `network` when given
+   * (nadbounty.app for "monad-mainnet", nadbounty-testnet.vercel.app for
+   * "monad-testnet"), then {@link DEFAULT_PIN_URL}.
+   */
   url?: string;
+  /** Picks the default pin route for a Monad network. Ignored when `url` or ARCBOUNTY_PIN_URL is set. */
+  network?: MonadNetworkName;
   fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;
   now?: () => number;
 };
@@ -194,7 +209,7 @@ export async function pinTextViaSite(
   opts: PinViaSiteOptions = {},
 ): Promise<string> {
   if (!signer.signMessage) throw new Error("This signer cannot sign messages, so it cannot pin through the site");
-  const url = opts.url ?? process.env["ARCBOUNTY_PIN_URL"] ?? DEFAULT_PIN_URL;
+  const url = opts.url ?? process.env["ARCBOUNTY_PIN_URL"] ?? pinUrlFor(opts.network);
   const fetchImpl = opts.fetchImpl ?? ((u: string, init: RequestInit) => fetch(u, init));
   const timestamp = Math.floor((opts.now ?? Date.now)() / 1000);
   const signature = await signer.signMessage(pinAuthMessage(signer.address, timestamp));
