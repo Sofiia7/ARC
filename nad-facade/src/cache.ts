@@ -10,8 +10,9 @@ export class TimeoutError extends Error {
 /** Reject after `ms` without leaving a live timer behind. The underlying work is not cancelled. */
 export function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
+    // Not unref'd on purpose: while the work is pending the timer is what keeps the event loop (and any test runner) alive.
+    // It is always cleared when the work settles, so nothing is left behind.
     const timer = setTimeout(() => reject(new TimeoutError(ms)), ms);
-    timer.unref?.();
     work.then(
       (value) => {
         clearTimeout(timer);
@@ -181,7 +182,6 @@ export function hedged<T>(attempt: () => Promise<T>, hedgeAfterMs: number): Prom
         );
     };
     timer = setTimeout(launch, hedgeAfterMs);
-    timer.unref?.();
     launch();
   });
 }
