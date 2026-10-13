@@ -1,0 +1,140 @@
+/* NadStats extras. Layout helpers only; colours come from the shared CSS variables. */
+
+.wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.green {
+  color: var(--green);
+}
+.skel {
+  display: inline-block;
+  width: 70%;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--g-bg-strong);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.skelRow {
+  height: 66px;
+  border-radius: 16px;
+  background: var(--g-bg);
+  border: 1px solid var(--g-border);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel,
+  .skelRow {
+    animation: none;
+  }
+}
+
+.empty {
+  text-align: center;
+  padding: 56px 0;
+  color: var(--ink-soft);
+}
+.emptyIcon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+.empty p {
+  margin: 0 0 8px;
+}
+.hint {
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--g-border);
+  background: var(--g-bg);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.caption {
+  margin: 22px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-mute);
+}
+.caption a {
+  color: var(--honey);
+  text-decoration: underline;
+}
+
+/* Leaderboard: the shared lb-row look with a four column grid (rank, who, paid jobs, USDC earned). The doubled
+   class beats the shared seven column rule and its media queries whatever the stylesheet order is. */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cols.cols {
+  grid-template-columns: 64px minmax(0, 1fr) 110px 150px;
+  gap: 18px;
+}
+.rowLink {
+  text-decoration: none;
+  color: inherit;
+}
+.who {
+  min-width: 0;
+}
+.who > div {
+  min-width: 0;
+}
+.name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.addr {
+  overflow-wrap: anywhere;
+}
+.avatar {
+  background: linear-gradient(140deg, var(--cream) 0%, var(--amber) 45%, var(--coral) 100%);
+}
+.jobsInline {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .cols.cols {
+    grid-template-columns: 48px minmax(0, 1fr) 90px 120px;
+    gap: 12px;
+  }
+}
+@media (max-width: 640px) {
+  .cols.cols {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .jobsCol {
+    display: none;
+  }
+  .jobsInline {
+    display: block;
+  }
+}

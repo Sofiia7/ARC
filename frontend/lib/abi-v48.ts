@@ -1981,6 +1981,19 @@ export const BOUNTY_ADAPTER_V48_ABI = [
   },
   {
     "type": "function",
+    "name": "withdrawContestRejection",
+    "inputs": [
+      {
+        "name": "jobId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "withdrawIdentity",
     "inputs": [
       {
@@ -2487,6 +2500,19 @@ export const BOUNTY_ADAPTER_V48_ABI = [
         "name": "challengeDeadline",
         "type": "uint256",
         "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ContestRejectionWithdrawn",
+    "inputs": [
+      {
+        "name": "jobId",
+        "type": "uint256",
+        "indexed": true,
         "internalType": "uint256"
       }
     ],

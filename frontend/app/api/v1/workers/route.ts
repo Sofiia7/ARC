@@ -2,7 +2,7 @@ import { formatUnits, type Address } from "viem";
 import { BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import { isPaidToWorker, workerOf } from "@/lib/bountyMetas";
 import {
-  adapters, apiJson, apiOptions, loadBoard, networkInfo, rateLimited, readFailed, serverClient,
+  adapters, apiJson, apiOptions, loadBoard, monadGone, networkInfo, rateLimited, readFailed, serverClient,
 } from "@/lib/publicApi";
 
 export const runtime = "nodejs";
@@ -16,6 +16,10 @@ export const dynamic = "force-dynamic";
 type Rep = { agentId: number; averageScore: number; feedbacks: number };
 
 export async function GET(req: Request) {
+  // The Monad leaderboard (per identity, contests included) lives in the stats endpoint.
+  const gone = monadGone("/api/nad/stats");
+  if (gone) return gone;
+
   const limited = await rateLimited(req);
   if (limited) return limited;
 

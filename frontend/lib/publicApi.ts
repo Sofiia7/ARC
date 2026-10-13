@@ -202,6 +202,17 @@ export function apiOptions(): NextResponse {
 }
 
 /**
+ * The Monad build serves V4.8 through /api/nad/*. The v1 readers here assume the
+ * single-taker V4.x board (no contests, no reputation gate) and cannot describe it,
+ * so each of them answers 410 Gone and names its replacement instead of failing
+ * with a misleading 502. Returns null on Arc and Base, where v1 is the live API.
+ */
+export function monadGone(use: string): NextResponse | null {
+  if (network.nativeCurrency.symbol !== "MON") return null;
+  return apiJson({ error: "This endpoint is not available on the Monad build.", use }, 410);
+}
+
+/**
  * Plenty for an integrator polling every few seconds; it only bounds someone
  * using the endpoint as a free RPC. Most traffic never reaches it anyway:
  * the edge answers repeats from cache.
@@ -221,8 +232,13 @@ export async function rateLimited(req: Request): Promise<NextResponse | null> {
  * endpoint URLs and provider internals that have no business in a public
  * response. The detail goes to the function log.
  */
+export function safeLogError(err: unknown): string {
+  const raw = err instanceof Error ? ((err as { shortMessage?: string }).shortMessage ?? err.message) : String(err);
+  return raw.replace(/https?:\/\/\S+/g, "[url]").slice(0, 300);
+}
+
 export function readFailed(where: string, err: unknown): NextResponse {
-  console.error(`[api/v1] ${where}:`, err);
+  console.error(`[api/v1] ${where}:`, safeLogError(err));
   return apiJson({ error: "Could not read the chain right now. Retry in a few seconds." }, 502);
 }
 

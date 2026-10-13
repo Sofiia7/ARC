@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { Abi } from "viem";
 import { SITE_CHAIN_ID, WrongChainError, useEnsureChain } from "./useEnsureChain";
 import { getActiveNetwork } from '@/lib/networks';
+import { classifyTxError } from "@/lib/txErrors";
 
 type WriteParams = {
   address: `0x${string}`;
@@ -16,7 +17,10 @@ type WriteParams = {
 
 /**
  * Thin wrapper around wagmi's writeContract with automatic toast notifications.
- * Shows: pending → success/error toasts.
+ * Shows: pending → success/error toasts. A failure is explained in plain words
+ * (see lib/txErrors.ts) and the same sentence is exposed as `lastError`, so a
+ * component can keep it on screen after the toast is gone. `lastError` is
+ * cleared when the next send starts.
  */
 export function useTx() {
   const { writeContractAsync, isPending } = useWriteContract();
@@ -28,6 +32,7 @@ export function useTx() {
   // one flagged as likely to fail - bounty #14's onboarding report).
   const inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   async function send(
     params: WriteParams,
@@ -36,12 +41,15 @@ export function useTx() {
     // Catch the no-wallet case before wagmi throws its opaque
     // ConnectorNotConnectedError - the user needs a next step, not "Failed".
     if (!isConnected) {
-      toast.error("Connect your wallet first (top right) to do this.");
+      const message = "Connect your wallet first (top right) to do this.";
+      setLastError(message);
+      toast.error(message);
       return null;
     }
     if (inFlight.current) return null;
     inFlight.current = true;
     setBusy(true);
+    setLastError(null);
     const toastId = toast.loading(labels.pending ?? "Sending transaction…");
 
     try {
@@ -83,12 +91,14 @@ export function useTx() {
       toast.success(labels.success ?? "Transaction confirmed!", { id: toastId });
       return hash;
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const friendly = e instanceof WrongChainError
-        ? e.message
-        : msg.includes("User rejected")
-        ? "Transaction rejected"
-        : labels.error ?? "Transaction failed";
+      // labels.error only stands in for errors nothing below recognised: a
+      // known cause (gate not met, deadline passed, no gas, ...) is always
+      // more useful than the caller's generic "Could not ...".
+      const info = e instanceof WrongChainError
+        ? { message: e.message, known: true }
+        : classifyTxError(e, { nativeSymbol: getActiveNetwork().nativeCurrency.symbol });
+      const friendly = !info.known && labels.error ? labels.error : info.message;
+      setLastError(friendly);
       toast.error(friendly, { id: toastId });
       return null;
     } finally {
@@ -97,5 +107,5 @@ export function useTx() {
     }
   }
 
-  return { send, isPending, busy };
+  return { send, isPending, busy, lastError };
 }
