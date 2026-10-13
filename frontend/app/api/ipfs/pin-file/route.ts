@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clientKey, consumeAsync } from "@/lib/rate-limit";
+import { clientKey, consumeAsync, PIN_GLOBAL_RATE } from "@/lib/rate-limit";
 import { reportEvent } from "@/lib/observe";
 import { verifyWalletAuth } from "@/lib/wallet-auth";
 import { fetchIpfsServerCached } from "@/lib/ipfsServer";
@@ -135,6 +135,14 @@ export async function POST(req: NextRequest) {
   }
 
   const name = (file as File).name || "upload.bin";
+
+  const globalRl = await consumeAsync("pin:global", PIN_GLOBAL_RATE, file.size);
+  if (!globalRl.ok) {
+    return NextResponse.json(
+      { error: "Pinning is at its daily capacity, try again later" },
+      { status: 429, headers: { "Retry-After": String(globalRl.retryAfterSec) } },
+    );
+  }
 
   const form = new FormData();
   form.append("file", file, name);

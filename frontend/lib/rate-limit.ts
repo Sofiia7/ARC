@@ -171,3 +171,12 @@ export async function consumeAsync(key: string, opts: RateLimitOptions, cost = 1
   }
   return consume(key, opts, cost);
 }
+
+// All IPFS pin routes together spend one Pinata account. Wallets are free to create, so the per-wallet and per-IP limits
+// cannot bound the total; this bucket does. It is shared (one Redis key) and fails closed.
+export const PIN_GLOBAL_BYTES_PER_DAY = 300 * 1024 * 1024; // 300 MB / day across every wallet and route
+export const PIN_GLOBAL_RATE = {
+  capacity: PIN_GLOBAL_BYTES_PER_DAY,
+  refillPerSecond: PIN_GLOBAL_BYTES_PER_DAY / 86_400,
+  failClosedOnRedisError: true,
+};

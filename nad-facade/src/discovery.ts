@@ -65,7 +65,7 @@ export function buildIndex(config: Config) {
   return {
     service: SERVICE,
     version: VERSION,
-    description: `Pay-per-read access to NadBounty V4.8 on ${networkName(config)}: block-pinned snapshots that replace several RPC reads, paid per request in USDC over x402.`,
+    description: `Pay-per-read access to NadBounty V4.8.1 on ${networkName(config)}: block-pinned snapshots that replace several RPC reads, paid per request in USDC over x402.`,
     network: { name: networkName(config), caip2: network(config), chainId: config.chainId },
     baseUrl: config.publicUrl,
     adapter: config.adapter,
@@ -325,7 +325,7 @@ export function buildOpenApi(config: Config) {
       title: SERVICE,
       version: VERSION,
       description:
-        `Pay-per-read, block-pinned snapshots of NadBounty V4.8 on ${networkName(config)}, paid in USDC through x402 v2 (exact scheme, Monad Foundation facilitator). ` +
+        `Pay-per-read, block-pinned snapshots of NadBounty V4.8.1 on ${networkName(config)}, paid in USDC through x402 v2 (exact scheme, Monad Foundation facilitator). ` +
         "Read-only: the service holds no key and never sends a transaction. Errors and unsupported requests are never charged.",
     },
     servers: [{ url: config.publicUrl }],
@@ -340,7 +340,7 @@ export function buildX402Manifest(config: Config) {
   return {
     x402Version: 2,
     service: SERVICE,
-    description: `Pay-per-read NadBounty V4.8 snapshots on ${networkName(config)}. USDC micro-priced via x402.`,
+    description: `Pay-per-read NadBounty V4.8.1 snapshots on ${networkName(config)}. USDC micro-priced via x402.`,
     openapi: `${config.publicUrl}/openapi.json`,
     network: network(config),
     asset: config.usdc,
@@ -361,7 +361,7 @@ export function buildLlmsTxt(config: Config): string {
   const lines = [
     `# ${SERVICE}`,
     "",
-    `Paid (x402 v2, USDC) REST reads over NadBounty V4.8, the on-chain bounty board on ${networkName(config)}.`,
+    `Paid (x402 v2, USDC) REST reads over NadBounty V4.8.1, the on-chain bounty board on ${networkName(config)}.`,
     "Every paid answer is read at one block and names it (sourceBlock, sourceBlockHash). Read-only: no key, no transactions.",
     "",
     `Base URL: ${config.publicUrl}`,

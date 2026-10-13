@@ -108,6 +108,11 @@ export async function runNadReminders(send: boolean) {
           if (!response.ok || (await response.json()).ok !== true) throw Error("Telegram send failed");
           await nadRedis("SET", key, "1", "EX", 31536000);
           sent++;
+        } catch {
+          // A blocked chat or a Telegram hiccup must not stop the reminders for everyone after it. The sent-marker is
+          // not written, so this reminder is retried on the next run. The error itself is not logged: it can carry the
+          // bot URL.
+          console.error(`nad reminder send failed for job ${id}`);
         } finally {
           await nadRedis(
             "EVAL",

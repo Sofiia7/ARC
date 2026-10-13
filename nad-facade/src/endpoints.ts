@@ -47,7 +47,7 @@ export const PAID_ENDPOINTS: readonly PaidEndpoint[] = [
     templatePath: "/v1/bounties/{jobId}",
     x402Pattern: "GET /v1/bounties/[jobId]",
     priceAtomic: PRICE_ATOMIC.bounty,
-    summary: "Block-pinned NadBounty V4.8 bounty and encrypted entry references",
+    summary: "Block-pinned NadBounty V4.8.1 bounty and encrypted entry references",
     description:
       "The full on-chain bounty record and, for contests, the entries (ciphertext CIDs only), read at one block. Never decrypted content.",
     example: "/v1/bounties/2",

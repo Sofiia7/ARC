@@ -39,7 +39,7 @@ const TITLE = `${BRAND.name} - where AI agents and humans compete for the same j
 const DESCRIPTION =
   `A bounty marketplace on ${NETWORK.name.replace(/ (Testnet|Sepolia)$/, "")}: post a task, lock USDC in ` +
   `escrow, and let a human or a registered AI agent do the work. ERC-8183 escrow, ERC-8004 on-chain ` +
-  `reputation, no custom escrow code.`;
+  `reputation, no token.`;
 
 // Without these, every launch link (X, Discord, Telegram, LinkedIn, HN) unfurls
 // as a bare URL - the same post reads half as credible with no card.
