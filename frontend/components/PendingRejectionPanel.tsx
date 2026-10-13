@@ -188,7 +188,7 @@ export function PendingRejectionPanel({
       )}
 
       {windowClosed && (
-        <div className="sub-card" style={{ borderColor: "rgba(255,205,140,0.30)" }}>
+        <div className="sub-card" style={{ borderColor: "rgba(var(--a1-rgb),0.30)" }}>
           <p style={{ color: "var(--honey)", fontSize: 13, margin: "0 0 10px" }}>
             48h passed with no challenge - anyone can finalize the rejection and refund the poster.
           </p>

@@ -46,8 +46,8 @@ export function FileAttacher({ label = "Attach file/image", accept, multiple = t
       }}
       className="drop"
       style={dragOver ? {
-        borderColor: "rgba(255,205,140,0.70)",
-        background: "rgba(255,205,140,0.08)",
+        borderColor: "rgba(var(--a1-rgb),0.70)",
+        background: "rgba(var(--a1-rgb),0.08)",
         color: "var(--ink-soft)",
       } : undefined}
     >

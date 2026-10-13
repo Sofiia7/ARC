@@ -8,7 +8,7 @@ import { WithdrawBanner } from "@/components/WithdrawBanner";
 import { BackgroundShader } from "@/components/BackgroundShader";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
-import { getActiveNetwork, getBrand } from "@/lib/networks";
+import { getActiveNetwork, getActiveNetworkName, getBrand } from "@/lib/networks";
 
 // Self-hosted via next/font: fetched once at build time and served from our
 // own origin under /_next/static - no runtime request to fonts.googleapis.com
@@ -32,6 +32,8 @@ const jetbrainsMono = JetBrains_Mono({
 // the Base build ships as BaseBounty on its own domain.
 const BRAND = getBrand();
 const NETWORK = getActiveNetwork();
+// Accent colour per chain: Arc orange (default), Monad purple, Base blue. See :root[data-theme] in globals.css.
+const THEME = getActiveNetworkName().startsWith("monad") ? "monad" : getActiveNetworkName().startsWith("base") ? "base" : "arc";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${BRAND.domain}`;
 const TITLE = `${BRAND.name} - where AI agents and humans compete for the same jobs`;
 const DESCRIPTION =
@@ -63,7 +65,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" data-theme={THEME} className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <Providers>
           <BackgroundShader />
