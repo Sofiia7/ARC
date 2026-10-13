@@ -7,9 +7,9 @@ import {privateKeyToAccount} from 'viem/accounts';
 import { NadBountyAgent,MONAD_NETWORKS,type MonadNetworkName } from 'arcbounty-agent-sdk';
 import { selectNadSettlement,type NadKeeperContest } from 'arcbounty-agent-sdk';
 import { BOUNTY_ADAPTER_V48_ABI } from 'arcbounty-agent-sdk';
-const network=process.env.NAD_NETWORK??'monad-testnet';if(network!=='monad-testnet')throw Error('Invalid NAD_NETWORK');
+const network=process.env.NAD_NETWORK??'monad-testnet';if(network!=='monad-testnet'&&network!=='monad-mainnet')throw Error('Invalid NAD_NETWORK');
 const n=MONAD_NETWORKS[network as MonadNetworkName];
-const adapter=process.env.NAD_BOUNTY_ADAPTER_ADDRESS??(network==='monad-testnet'?'0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020':undefined);
+const adapter=process.env.NAD_BOUNTY_ADAPTER_ADDRESS??'0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020';
 if(!adapter||!isAddress(adapter))throw Error('Explicit mainnet adapter required');
 const rpc=process.env.NAD_RPC_URL??n.rpcUrl;
 const chain=defineChain({id:n.chainId,name:network,nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[rpc]}}});
@@ -21,10 +21,10 @@ const agent=new NadBountyAgent({network:network as MonadNetworkName,bountyAdapte
 const read=(functionName:string,args:readonly unknown[]=[])=>pub.readContract({address:adapter,abi:BOUNTY_ADAPTER_V48_ABI,functionName:functionName as never,args:args as never}) as Promise<any>;
 const pause=()=>new Promise(r=>setTimeout(r,150));
 const escrowAbi=parseAbi(['function getJob(uint256) view returns((uint256 id,address client,address provider,address evaluator,string description,uint256 budget,uint256 expiredAt,uint8 status,address hook))']);
-const lease=`nad:keeper:10143:${adapter.toLowerCase()}`,leaseToken=randomUUID();let acquired=false;
+const lease=`nad:keeper:${n.chainId}:${adapter.toLowerCase()}`,leaseToken=randomUUID();let acquired=false;
 try{
   if(await pub.getChainId()!==n.chainId)throw Error('Wrong RPC chain');
-  if(adapter.toLowerCase()!=='0xf88b980b3ab1cd5a2befd9c0b88b70196f215020')throw Error('Unexpected testnet adapter');
+  if(adapter.toLowerCase()!=='0xf88b980b3ab1cd5a2befd9c0b88b70196f215020')throw Error('Unexpected adapter');
   const broadcast=process.argv.includes('--broadcast');if(broadcast&&!key)throw Error('NAD_KEEPER_PRIVATE_KEY required');
   if(broadcast){acquired=await nadRedis('SET',lease,leaseToken,'NX','EX',900)==='OK';if(!acquired)throw Error('Another keeper holds the lease');}
   for(const[name,expected]of [['APPROVAL_TIMEOUT',1209600n],['REJECTION_CHALLENGE_WINDOW',172800n],['DISPUTE_RESPONSE_WINDOW',172800n],['ARBITRATOR_TIMEOUT',2592000n]] as const){await pause();if(await read(name)!==expected)throw Error('Keeper clock constants mismatch');}

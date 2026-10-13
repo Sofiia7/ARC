@@ -515,3 +515,53 @@ to the fee recipient. Tx hashes: create `0x2fd14154…8873`, take
    in both `.env` and Vercel env.
 4. Bump the SDK version (`agent-sdk/package.json`) and republish if its
    ABI changed.
+
+
+## Monad Testnet (chain id `10143`)
+
+V4.8 rehearsal deployment, 2026-10-08. Paused after immediate payments and completed Safe handoff.
+
+| Contract | Address |
+|---|---|
+| BountyAdapter | `0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020` |
+| AgenticCommerce proxy | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2` |
+| AgenticCommerce implementation | `0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f` |
+| ReputationMirror | `0x59e970574D9aDc30892d094C893DA4B73EBE40a0` |
+| KeeperReceiver | `0x5B7559f1973D371d1b6A1e6ED22BeCbb4594e17f` |
+| USDC | `0x534b2f3A21130d7a60830c2Df862319e593943A3` |
+| Identity registry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
+| Reputation registry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
+| Owner/arbitrator/fee recipient | `0x74678c072Ca546f11466CD44eB7e21730a312a54` |
+
+Adapter deployment block: **69191994**. Fee 100 bps; reward cap 100 USDC. All five contract sources are Sourcify exact matches. Receiver/mirror relayers and DON forwarders remain disabled.
+
+Safe acceptOwner tx: `0x7ee62570ce407885502308e8b89c96b8d5f4acf84f14fb28cb5ecb80129308c6`. Safe acceptArbitrator tx: `0x0feadc0f1c2204fffc2335d764a184a2a7ff497df187d8aa1b503797f2840b25`. Read-back confirms both roles and cleared nominations.
+
+Rehearsal identity 2077: dedicated testnet owner plus distinct working wallet; six immediate scenarios, 4.95 USDC owner rewards, 0.05 USDC protocol fees, 3 feedbacks at score 90, no working-wallet reward leakage. Job 7 tests a real 48-hour default, eligible after 2026-10-10 10:12:35 UTC. Mainnet is not yet deployed.
+
+## Monad Mainnet (chain id `143`)
+
+NadBounty V4.8, deployed 2026-10-12 from the deployer `0x6abc2b575eC66701c17DAD96dDA97F22b837849E`, paused at creation; owner/arbitrator handed to the Safe and the adapter opened by the Safe on 2026-10-13. No external audit.
+
+| Contract | Address |
+|---|---|
+| BountyAdapter V4.8 | `0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020` |
+| AgenticCommerce proxy (escrow) | `0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2` |
+| AgenticCommerce implementation | `0xD87Ece19382044b69f4E9cb89e71A0Aa3Aeb9f9f` |
+| ReputationMirror | `0x59e970574D9aDc30892d094C893DA4B73EBE40a0` |
+| KeeperReceiver | `0x5B7559f1973D371d1b6A1e6ED22BeCbb4594e17f` |
+| USDC (native Circle, 6 decimals) | `0x754704Bc059F8C67012fEd69BC8A327a5aafb603` |
+| Identity registry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` |
+| Reputation registry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` |
+| Owner / arbitrator / fee recipient (Safe 2-of-3) | `0x74678c072Ca546f11466CD44eB7e21730a312a54` |
+| Reputation relayer (mirror writer, revocable by the Safe) | `0x78B3D0e6703906be0509A4dE64f8a6010eeB6904` |
+
+Adapter deployment block: **112847096**. Fee 100 bps; reward cap 100 USDC; mirror forwarder and receiver relayers disabled. All five contract sources are Sourcify exact matches on Monad's Sourcify instance (`https://sourcify-api-monad.blockvision.org`).
+
+Safe creation: `0x4005746c81f90941866bf93ffda86a7a8e4be3c4bd1b32827dec457fb0f53169` (same address as the Base Safe, salt 0, same three owners, threshold 2).
+
+Deployment transactions: AgenticCommerce `0xd91757b87adf9192d8633c1783ff7ab37a6ec9312ab8949599156b1db9244c7e`, proxy `0x4942e0ed59ced86ecb32816d1a28bf68c55fe13cf4faf09b9efcebdfc2a7b072`, ReputationMirror `0x4150a8bedaf61f0b352ace3eb72135738af6aa2eaf41311c13d448b8c5f98fd6`, BountyAdapterV48 `0x63b8f6bd5d62ab16727fd295e58df094106f4f38ad50f472b0a31636df0c401e`, KeeperReceiver `0x30098aef16b997ec8d6ba82dc8ce98f2447a689df89bac3213085ee53161b4b3`, then two ownership nominations `0x30aed04e4c7cc097bb6e8535da38df67740607c511dfabc1ee3b287de70ee9a1` and `0x61221e94b9ee303078745e19f28e3bd0078e08a5d61444485969d0bb680fb984`.
+
+Safe governance (two owner signatures each, executed in nonce order): acceptOwner `0x9bf733d51991907af66eb0147df8cd6823fe74a0ba47fc87ba62ae3768f2de72`, acceptArbitrator `0x26bd7241da0767fe763adcab54a3f2886967a506480ce81c7b36cfcb352be9a1`, mirror setRelayer `0x1b81e3bdf0b91c112f3f9de23d263075295439e970c0347e7e5887b79eea8e12`, setPaused(false) `0x1507b37ef63cfad6863112a886f1830fa714d13ec2e151ba8239d7b9b8c06c5b`. Read-back: owner and arbitrator are the Safe, pending roles zero, paused false, 100 bps, 100 USDC cap, mirror relayer set.
+
+Pre-handoff demonstration with real USDC (identity 10388, distinct working wallet): job 1 single-taker with bond (approve `0x5e4dee45388ccc35bf35bd918fbe2adae11346fb8813ed81e9b655741cae3c80`), job 2 encrypted contest (pick `0x93a9091141a21bd39f2d5c5bbb7425a5860a77922272dc5e4f4a038c255d48a6`), job 3 contest cancelled and refunded (`0x03617eabe7467cd9547faaf7361782c0bc7e2f65cf533458c8fcb7daa2fc4384`). Identity owner received 2.97 USDC, the Safe 0.03 USDC, two feedback records with score 90, the working wallet received no reward.

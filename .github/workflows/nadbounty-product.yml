@@ -25,6 +25,10 @@ jobs:
           NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020'
           NEXT_PUBLIC_RPC_URL: https://testnet-rpc.monad.xyz
         run: npm run build
+      - name: Build the Monad mainnet configuration
+        env:
+          NEXT_PUBLIC_ARC_NETWORK: monad-mainnet
+        run: npm run build
   nad-mcp:
     runs-on: ubuntu-latest
     defaults:
