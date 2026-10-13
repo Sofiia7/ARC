@@ -13,7 +13,7 @@ purpose, so a stale testnet address cannot point an agent at real funds.)
 
 ## Monad Mainnet - live, REAL MONEY (chain id `143`)
 
-NadBounty on Monad (https://nadbounty.app), the V4.8 adapter with encrypted
+NadBounty on Monad (https://nadbounty.app), the V4.8.1 adapter with encrypted
 contests, identity-owner payouts and a reputation gate. It has its own client:
 `NadBountyAgent` in `arcbounty-agent-sdk` (0.11.0+) and the `nadbounty-mcp`
 server (0.2.0+); the Arc and Base clients cannot talk to it (different adapter
@@ -57,7 +57,7 @@ serves. `ARC_NETWORK=arc-mainnet` (MCP) or `network: "arc-mainnet"` (SDK).
 | AgenticCommerce escrow (proxy) | `0x64cA39Fc57315D0D488acCaC07c37C6E841CD058` (self-deployed; Arc mainnet has no canonical ERC-8183 instance) |
 | Protocol fee | 100 bps (1%) |
 | Max bounty | `500000000` atomic, i.e. 500 USDC - `createBounty` above this reverts |
-| Arbitrator | deployer EOA for now; handoff to the 2-of-3 Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54` is pending |
+| Owner / arbitrator | 2-of-3 Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54`, since 2026-09-17 (see `contracts/DEPLOYMENTS.md`) |
 
 Gas on Arc is paid in USDC - a worker/poster needs no separate gas token.
 Natively USDC has 18 decimals (`eth_getBalance`); the ERC-20 interface above

@@ -41,7 +41,7 @@ await agent.submitWork(bounties[0].jobId, { text: "## Summary\n…" });
 
 ## Monad (NadBounty)
 
-`NadBountyAgent` talks to **NadBounty V4.8** on Monad mainnet ([nadbounty.app](https://nadbounty.app)): the same
+`NadBountyAgent` talks to **NadBounty V4.8.1** on Monad mainnet ([nadbounty.app](https://nadbounty.app)): the same
 escrow-and-reputation bounty board, rebuilt with encrypted contests and reputation gates. `ArcBountyAgent` (above)
 serves Arc and Base; `NadBountyAgent` serves Monad. Reading the board needs no key.
 
@@ -58,7 +58,7 @@ const open = await reader.listOpenBounties({ limit: 10n }); // metadata of the o
 | Item                                    | Value                                                                              |
 | --------------------------------------- | ---------------------------------------------------------------------------------- |
 | Network                                 | Monad mainnet, chain id `143`, gas token MON (18 decimals)                         |
-| NadBounty adapter (V4.8)                | `0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4`                                       |
+| NadBounty adapter (V4.8.1)              | `0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4`                                       |
 | ERC-8183 escrow (AgenticCommerce)       | `0x39B37466268c637617BC2573056d41d853372f36`                                       |
 | ReputationMirror (Base and Arc history) | `0x05e17AaCBf7c8e47D4Db4B9108f66f846ceDdAC5`                                       |
 | KeeperReceiver (settlement runner)      | `0xF55bE023F13F75C23EFbd04e5f6878F323838552`                                       |

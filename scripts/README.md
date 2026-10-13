@@ -18,14 +18,14 @@ which wraps the agent-sdk's own `resolveNetwork()`:
 
 | Var | Purpose |
 |---|---|
-| `ARC_NETWORK` *(opt)* | `"arc-testnet"` (default) or `"arc-mainnet"`. |
+| `ARC_NETWORK` *(opt)* | `"arc-testnet"` (default), `"arc-mainnet"` (live since 2026-09-16), `"base-sepolia"` or `"base-mainnet"`. The Monad scripts (`monad-*`, `nad-*`) do not go through `lib/network.ts`. |
 | `ARC_TESTNET_RPC_URL` *(opt)* | Testnet RPC override - the long-standing var name these scripts use. |
 | `ALLOW_MAINNET=yes` | Required before any **money-moving** script (`seed-bounties.ts`, `seed-extra.ts`, `reseed-2.ts`, `post-single-bounty.ts`, `reclaim-bounties.ts`, `safe-add-signer.ts`, `agent-proof-of-life.ts`) will run against `arc-mainnet` - these move real USDC. Read-only scripts (`bounty-timeline.ts`) don't need it. |
 
-Selecting `arc-mainnet` also requires the full `ARC_MAINNET_*` var set (chain id,
-RPC, explorer, 4 protocol contract addresses - see root `.env.example`); until
-Circle publishes those parameters, scripts fail fast with a descriptive error
-naming exactly what's missing. Never hardcode a guessed mainnet value here.
+Arc mainnet has every address built in (live since 2026-09-16, see
+`../contracts/DEPLOYMENTS.md`), so `ARC_NETWORK=arc-mainnet` needs no further
+variables; `ARC_MAINNET_RPC_URL` is an optional RPC override. Money-moving
+scripts still need `ALLOW_MAINNET=yes`.
 
 ## `seed-bounties.ts` - populate the board
 
@@ -59,7 +59,7 @@ is re-pinning the **byte-identical** original:
    (`git show <commit>:scripts/seed-bounties.ts`), not the current one. Note that
    every dash in the catalog copy was normalised to a plain hyphen on 2026-08-25,
    so anything pinned before that date needs the pre-normalisation body text
-   (`20–40 line example`, not `20-40`) to hash back to its original CID.
+   (the range in `20-40 line example` was written with an en dash, U+2013, then) to hash back to its original CID.
 3. **Verify offline before pinning**: hash the reconstruction with
    `ipfs-only-hash` and compare against the on-chain CID. Do the same for a
    second listing whose CID still resolves - if the control reproduces, the

@@ -1,3 +1,5 @@
+> Historical document (written July 2026). It describes the project at that time and is not kept up to date. For the current state see README.md, SECURITY.md and contracts/DEPLOYMENTS.md.
+
 # Integration notes - Part 2 (Circle Agent Stack + Base) pre-implementation verification
 
 > Block 0 of `Part2_Base/TZ_arcbounty_circle_stack_base.md`: every external assumption

@@ -1,6 +1,6 @@
 # NadBounty x402 facade
 
-Read-only, pay-per-request API over NadBounty V4.8 on Monad. Hosted at https://nadbounty-facade.vercel.app (Monad mainnet, `eip155:143`). Each paid read costs a fraction of a cent in USDC, paid with x402 v2 (scheme `exact`, EIP-3009) through the Monad Foundation facilitator. Payments go to the Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54`. The service holds no key, sends no transaction and never returns decrypted contest content. This preserves the existing Arc/Base Circle Gateway service; the two are independent.
+Read-only, pay-per-request API over NadBounty V4.8.1 on Monad. Hosted at https://nadbounty-facade.vercel.app (Monad mainnet, `eip155:143`). Each paid read costs a fraction of a cent in USDC, paid with x402 v2 (scheme `exact`, EIP-3009) through the Monad Foundation facilitator. Payments go to the Safe `0x74678c072Ca546f11466CD44eB7e21730a312a54`. The service holds no key, sends no transaction and never returns decrypted contest content. This preserves the existing Arc/Base Circle Gateway service; the two are independent.
 
 Every paid answer is read at **one pinned block** and names it (`sourceBlock`, `sourceBlockHash`), so a response is reproducible and internally consistent. What a paid call buys is the aggregation: several contract reads, joined and checked, in one request. Plain single reads stay free on the website JSON API (`/api/nad/bounties/{id}`) and in the SDK.
 

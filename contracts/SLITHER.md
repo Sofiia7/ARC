@@ -1,5 +1,15 @@
 # Slither triage
 
+## Monad V4.8.1 (2026-10-13)
+
+V4.8.1 adds one source-scoped `slither-disable-next-line calls-loop` annotation, on
+`_isSelfDealt` in `src/monad/BountyAdapterV48.sol`. The helper reads the current owner of
+an ERC-8004 identity so that a job whose poster is also the worker earns no reputation.
+It runs at most once per winner, so at most 25 owner reads per contest settlement, and a
+failed read only means "not self-dealt". With it the file carries three `calls-loop`
+annotations (`_payContestEntry`, `_recordContestScore`, `_isSelfDealt`). No global detector
+exclusion was added.
+
 ## Monad V4.8 stage 6 local safety (2026-10-08)
 
 Repeated the configured adapter fail-low gate: passed, one informational
@@ -13,14 +23,14 @@ an external audit. See [stage-6 local verification](../docs/superpowers/plans/20
 
 ## Monad / Base keeper receiver stage 5 (2026-10-08)
 
-`src/monad/KeeperReceiver.sol` passes fail-low with the stricter
-`slither.monad.config.json` (no global detector exclusions): 9 contracts /
+`src/monad/KeeperReceiver.sol` passes fail-low with a stricter Slither
+configuration that has no global detector exclusions (kept locally, not published): 9 contracts /
 101 detectors, one informational assembly finding. Assembly caps target gas,
 provides no output buffer and copies at most four revert bytes. Tests cover
 megabyte returndata, gas exhaustion, reporting reserve and authorized reentry.
 Two source-scoped zero-check annotations document intentional relayer disablement.
-See [stage-5 verification](../docs/superpowers/plans/2026-10-08-nadbounty-v48-stage5-verification.md)
-for report ABI, limits, authority and real-escrow integration coverage.
+The stage-5 verification notes (report ABI, limits, authority and real-escrow
+integration coverage) are kept locally, not published.
 
 ## Monad V4.8 stage 4 (2026-10-08)
 
@@ -30,8 +40,8 @@ fail-low gate. Full analysis without global exclusions was reviewed: 60 findings
 1 informational low-level call). New findings concern the response timestamp
 sentinel, challenge/arbitration boundaries and guarded timeout parked credits.
 No new global exclusions or source-scoped suppressions were added for stage 4.
-See [stage-4 verification](../docs/superpowers/plans/2026-10-08-nadbounty-v48-stage4-verification.md)
-for timing decisions, tests, commands and deployment assumptions.
+The stage-4 verification notes (timing decisions, tests, commands and deployment
+assumptions) are kept locally, not published.
 
 Current V4.8 runtime is 42,406 bytes. Earlier checkpoint sizes below are
 historical. Keeper and local stateful contest obligations are now implemented;
@@ -43,8 +53,8 @@ network validation or an external audit.
 Contest admission, selection, silence and normal escrow recovery pass the
 configured fail-low gate. Full analysis without global exclusions was reviewed:
 48 findings, including the new guarded contest score/parking writes and closure
-sentinel comparisons. See [stage-3 verification](../docs/superpowers/plans/2026-10-07-nadbounty-v48-stage3-verification.md)
-for counts, assumptions and tests.
+sentinel comparisons. The stage-3 verification notes (counts, assumptions and
+tests) are kept locally, not published.
 
 One additional helper-scoped `reentrancy-balance` annotation covers exact
 contest receipt accounting. Two `calls-loop` annotations cover immutable
@@ -63,8 +73,8 @@ The separate `src/monad/BountyAdapterV48.sol` passes the existing configured
 `fail-low` gate with its intentional informational `_payOrPark` call visible.
 The four globally excluded V4.7 detector classes were also run and reviewed
 against V4.8: 33 findings, including the new guarded local-score writes.
-Details, assumptions and reproducible commands are in
-[stage-2 verification](../docs/superpowers/plans/2026-10-07-nadbounty-v48-stage2-verification.md).
+Details, assumptions and reproducible commands are in the stage-2 verification
+notes (kept locally, not published).
 
 Three source-scoped `reentrancy-balance` annotations cover exact escrow-receipt
 comparisons in `_completeAndForward`, `_completeAndSplit`, `_rejectAndRefund`.

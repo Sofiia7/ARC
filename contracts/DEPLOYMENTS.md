@@ -4,6 +4,8 @@ Canonical source of truth for deployed contracts. Always trust this file
 over `broadcast/` artifacts - those are forge's working area and may be
 overwritten or out of date.
 
+NadBounty on Monad (V4.8.1 on mainnet, the V4.8 rehearsal on testnet) is documented in the [Monad Testnet](#monad-testnet-chain-id-10143) and [Monad Mainnet](#monad-mainnet-chain-id-143-v481-current) sections near the end of this file.
+
 ## Arc Mainnet (chain id `5042`) - ArcBounty, V4.7 live
 
 > Circle opened Arc mainnet to the public on 2026-09-16 and this deployment
@@ -537,7 +539,7 @@ Adapter deployment block: **69191994**. Fee 100 bps; reward cap 100 USDC. All fi
 
 Safe acceptOwner tx: `0x7ee62570ce407885502308e8b89c96b8d5f4acf84f14fb28cb5ecb80129308c6`. Safe acceptArbitrator tx: `0x0feadc0f1c2204fffc2335d764a184a2a7ff497df187d8aa1b503797f2840b25`. Read-back confirms both roles and cleared nominations.
 
-Rehearsal identity 2077: dedicated testnet owner plus distinct working wallet; six immediate scenarios, 4.95 USDC owner rewards, 0.05 USDC protocol fees, 3 feedbacks at score 90, no working-wallet reward leakage. Job 7 tests a real 48-hour default, eligible after 2026-10-10 10:12:35 UTC. Mainnet is not yet deployed.
+Rehearsal identity 2077: dedicated testnet owner plus distinct working wallet; six immediate scenarios, 4.95 USDC owner rewards, 0.05 USDC protocol fees, 3 feedbacks at score 90, no working-wallet reward leakage. Job 7 tests a real 48-hour default, eligible after 2026-10-10 10:12:35 UTC. Monad mainnet is deployed: see [Monad Mainnet, V4.8.1 (current)](#monad-mainnet-chain-id-143-v481-current) below.
 
 ## Monad Mainnet (chain id `143`), V4.8.1 (current)
 
@@ -567,7 +569,7 @@ Safe governance (two owner signatures each, executed in nonce order 4 to 7): acc
 
 Pre-handoff demonstration with real USDC (identity 10388 reused, distinct working wallet): job 1 single-taker with bond ([take](https://monadscan.com/tx/0x0014355bf93e931071dd56e9b15891c709f2eef75ce9d1d1f667a64ff3a40bfd), [approve](https://monadscan.com/tx/0x514420d98d2c5425148d8ae09efc396a3452f0a761ae0d0d9d1c51965e439ae2)), job 2 encrypted contest ([enter](https://monadscan.com/tx/0xfd1ede156719b3c8f4dfacb619bb0835665c74ee490fa88d6b79b19567f0af71), [replace entry](https://monadscan.com/tx/0x85486d01130f9760dc7ced23f90c14da24268bb2cb838194df1e5b742d0d3f0a), [pick](https://monadscan.com/tx/0x8d23522da36333ec27a9b69359cd839d07e3a0001e7318bfc925c417034248bb)), job 3 contest cancelled and refunded ([refund](https://monadscan.com/tx/0xb551446613736f6410ce1813931823690f0566c704b2754bf0583f44e80c744c)). The identity owner received 2.97 USDC, the Safe 0.03 USDC in fees, two ERC-8004 feedback records were written with score 90, and the working wallet received no reward.
 
-The x402 facade (https://nadbounty-facade.vercel.app, `eip155:143`, 0.001 USDC per paid read to the Safe through the Monad Foundation facilitator) reads this adapter. The first real paid request settled in `0x4cd5892aed3f376057c71ed930254261abe7c4fa9d0026f1609c9d3c920b8624` (against the first deployment; the facade has no key and no secret).
+The x402 facade (https://nadbounty-facade.vercel.app, `eip155:143`, 0.001 USDC per read, 0.005 for `/v1/workers/verified`, paid to the Safe through the Monad Foundation facilitator) reads this adapter. The first real paid request settled in `0x4cd5892aed3f376057c71ed930254261abe7c4fa9d0026f1609c9d3c920b8624` (against the first deployment; the facade has no key and no secret).
 
 ## Monad Mainnet, first deployment (V4.8, superseded on 2026-10-13)
 

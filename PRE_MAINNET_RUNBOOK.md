@@ -1,3 +1,5 @@
+> Historical document (written July 2026, last updated September 2026). It describes the project at that time and is not kept up to date. For the current state see README.md, SECURITY.md and contracts/DEPLOYMENTS.md.
+
 # Pre-mainnet runbook
 
 Arc mainnet itself has not launched yet (publicly confirmed for summer 2026)

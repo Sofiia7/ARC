@@ -46,8 +46,8 @@ lib/
 ## Networks
 
 One build = one network, chosen at **build time** by `NEXT_PUBLIC_ARC_NETWORK`
-(`"arc-testnet"` | `"base-mainnet"` | `"base-sepolia"` | `"arc-mainnet"`,
-default `"arc-testnet"`). Production runs as **separate Vercel projects** - one
+(`"arc-testnet"` | `"base-mainnet"` | `"base-sepolia"` | `"arc-mainnet"` |
+`"monad-mainnet"` | `"monad-testnet"`, default `"arc-testnet"`). Production runs as **separate Vercel projects** - one
 per network - each with its own env vars and its own domain. There's no runtime
 network switcher in the UI; changing network means rebuilding.
 
@@ -59,22 +59,22 @@ components, `brand` read from the network alongside `nativeCurrency`.
 
 | `NEXT_PUBLIC_ARC_NETWORK` | Brand | Domain | Gas | Status |
 |---|---|---|---|---|
-| `arc-testnet` (default) | ArcBounty | arcbounty.app | USDC | Live |
+| `arc-testnet` (default) | ArcBounty | testnet.arcbounty.app | USDC | Live (test USDC) |
 | `base-mainnet` | BaseBounty | basebounty.app | ETH | Live since 2026-08-14 |
 | `base-sepolia` | BaseBounty | - | ETH | Staging |
-| `arc-mainnet` | ArcBounty | - | USDC | Blocked on Circle publishing parameters |
+| `arc-mainnet` | ArcBounty | arcbounty.app | USDC | Live since 2026-09-16 |
+| `monad-mainnet` | NadBounty | nadbounty.app | MON | Live (V4.8.1, chain `143`) |
+| `monad-testnet` | NadBounty | nadbounty-testnet.vercel.app | MON | Rehearsal (V4.8, chain `10143`) |
 
 All per-network values (chain id, RPC, explorer, contract addresses, adapter
-deploy block, etc.) live in [`lib/networks.ts`](lib/networks.ts). `arc-testnet`
-and both Base networks are fully baked in - a Base build needs no addresses in
-env at all, only an optional `NEXT_PUBLIC_BASE_MAINNET_RPC_URL` /
-`NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL` override, since the public Base endpoints are
-rate limited. `arc-mainnet` alone is built entirely from
-`NEXT_PUBLIC_ARC_MAINNET_*` env vars, because Circle has not published Arc
-mainnet's parameters yet - building with `NEXT_PUBLIC_ARC_NETWORK=arc-mainnet`
-before they're set throws a descriptive error listing exactly what's missing,
-rather than falling back to guessed values. See `.env.example` for the full
-list of `NEXT_PUBLIC_ARC_MAINNET_*` vars.
+deploy block, etc.) live in [`lib/networks.ts`](lib/networks.ts). Every network
+is fully baked in - a Base build needs no addresses in env at all, only an
+optional `NEXT_PUBLIC_BASE_MAINNET_RPC_URL` / `NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL`
+override, since the public Base endpoints are rate limited. `arc-mainnet` and
+`monad-mainnet` are likewise complete with `NEXT_PUBLIC_ARC_NETWORK` alone
+(addresses in [`../contracts/DEPLOYMENTS.md`](../contracts/DEPLOYMENTS.md));
+`NEXT_PUBLIC_ARC_MAINNET_RPC_URL` and `NEXT_PUBLIC_MONAD_RPC_URL` are optional
+RPC overrides, and the adapter address override applies to testnets only.
 
 Gas is the one difference users feel. On Arc, USDC *is* the native token, so a
 wallet holding only USDC can transact; on Base, USDC is an ordinary ERC-20 and
@@ -102,12 +102,12 @@ PINATA_JWT=<pinata jwt with file upload permission>
 
 | Var | Purpose |
 |---|---|
-| `NEXT_PUBLIC_ARC_NETWORK` | Which network this build targets: `arc-testnet` (default), `base-mainnet`, `base-sepolia` or `arc-mainnet`. Also decides the brand. See [Networks](#networks). |
+| `NEXT_PUBLIC_ARC_NETWORK` | Which network this build targets: `arc-testnet` (default), `base-mainnet`, `base-sepolia`, `arc-mainnet`, `monad-mainnet` or `monad-testnet`. Also decides the brand. See [Networks](#networks). |
 | `NEXT_PUBLIC_RPC_URL` | Arc Testnet RPC override; falls back to `https://rpc.testnet.arc.network`. No effect on `arc-mainnet` builds (use `NEXT_PUBLIC_ARC_MAINNET_RPC_URL`). |
-| `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` | Deployed `BountyAdapter` address override, works on either network. **Must match the contract you deployed.** |
+| `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` | Deployed `BountyAdapter` address override for the testnets only; on a mainnet the baked-in address always wins (`monad-testnet` reads `NEXT_PUBLIC_NAD_BOUNTY_ADAPTER_ADDRESS` instead). **Must match the contract you deployed.** |
 | `NEXT_PUBLIC_WC_PROJECT_ID` | WalletConnect Cloud project id (free at cloud.walletconnect.com). |
 | `PINATA_JWT` | Server-side only. Used by `/api/ipfs/pin` and `/api/ipfs/pin-file` to pin descriptions and attachments. |
-| `NEXT_PUBLIC_ARC_MAINNET_*` | Required only when `NEXT_PUBLIC_ARC_NETWORK=arc-mainnet`. See `.env.example`. |
+| `NEXT_PUBLIC_ARC_MAINNET_RPC_URL` / `NEXT_PUBLIC_MONAD_RPC_URL` | Optional RPC overrides for `arc-mainnet` and `monad-mainnet`; every address is built in. |
 | `NEXT_PUBLIC_BASE_MAINNET_RPC_URL` / `NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL` | Optional RPC overrides for the Base builds. Nothing else is needed there - addresses are baked in. |
 
 ### IPFS pin routes require a wallet signature
@@ -136,7 +136,7 @@ Chain config:
 
 ## Deploy
 
-Auto-deploys to Vercel on push to `main`. The `arc-testnet` Vercel project is the canonical host of `arcbounty.app`; a second `arc-mainnet` Vercel project (its own env vars, its own domain) goes live once Circle publishes mainnet parameters. Set the env vars from [Configure](#configure) in each project's Vercel dashboard.
+Auto-deploys to Vercel on push to `main`. Separate Vercel projects (their own env vars and domains) serve `arc-mainnet` (arcbounty.app), `arc-testnet` (testnet.arcbounty.app) and `monad-mainnet` (nadbounty.app). Set the env vars from [Configure](#configure) in each project's Vercel dashboard.
 
 If you fork, the production build needs `next.config.mjs` as-is - it stubs out optional wagmi peer deps (`porto/internal`, `@base-org/account`, `@metamask/connect-evm`, `accounts`) that would otherwise break the build.
 

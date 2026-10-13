@@ -9,6 +9,8 @@ The adapter does **not** roll its own escrow. It plugs into Arc's native standar
 
 Solidity `0.8.30`, EVM `cancun`, `via_ir = true`, optimizer 200 runs.
 
+The Monad contracts (NadBounty, adapter V4.8.1) live in `src/monad/` and are described in [`../SECURITY.md`](../SECURITY.md); the rest of this file is about `BountyAdapter.sol` (Arc and Base).
+
 ## Layout
 
 ```
@@ -18,12 +20,15 @@ src/
     IAgenticCommerce.sol     - minimal ERC-8183 surface used by adapter
     IIdentityRegistry.sol    - ERC-8004 identity reads
     IReputationRegistry.sol  - ERC-8004 reputation writes
+  monad/                     - NadBounty V4.8.1 (Monad): BountyAdapterV48, ReputationMirror, KeeperReceiver
 test/
   BountyAdapter.t.sol          - 106 unit tests
   MainnetAudit20260907.t.sol   - 9 audit regression tests
   BountyAdapterInvariant.t.sol - 2 stateful invariants
   BountyAdapterFork.t.sol      - fork test against live Arc Testnet
   DeployArcMainnetFork.t.sol   - the mainnet deploy script against a fork of Arc mainnet
+  BountyAdapterV48*.t.sol      - NadBounty V4.8.1 suites (run under the monad_local profile, see below)
+  KeeperReceiver*.t.sol, ReputationMirror*.t.sol - Monad keeper receiver and reputation mirror
 script/
   Deploy.s.sol               - deploy + log address
 foundry.toml
@@ -56,11 +61,24 @@ Design notes:
 
 ```bash
 forge install
-forge test                  # 115 unit + 2 invariants (117); +2 fork tests = 119 with an RPC configured
-forge test -vvv             # verbose
-forge snapshot              # gas snapshot
-forge coverage              # line coverage
+
+# Arc / Base adapter, default profile (the command CI runs). The 115 unit cases and
+# 2 invariants (117 total) of the adapter run here, together with the keeper and mirror suites.
+forge test --no-match-contract 'BountyAdapterForkTest|BountyAdapterV48.*'
+
+# NadBounty V4.8.1 (Monad). The V4.8 runtime is over the 24 KiB Ethereum size limit, so
+# these suites only run under the monad_local profile (code_size_limit = 128 KiB, Monad's limit).
+FOUNDRY_PROFILE=monad_local forge test --match-contract 'BountyAdapterV48.*'
+
+# Fork test against live Arc Testnet (CI runs it on main when the RPC secret is set)
+forge test --fork-url $ARC_TESTNET_RPC_URL --match-contract BountyAdapterForkTest
+
+forge test -vvv             # verbose (add the filters above: the V4.8 suites fail under the default profile)
+forge snapshot --no-match-contract 'BountyAdapterForkTest|BountyAdapterV48.*|ReputationMirrorLiveSourceForkTest'   # gas snapshot
+forge coverage --ir-minimum --no-match-contract 'BountyAdapterForkTest|BountyAdapterV48.*'   # line coverage of the Arc/Base adapter
 ```
+
+The `monad_local` profile checks chain-independent logic only. It does not model Monad gas or opcode pricing.
 
 ## Deploy
 
@@ -92,6 +110,9 @@ The deployed address prints to stdout as `BountyAdapter deployed at: 0x…`. Plu
 | Network | Address |
 |---|---|
 | Arc Testnet | [`0xeDf2c738915b042da97788b2b5499D4655FB1f20`](https://testnet.arcscan.app/address/0xeDf2c738915b042da97788b2b5499D4655FB1f20) |
+| Monad Mainnet (chain `143`, NadBounty V4.8.1) | [`0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4`](https://monadvision.com/address/0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4?tab=Contract) |
+
+Every other network (Arc mainnet, Base, Monad testnet) and every superseded deployment is in [`DEPLOYMENTS.md`](./DEPLOYMENTS.md).
 
 Verified end-to-end by a real AI agent (not a human) on the live V4.3 deployment above: agentId `847205`, worker `0x6543…6115` took the bond-required jobId `154217` (bond posted at take, refunded at submit) and jobId `154216`, submitted work, and was paid `0.99` USDC of each `1` USDC face value via canonical ERC-8183 escrow (`../scripts/agent-proof-of-life.ts`). Same agent identity, same result on each prior deployment (V4.2: jobIds `151547`/`151546`; V4.1: jobIds `151017`/`151016`) and the original V3.2-era proof (jobId `145613`, agentId `844730`), which established that `approveBounty` no longer reverts for agent workers (`agentId > 0`). Source verified on ArcScan.
 

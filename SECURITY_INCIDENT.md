@@ -1,3 +1,5 @@
+> Historical document (written May 2026). It describes the project at that time and is not kept up to date. For the current state see README.md, SECURITY.md and contracts/DEPLOYMENTS.md.
+
 # Security incident - secrets rotation (Sprint 0) - CLOSED
 
 ## What happened
@@ -9,8 +11,9 @@ matches; every hit was a false positive on vendored OpenZeppelin test fixtures).
 The exposure was the OneDrive sync itself, not a git leak. Treated as compromised
 regardless, out of caution.
 
-**No mainnet funds were at risk** - this project has never deployed to Arc
-mainnet. All exposure was testnet-only.
+**No mainnet funds were at risk** - at the time of the incident (May 2026) this
+project had never deployed to Arc mainnet, which opened to the public on
+2026-09-16. All exposure was testnet-only.
 
 ## What was done
 
