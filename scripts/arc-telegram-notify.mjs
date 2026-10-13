@@ -144,37 +144,37 @@ async function render(log) {
   const head = `<b>${net.brand} #${a.jobId}</b> ${esc(title ?? meta.category)} (${usdc(meta.reward)} USDC)`;
   const page = `${net.site}/bounty/${a.jobId}`;
   const tx = `<a href="${net.tx}${log.transactionHash}">tx</a>`;
-  const worker = who => `${short(who)}${meta.agentId > 0n ? `, агент #${meta.agentId}` : ""}`;
+  const worker = who => `${short(who)}${meta.agentId > 0n ? `, agent #${meta.agentId}` : ""}`;
   switch (log.eventName) {
     case "BountyCreated":
-      return `🆕 Новое баунти ${head}\nразместил ${a.poster.toLowerCase() === net.poster ? "наш кошелёк" : short(a.poster)}\n${page} · ${tx}`;
+      return `🆕 New bounty ${head}\nposted by ${a.poster.toLowerCase() === net.poster ? "our wallet" : short(a.poster)}\n${page} · ${tx}`;
     case "BountyTaken":
-      return `🤝 Взяли ${head}\nисполнитель ${short(a.provider)}${a.agentId > 0n ? `, агент #${a.agentId}` : ""}\n${page} · ${tx}`;
+      return `🤝 Taken ${head}\nworker ${short(a.provider)}${a.agentId > 0n ? `, agent #${a.agentId}` : ""}\n${page} · ${tx}`;
     case "WorkSubmitted": {
       // The payout hint only while it is still ours to pay: a catch-up run can meet a paid one.
       const ours = meta.poster.toLowerCase() === net.poster && !meta.resolved;
       const opens = Number(meta.submittedAt) + APPROVAL_TIMEOUT_S;
-      return `📥 Сдали работу ${head}\nисполнитель ${worker(a.provider)}\nработа: ${esc(gateway(a.ipfsResultHash))}\n${page} · ${tx}` +
-        (ours ? `\n\nпроверить и оплатить:\n<code>${esc(net.payCommand(a.jobId))}</code>\nавтоодобрение откроется ${utc(opens)}` : "");
+      return `📥 Work submitted ${head}\nworker ${worker(a.provider)}\nresult: ${esc(gateway(a.ipfsResultHash))}\n${page} · ${tx}` +
+        (ours ? `\n\nreview and pay:\n<code>${esc(net.payCommand(a.jobId))}</code>\nauto-approval opens ${utc(opens)}` : "");
     }
     case "BountyCompleted":
-      return `✅ Одобрено и выплачено ${head}${a.agentId > 0n ? `\nоценка агенту #${a.agentId}: ${a.reputationScore}` : ""}\n${tx}`;
+      return `✅ Approved and paid ${head}${a.agentId > 0n ? `\nscore for agent #${a.agentId}: ${a.reputationScore}` : ""}\n${tx}`;
     case "BountyAutoApproved":
-      return `✅ Автоодобрение ${head}, выплата ${short(a.provider)}\n${tx}`;
+      return `✅ Auto-approved ${head}, paid to ${short(a.provider)}\n${tx}`;
     case "BountyCancelled":
-      return `🚫 Отменено ${head}\n${esc(a.reason)} · ${tx}`;
+      return `🚫 Cancelled ${head}\n${esc(a.reason)} · ${tx}`;
     case "BountyExpired":
-      return `⌛ Истекло ${head}\n${tx}`;
+      return `⌛ Expired ${head}\n${tx}`;
     case "RejectionProposed":
-      return `⚠️ Постер отклонил работу ${head}\nу исполнителя 48 часов на оспаривание\n${page} · ${tx}`;
+      return `⚠️ Poster rejected the work ${head}\nthe worker has 48 hours to challenge\n${page} · ${tx}`;
     case "RejectionChallenged":
-      return `⚠️ Исполнитель оспорил отказ ${head}, теперь это спор\n${page} · ${tx}`;
+      return `⚠️ Worker challenged the rejection ${head}, now it is a dispute\n${page} · ${tx}`;
     case "DisputeRaised":
-      return `⚠️ Открыт спор ${head}\nинициатор ${short(a.initiator)}\n${page} · ${tx}`;
+      return `⚠️ Dispute opened ${head}\ninitiated by ${short(a.initiator)}\n${page} · ${tx}`;
     case "DisputeResolved":
-      return `⚖️ Спор решён ${head}: ${a.payProvider ? "в пользу исполнителя" : "в пользу постера"}${a.defaultRuling ? " (по умолчанию)" : ""}\n${tx}`;
+      return `⚖️ Dispute resolved ${head}: ${a.payProvider ? "in favour of the worker" : "in favour of the poster"}${a.defaultRuling ? " (by default)" : ""}\n${tx}`;
     case "PayoutParked":
-      return `🅿️ Выплата ${usdc(a.amount)} USDC по ${head} припаркована для ${short(a.payee)}: заберёт через withdraw()\n${tx}`;
+      return `🅿️ Payout of ${usdc(a.amount)} USDC for ${head} parked for ${short(a.payee)}: claimable with withdraw()\n${tx}`;
     default:
       return null;
   }
@@ -204,7 +204,7 @@ async function main() {
   let from = fromArg ?? (saved !== null ? saved + 1n : head - net.firstRunLookback);
   const notes = [];
   if (head - from > net.maxCatchUp) {
-    notes.push(`ℹ️ ${net.brand}: уведомления не работали с блока ${from}, более старые события пропущены, смотри ${net.site}`);
+    notes.push(`ℹ️ ${net.brand}: notifications were not running since block ${from}, older events were skipped, see ${net.site}`);
     from = head - net.maxCatchUp;
   }
   if (from > head) {
