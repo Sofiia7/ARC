@@ -576,6 +576,11 @@ export class NadBountyAgent {
   rejectAllContestEntries(jobId: bigint, reasonCid: string) {
     return this.write("rejectAllContestEntries", [jobId, reasonCid]);
   }
+
+  /** Poster only: retract "reject all" before any entrant challenged it. The review window is not extended. */
+  withdrawContestRejection(jobId: bigint) {
+    return this.write("withdrawContestRejection", [jobId]);
+  }
   challengeContestRejection(jobId: bigint, index: number, evidenceCid: string) {
     return this.write("challengeContestRejection", [jobId, index, evidenceCid]);
   }
