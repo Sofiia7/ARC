@@ -9,8 +9,11 @@ import "../interfaces/IReputationRegistry.sol";
 import "./ReputationMirror.sol";
 
 /// @title NadBounty V4.8, isolated from the live Arc/Base V4.7 adapter
-/// @notice Single-taker escrow with identity-owner payouts and reputation gates.
-/// @dev Stage 2: contest creation fails closed until its lifecycle is implemented.
+/// @notice Escrow for single-taker bounties and encrypted contests, with
+///         identity-owner payouts and reputation gates.
+/// @dev Paid jobs where the poster is also the worker (the same wallet, or the
+///      owner of the winning identity) still pay out, but earn no reputation:
+///      no local score, no ERC-8004 feedback and no unique-poster credit.
 ///      AgenticCommerce remains the unchanged escrow rail; this adapter holds
 ///      client/provider/evaluator roles. Deploys paused with 1% fee / 100 USDC cap.
 contract BountyAdapterV48 is ReentrancyGuard {
@@ -36,8 +39,10 @@ contract BountyAdapterV48 is ReentrancyGuard {
     address public pendingOwner;
     uint256 public maxBountyAmount;
 
-    /// @notice V4.7: real circuit breaker. Blocks only createBounty/takeBounty
-    ///         (new obligations) — every exit path stays open.
+    /// @notice Circuit breaker. Blocks only new obligations: createBounty,
+    ///         takeBounty, enterContest and replaceContestEntry. Every exit
+    ///         path (submit, approve, pick, cancel, settle, disputes, withdraw)
+    ///         stays open.
     bool public paused;
 
     uint256 public constant DISPUTE_RESPONSE_WINDOW = 48 hours;
@@ -190,6 +195,7 @@ contract BountyAdapterV48 is ReentrancyGuard {
     mapping(uint256 jobId => uint8[]) private _contestChallengers;
 
     event ContestRejected(uint256 indexed jobId, string reasonHash, uint256 challengeDeadline);
+    event ContestRejectionWithdrawn(uint256 indexed jobId);
     event ContestChallenged(
         uint256 indexed jobId, uint8 indexed entryIndex, string evidenceHash, uint256 responseDeadline
     );
@@ -543,12 +549,30 @@ contract BountyAdapterV48 is ReentrancyGuard {
     {
         BountyMeta storage meta = _requireContest(jobId);
         require(msg.sender == meta.poster, "only poster");
+        // Same limits as respondToContestChallenges: once a response is overdue anyone may
+        // claim the default for every challenger, and the poster can no longer pick a subset.
+        require(meta.inDispute, "no challenges");
+        require(block.timestamp <= meta.disputeRaisedAt + ARBITRATOR_TIMEOUT, "arbitrator window ended");
+        require(!_contestHasOverdueChallenge(jobId), "response window closed");
         _validateChallengerSelection(jobId, entryIndices);
         require(scores.length == entryIndices.length, "invalid scores");
         for (uint256 i; i < scores.length; ++i) {
             require(scores[i] <= 100, "score > 100");
         }
         _settleContest(jobId, entryIndices, scores, true, false);
+    }
+
+    /// @notice Lets the poster retract a "reject all" before any entrant challenged it, the contest
+    ///         analogue of withdrawRejection. The review window is unchanged: it still ends
+    ///         APPROVAL_TIMEOUT after the contest closed, so a retraction cannot extend it.
+    function withdrawContestRejection(uint256 jobId) external nonReentrant {
+        BountyMeta storage meta = _requireContest(jobId);
+        require(msg.sender == meta.poster, "only poster");
+        require(meta.rejectedAt != 0, "no pending rejection");
+        require(_contestChallengers[jobId].length == 0, "already challenged");
+        meta.rejectedAt = 0;
+        meta.rejectionReasonHash = "";
+        emit ContestRejectionWithdrawn(jobId);
     }
 
     /// @notice Permissionless refund when the 48-hour challenge window ends
@@ -816,6 +840,7 @@ contract BountyAdapterV48 is ReentrancyGuard {
     // Explicitly tested with 25 agent winners as well as a reverting registry.
     // slither-disable-next-line calls-loop
     function _recordContestScore(BountyMeta storage meta, ContestEntry storage entry, uint8 score) internal {
+        if (_isSelfDealt(meta.poster, entry.entrant, entry.agentId)) return;
         bytes32 key = identityKey(entry.agentId, entry.entrant);
         LocalReputation storage local = localReputation[key];
         ++local.paidJobs;
@@ -940,10 +965,13 @@ contract BountyAdapterV48 is ReentrancyGuard {
 
         meta.resolved = true;
         _completeAndForward(jobId, "approved");
-        _recordUniquePoster(meta);
-        _recordScoredJob(meta, reputationScore);
+        bool credited = _creditsReputation(meta);
+        if (credited) {
+            _recordUniquePoster(meta);
+            _recordScoredJob(meta, reputationScore);
+        }
 
-        if (meta.agentId > 0) {
+        if (credited && meta.agentId > 0) {
             // Reputation write must never block the payout: the worker has
             // already been paid above. The live ERC-8004 registry may revert
             // (e.g. unauthorized feedback), so swallow any failure.
@@ -977,10 +1005,13 @@ contract BountyAdapterV48 is ReentrancyGuard {
 
         meta.resolved = true;
         _completeAndForward(jobId, "auto_approved");
-        _recordUniquePoster(meta);
-        _recordScoredJob(meta, 80);
+        bool credited = _creditsReputation(meta);
+        if (credited) {
+            _recordUniquePoster(meta);
+            _recordScoredJob(meta, 80);
+        }
 
-        if (meta.agentId > 0) {
+        if (credited && meta.agentId > 0) {
             try reputationRegistry.giveFeedback(
                 meta.agentId,
                 80,
@@ -1217,7 +1248,7 @@ contract BountyAdapterV48 is ReentrancyGuard {
         _payOrPark(jobId, poster, posterAmt);
         _payWorker(meta, workerAmt);
 
-        if (workerAutoApproved) {
+        if (workerAutoApproved && _creditsReputation(meta)) {
             _recordUniquePoster(meta);
             _recordScoredJob(meta, 80);
             if (meta.agentId > 0) {
@@ -1559,10 +1590,11 @@ contract BountyAdapterV48 is ReentrancyGuard {
         maxBountyAmount = next;
     }
 
-    /// @notice V4.7. Blocks only createBounty/takeBounty — every exit path
-    ///         (submit/approve/autoApprove/cancel/expire/disputes/withdraw)
-    ///         keeps working while paused, so no one already in a bounty is
-    ///         trapped by an emergency stop.
+    /// @notice Blocks only new obligations (createBounty, takeBounty,
+    ///         enterContest, replaceContestEntry). Every exit path
+    ///         (submit/approve/pick/autoApprove/cancel/expire/disputes/
+    ///         withdraw) keeps working while paused, so no one already in a
+    ///         bounty is trapped by an emergency stop.
     function setPaused(bool p) external {
         require(msg.sender == owner, "only owner");
         paused = p;
@@ -1763,6 +1795,22 @@ contract BountyAdapterV48 is ReentrancyGuard {
     /// @dev V4: increments uniquePosterCount[agentId] the first time a given
     ///      poster completes a bounty with that agent as worker. No-op for
     ///      human workers (agentId == 0) or a poster already counted.
+    /// @dev True when the poster is also the worker: the same wallet, or the current owner of the
+    ///      worker's identity. Such a job still pays out; it just earns no reputation of any kind.
+    function _isSelfDealt(address poster, address worker, uint256 agentId) internal view returns (bool) {
+        if (worker == poster) return true;
+        if (agentId == 0) return false;
+        try identityRegistry.ownerOf(agentId) returns (address identityOwner) {
+            return identityOwner == poster;
+        } catch {
+            return false;
+        }
+    }
+
+    function _creditsReputation(BountyMeta storage meta) internal view returns (bool) {
+        return !_isSelfDealt(meta.poster, meta.assignedProvider, meta.agentId);
+    }
+
     function _recordUniquePoster(BountyMeta storage meta) internal {
         if (meta.agentId == 0) return;
         if (_hasPostedForAgent[meta.agentId][meta.poster]) return;
