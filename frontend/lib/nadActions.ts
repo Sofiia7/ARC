@@ -379,6 +379,18 @@ export function rejectAllBlocker(m: PosterMeta, entryCount: number, closedAt: bi
   return null;
 }
 
+/** withdrawContestRejection: only while the rejection is pending and nobody has challenged it. */
+export function withdrawContestRejectionBlocker(
+  m: PosterMeta,
+  challenges: readonly { challengedAt: bigint }[],
+): string | null {
+  if (m.resolved) return SETTLED;
+  if (m.rejectedAt === 0n) return "There is no pending rejection to withdraw.";
+  if (m.inDispute || challenges.some((c) => c.challengedAt > 0n))
+    return "An entrant already challenged the rejection, so it can no longer be withdrawn.";
+  return null;
+}
+
 /** respondToDispute (single) / respondToContestChallenges (contest), by the poster. */
 export function respondBlocker(
   m: PosterMeta,

@@ -16,6 +16,7 @@ import {
   payContestBlocker,
   rejectAllBlocker,
   rejectBlocker,
+  withdrawContestRejectionBlocker,
   replaceEntryBlocker,
   respondBlocker,
   settlementText,
@@ -345,6 +346,19 @@ test("poster and worker blockers", () => {
   assert.match(rejectAllBlocker(c, 3, 0n, T) ?? "", /once the contest closes/);
   assert.match(rejectAllBlocker(c, 0, T, T) ?? "", /no entries/);
   assert.match(rejectAllBlocker({ ...c, rejectedAt: 1n }, 3, T, T) ?? "", /already rejected/);
+
+  // Retracting "reject all": only while pending and unchallenged.
+  assert.match(withdrawContestRejectionBlocker(c, []) ?? "", /no pending rejection/);
+  assert.equal(withdrawContestRejectionBlocker({ ...c, rejectedAt: 1n }, [{ challengedAt: 0n }]), null);
+  assert.match(
+    withdrawContestRejectionBlocker({ ...c, rejectedAt: 1n }, [{ challengedAt: 5n }]) ?? "",
+    /already challenged/,
+  );
+  assert.match(
+    withdrawContestRejectionBlocker({ ...c, rejectedAt: 1n, inDispute: true }, []) ?? "",
+    /already challenged/,
+  );
+  assert.match(withdrawContestRejectionBlocker({ ...c, rejectedAt: 1n, resolved: true }, []) ?? "", /settled|resolved/i);
 
   // Single dispute: only the respondent (the poster when the worker opened it) can reply, within 48 hours.
   const d = { ...m, inDispute: true, disputeRaisedAt: T };

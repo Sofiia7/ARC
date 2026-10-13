@@ -20,6 +20,7 @@ import {
   parseScore,
   payContestBlocker,
   rejectAllBlocker,
+  withdrawContestRejectionBlocker,
   rejectBlocker,
   replaceEntryBlocker,
   respondBlocker,
@@ -587,6 +588,7 @@ export function NadDetail({ jobId }: { jobId: bigint }) {
           cancel: cancelBlocker(meta, entries.length),
           pay: payContestBlocker(meta, paymentMethod, selected.length),
           rejectAll: rejectAllBlocker(meta, entries.length, closed, chainNow),
+          withdrawRejection: withdrawContestRejectionBlocker(meta, challenges),
           respond: respondBlocker(meta, chainNow, challenges),
           challenge: challengeBlocker(meta, chainNow, false),
         }

@@ -25,6 +25,7 @@ export type Reasons = {
   cancel: string | null;
   pay: string | null;
   rejectAll: string | null;
+  withdrawRejection: string | null;
   respond: string | null;
   challenge: string | null;
 };
@@ -212,6 +213,15 @@ export function PosterActions({
           reason={reasons.rejectAll}
           onClick={() => void evidenceAction("rejectAllContestEntries")}
         />
+        {meta.rejectedAt > 0n && !meta.inDispute && (
+          <ActionButton
+            id="withdraw-rejection"
+            label="Withdraw rejection"
+            disabled={disabled}
+            reason={reasons.withdrawRejection}
+            onClick={() => void action("withdrawContestRejection", [])}
+          />
+        )}
         {meta.inDispute && (
           <ActionButton
             id="respond"
