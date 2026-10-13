@@ -16,7 +16,7 @@ jobs:
       run: { working-directory: nad-automation }
     env:
       NAD_NETWORK: monad-mainnet
-      NAD_BOUNTY_ADAPTER_ADDRESS: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020'
+      NAD_BOUNTY_ADAPTER_ADDRESS: '0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4'
       NAD_RPC_URL: https://rpc1.monad.xyz
       NAD_LOG_RPC_URL: https://rpc.monad.xyz
       BASE_MAINNET_RPC_URL: ${{ secrets.NAD_AUTOMATION_BASE_RPC_URL }}

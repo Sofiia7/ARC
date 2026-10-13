@@ -1,5 +1,83 @@
 # Slither triage
 
+## Monad V4.8 stage 6 local safety (2026-10-08)
+
+Repeated the configured adapter fail-low gate: passed, one informational
+low-level call. The report without global exclusions still has 60 findings
+in the stage-4 reviewed categories; it exits nonzero and is not a clean strict
+gate. Strict keeper/mirror fail-low checks pass with one assembly / zero findings.
+No production contract logic, global exclusions or source annotations changed.
+Mixed real-escrow stateful invariants pass 256 runs × 128 depth per property;
+these strengthen accounting evidence without replacing network validation or
+an external audit. See [stage-6 local verification](../docs/superpowers/plans/2026-10-08-nadbounty-v48-stage6-local-verification.md).
+
+## Monad / Base keeper receiver stage 5 (2026-10-08)
+
+`src/monad/KeeperReceiver.sol` passes fail-low with the stricter
+`slither.monad.config.json` (no global detector exclusions): 9 contracts /
+101 detectors, one informational assembly finding. Assembly caps target gas,
+provides no output buffer and copies at most four revert bytes. Tests cover
+megabyte returndata, gas exhaustion, reporting reserve and authorized reentry.
+Two source-scoped zero-check annotations document intentional relayer disablement.
+See [stage-5 verification](../docs/superpowers/plans/2026-10-08-nadbounty-v48-stage5-verification.md)
+for report ABI, limits, authority and real-escrow integration coverage.
+
+## Monad V4.8 stage 4 (2026-10-08)
+
+Contest rejection/challenges/arbitration and recovery pass the configured
+fail-low gate. Full analysis without global exclusions was reviewed: 60 findings
+(9 incorrect-equality, 7 reentrancy-no-eth, 5 reentrancy-benign, 38 timestamp,
+1 informational low-level call). New findings concern the response timestamp
+sentinel, challenge/arbitration boundaries and guarded timeout parked credits.
+No new global exclusions or source-scoped suppressions were added for stage 4.
+See [stage-4 verification](../docs/superpowers/plans/2026-10-08-nadbounty-v48-stage4-verification.md)
+for timing decisions, tests, commands and deployment assumptions.
+
+Current V4.8 runtime is 42,406 bytes. Earlier checkpoint sizes below are
+historical. Keeper and local stateful contest obligations are now implemented;
+Monad fork/testnet rehearsal remains pending. Static analysis does not replace
+network validation or an external audit.
+
+## Monad V4.8 stage 3 (2026-10-07)
+
+Contest admission, selection, silence and normal escrow recovery pass the
+configured fail-low gate. Full analysis without global exclusions was reviewed:
+48 findings, including the new guarded contest score/parking writes and closure
+sentinel comparisons. See [stage-3 verification](../docs/superpowers/plans/2026-10-07-nadbounty-v48-stage3-verification.md)
+for counts, assumptions and tests.
+
+One additional helper-scoped `reentrancy-balance` annotation covers exact
+contest receipt accounting. Two `calls-loop` annotations cover immutable
+identity-owner reads and non-blocking feedback, bounded by 25 entrants.
+Tests exercise 25 agent winners, failed registry reads/feedback, short receipts,
+blacklisted recipients and a real-escrow token callback attempting cross-mode
+reentry. No global detector exclusions were added.
+
+Current V4.8 runtime is 35,327 bytes, within Monad's 128 KiB bound. The stage-2
+figures below describe that earlier checkpoint. Contest rejection/arbitration,
+stateful contest liabilities and chain-specific rehearsal remain unfinished.
+
+## Monad V4.8 stage 2 (2026-10-07)
+
+The separate `src/monad/BountyAdapterV48.sol` passes the existing configured
+`fail-low` gate with its intentional informational `_payOrPark` call visible.
+The four globally excluded V4.7 detector classes were also run and reviewed
+against V4.8: 33 findings, including the new guarded local-score writes.
+Details, assumptions and reproducible commands are in
+[stage-2 verification](../docs/superpowers/plans/2026-10-07-nadbounty-v48-stage2-verification.md).
+
+Three source-scoped `reentrancy-balance` annotations cover exact escrow-receipt
+comparisons in `_completeAndForward`, `_completeAndSplit`, `_rejectAndRefund`.
+All external callers hold the same nonReentrant guard and AC/USDC addresses
+are immutable. Tests attempt nested settlement during an escrow receipt and
+verify that short receipts cannot consume another open bounty's deposit.
+Do not extend these annotations to unrelated code without re-review.
+
+V4.8's 26,272-byte runtime exceeds Ethereum's 24 KiB limit but fits Monad's
+128 KiB limit. CI therefore retains the Ethereum size gate for Arc/Base and
+checks V4.8 under its separate local Monad size profile. This profile does not
+validate Monad gas pricing; real Monad execution remains a later requirement.
+
 `slither.config.json` excludes four detector classes from the CI gate. Each is
 a reviewed, accepted finding - not a blanket silence. Re-review before mainnet.
 

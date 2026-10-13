@@ -39,6 +39,13 @@ staging-settings:
       url: https://mainnet.base.org
 
 # ==========================================================================
+# NOT a production deployment, despite the target name.
+# This target reads Monad TESTNET (monad-testnet) only. No workflow.yaml in this
+# project defines a production-settings entry (keeper/workflow.yaml and
+# reputation/workflow.yaml define staging-settings only), so nothing can be
+# deployed with it, and no Monad mainnet (chain 143) target is configured here.
+# The only verified CRE runs are local simulations with --target staging-settings
+# (see README.md); no workflow has been deployed to a DON.
 production-settings:
   rpcs:
     - chain-name: monad-testnet
