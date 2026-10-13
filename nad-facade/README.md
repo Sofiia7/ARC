@@ -4,6 +4,6 @@ Independent read-only instance for Monad. Requires no wallet key. Uses the Monad
 
 Run `npm ci`, `npm run typecheck`, `npm test`, then set the variables in `.env.example` in the process environment and run `npm start`. Binds to loopback; put a TLS reverse proxy in front for hosting. `/health` is free; `GET /v1/bounties/7` costs 0.001 USDC. Basic reads remain freely available through the website JSON API and SDK. The paid endpoint returns a single-block bounty/entry snapshot, never decrypted contents or signing keys. Bad IDs, nonexistent bounties and RPC failures are rejected before payment. No cross-request caching of paid responses.
 
-Mainnet has no default adapter and refuses startup until its actual paused deployment address is configured. Startup verifies RPC chain, adapter USDC and facilitator support. Live settlement/hosting must be verified separately before advertising availability.
+Mainnet has no default adapter and refuses startup until its deployed address is configured. The mainnet instance is hosted at https://nadbounty-facade.vercel.app with NAD_NETWORK=monad-mainnet, the adapter above, the Safe as NAD_X402_PAY_TO and a public RPC; it carries no key and no secret. `node test/live-payment-mainnet.mjs` verifies the 402 requirements and, with `--pay`, spends one real 0.001 USDC. Startup verifies RPC chain, adapter USDC and facilitator support. Live settlement/hosting must be verified separately before advertising availability.
 
 Reference: https://docs.monad.xyz/guides/x402
