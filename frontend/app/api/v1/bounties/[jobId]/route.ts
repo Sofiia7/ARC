@@ -3,7 +3,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "@/lib/contracts";
 import type { BountyMeta } from "@/components/BountyCard";
 import { fetchIpfsServerCached } from "@/lib/ipfsServer";
 import {
-  apiJson, apiOptions, loadBoard, networkInfo, nowSec, rateLimited, readFailed, serverClient, toPublicBounty,
+  apiJson, apiOptions, loadBoard, monadGone, networkInfo, nowSec, rateLimited, readFailed, serverClient, toPublicBounty,
 } from "@/lib/publicApi";
 
 export const runtime = "nodejs";
@@ -19,7 +19,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ jobI
   if (limited) return limited;
 
   const { jobId: raw } = await params;
-  if (!/^\d{1,30}$/.test(raw)) return apiJson({ error: "jobId must be a number." }, 400);
+  const isId = /^\d{1,30}$/.test(raw);
+  const gone = monadGone(isId ? `/api/nad/bounties/${raw}` : "/api/nad/bounties");
+  if (gone) return gone;
+  if (!isId) return apiJson({ error: "jobId must be a number." }, 400);
   const jobId = BigInt(raw);
 
   let board;

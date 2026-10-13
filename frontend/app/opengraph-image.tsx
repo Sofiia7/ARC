@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { getActiveNetwork, getBrand } from "@/lib/networks";
+import { getActiveNetwork, getActiveNetworkName, getBrand } from "@/lib/networks";
 import { getCopy } from "@/lib/copy";
 
 // Every launch link - X, Discord, Telegram, HN, LinkedIn - unfurls with this
@@ -15,8 +15,32 @@ export const contentType = "image/png";
 // renders identically here and on Vercel.
 export const runtime = "edge";
 
+// ImageResponse cannot read CSS variables, so the accent is repeated here. The monad entry uses the hex values of
+// :root[data-theme="monad"] in app/globals.css (--coral is Monad's brand purple, --amber the lighter text accent).
+// The default entry is what Arc and Base have always rendered; do not change it.
+const PALETTES = {
+  default: {
+    gradient: "linear-gradient(135deg, #0a0b0f 0%, #12151f 55%, #1a1410 100%)",
+    mark: "#f0b429",
+    accent: "#f0b429",
+  },
+  monad: {
+    gradient: "linear-gradient(135deg, #0a0b0f 0%, #12151f 55%, #181330 100%)",
+    mark: "#836EF9",
+    accent: "#A58CFF",
+  },
+};
+
 export default function OpengraphImage() {
   const network = getActiveNetwork();
+  const monad = getActiveNetworkName().startsWith("monad");
+  const palette = monad ? PALETTES.monad : PALETTES.default;
+  const subline = monad
+    ? "Encrypted USDC contests on Monad - reputation that follows the agent across Base, Arc and Monad"
+    : "USDC escrow on ERC-8183 · on-chain reputation on ERC-8004";
+  const pills = monad
+    ? [network.testnet ? "Live on Monad testnet" : "Live on Monad mainnet", "Open source, MIT", "ERC-8004 reputation"]
+    : ["An agent already got paid", "Open source, MIT", getCopy().gasPill.label];
   return new ImageResponse(
     (
       <div
@@ -26,7 +50,7 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "linear-gradient(135deg, #0a0b0f 0%, #12151f 55%, #1a1410 100%)",
+          background: palette.gradient,
           padding: "72px 80px",
           fontFamily: "sans-serif",
           color: "#f4f1ea",
@@ -38,7 +62,7 @@ export default function OpengraphImage() {
               width: 44,
               height: 44,
               borderRadius: 12,
-              background: "#f0b429",
+              background: palette.mark,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -68,17 +92,15 @@ export default function OpengraphImage() {
           <div style={{ fontSize: 66, fontWeight: 700, lineHeight: 1.08, letterSpacing: -1.5 }}>
             AI agents and humans
           </div>
-          <div style={{ fontSize: 66, fontWeight: 700, lineHeight: 1.08, letterSpacing: -1.5, color: "#f0b429" }}>
+          <div style={{ fontSize: 66, fontWeight: 700, lineHeight: 1.08, letterSpacing: -1.5, color: palette.accent }}>
             compete for the same jobs
           </div>
-          <div style={{ fontSize: 30, color: "#9aa3b8", marginTop: 8 }}>
-            USDC escrow on ERC-8183 · on-chain reputation on ERC-8004
-          </div>
+          <div style={{ fontSize: monad ? 28 : 30, color: "#9aa3b8", marginTop: 8 }}>{subline}</div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", gap: 12 }}>
-            {["An agent already got paid", "Open source, MIT", getCopy().gasPill.label].map(t => (
+            {pills.map(t => (
               <div
                 key={t}
                 style={{
@@ -94,7 +116,7 @@ export default function OpengraphImage() {
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 24, color: "#f0b429" }}>{getBrand().domain}</div>
+          <div style={{ fontSize: 24, color: palette.accent }}>{getBrand().domain}</div>
         </div>
       </div>
     ),

@@ -1,0 +1,182 @@
+/* Shared by NadStart and NadDevelopers. Layout and typography helpers only; every colour is an existing variable. */
+
+.wrap {
+  max-width: 920px;
+  margin: 0 auto;
+}
+.text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+.small {
+  font-size: 13px;
+}
+.muted {
+  color: var(--ink-mute);
+}
+.text strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.link,
+.text a {
+  color: var(--honey);
+  text-decoration: underline;
+}
+.mono {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.stepNum {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--a2-rgb), 0.14);
+  border: 1px solid rgba(var(--a2-rgb), 0.32);
+  color: var(--honey);
+  font-weight: 700;
+  font-size: 14px;
+}
+.stepBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stepTitle {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.bullets {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.bullets strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.codeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.codeLabel {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.copyBtn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.code {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid var(--g-border);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 12px 22px;
+  margin: 0;
+}
+.facts dt {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.facts dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 18px;
+  align-items: baseline;
+}
+.kv > span {
+  font-size: 14px;
+  color: var(--ink-mute);
+}
+@media (max-width: 640px) {
+  .facts,
+  .kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .facts dd {
+    margin-bottom: 10px;
+  }
+  .kv > span {
+    margin-top: 8px;
+  }
+}
+
+.numbered {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.numbered li::marker {
+  color: var(--honey);
+  font-weight: 700;
+}
+.numbered strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.anchor {
+  scroll-margin-top: 96px;
+}

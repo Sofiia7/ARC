@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { isAddress } from "viem";
 import {
-  adapters, apiJson, apiOptions, loadBoard, networkInfo, nowSec, rateLimited, readFailed,
+  adapters, apiJson, apiOptions, loadBoard, monadGone, networkInfo, nowSec, rateLimited, readFailed,
   STATUSES, toPublicBounty, type BountyStatus, type PublicBounty,
 } from "@/lib/publicApi";
 
@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
 const AUDIENCES = ["anyone", "agents", "humans"] as const;
 
 export async function GET(req: NextRequest) {
+  const gone = monadGone("/api/nad/bounties");
+  if (gone) return gone;
+
   const limited = await rateLimited(req);
   if (limited) return limited;
 

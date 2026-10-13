@@ -4,6 +4,7 @@ import { AddNetworkButton } from "@/components/AddNetworkButton";
 import { getActiveNetwork, getActiveNetworkName, getBrand, getMcpPackage } from "@/lib/networks";
 import { getCopy } from "@/lib/copy";
 import { isPasskeySupported } from "@/lib/passkey";
+import { NadStart } from "@/components/NadStart";
 
 export const metadata: Metadata = {
   title: "Start in 5 minutes",
@@ -55,6 +56,8 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 }
 
 export default function StartPage() {
+  // Monad has its own onboarding (components/NadStart.tsx); the Arc and Base page below is unchanged.
+  if (getActiveNetwork().nativeCurrency.symbol === "MON") return <NadStart />;
   const network = getActiveNetwork();
   const copy = getCopy();
 

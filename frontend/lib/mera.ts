@@ -4,6 +4,7 @@ import type { Secp256k1SigningSession } from '@category-labs/mera';
 import { getActiveNetwork } from './networks';
 import { CONTRACTS } from './contracts';
 import { validateMeraApproval, validateMeraTransaction } from './meraPolicy';
+import type { SigningContext } from './nadConfirm';
 
 const SESSION_MS=10*60*1000;
 let live:{session:Secp256k1SigningSession;account:LocalAccount;prf:Uint8Array;expires:number}|undefined;
@@ -15,6 +16,10 @@ export async function deriveMeraContestKey(context:string){
   try{return await(await import('./contestEncryption')).deriveContestKeypair(secret,context);}finally{secret.fill(0);}
 }
 export function hasMeraSession(){return !!live&&Date.now()<live.expires;}
+/** What the confirmation dialog needs to name the chain, the app and the known contracts. The dialog module itself is loaded lazily, on the first prompt. */
+function signingContext(network:ReturnType<typeof getActiveNetwork>,from:string,fee?:{gas:bigint;maxFee:bigint}):SigningContext{
+  return{chainName:network.name,appName:network.brand.name,nativeSymbol:network.nativeCurrency.symbol,from,adapter:CONTRACTS.BOUNTY_ADAPTER,usdc:CONTRACTS.USDC,identity:CONTRACTS.IDENTITY_REGISTRY,...fee};
+}
 
 export function meraConnector(mode:'create'|'recover'){
   return createConnector((config)=>{
@@ -32,14 +37,18 @@ export function meraConnector(mode:'create'|'recover'){
           if(String(params[1]).toLowerCase()!==account.address.toLowerCase())throw Error('Passkey signer mismatch');
           const message=params[0] as Hex;
           // Every off-chain signature still requires a deliberate user action.
-          if(!window.confirm(`Sign this NadBounty message?\nSigner: ${account.address}\nMessage (hex): ${message}`))throw Error('Signature cancelled');
+          const {confirmAction,describeMessageSignature}=await import('./nadConfirm');
+          if(!await confirmAction({...describeMessageSignature(message,signingContext(network,account.address)),confirmLabel:'Sign',cancelLabel:'Cancel'}))throw Error('Signature cancelled');
+          current();// the dialog can stay open past the 10 minute session
           return account.signMessage({message:{raw:message}});
         }
         if(method==='eth_signTypedData_v4'){
           if(String(params[0]).toLowerCase()!==account.address.toLowerCase())throw Error('Passkey signer mismatch');
           const typed=JSON.parse(String(params[1]));
           if(Number(typed.domain?.chainId)!==network.chainId)throw Error('Typed data chain mismatch');
-          if(!window.confirm(`Sign typed data on Monad?\nSigner: ${account.address}\n${JSON.stringify(typed,null,2)}`))throw Error('Signature cancelled');
+          const {confirmAction,describeTypedDataSignature}=await import('./nadConfirm');
+          if(!await confirmAction({...describeTypedDataSignature(typed,signingContext(network,account.address)),confirmLabel:'Sign',cancelLabel:'Cancel'}))throw Error('Signature cancelled');
+          current();
           return account.signTypedData(typed);
         }
         if(method==='eth_sendTransaction'){
@@ -51,7 +60,9 @@ export function meraConnector(mode:'create'|'recover'){
           const gas=tx.gas?BigInt(tx.gas):estimate!+(estimate!+1n)/2n;
           const gasPrice=await pub.getGasPrice();
           if(gas*gasPrice>150000000000000000n)throw Error('Passkey transaction exceeds 0.15 MON gas budget');
-          if(!window.confirm(`Send on ${network.name}?\nTo: ${tx.to}\nNative value: 0 MON\nGas limit: ${gas}\nMaximum gas cost: ${Number(gas*gasPrice)/1e18} MON\nData: ${tx.data??'0x'}`))throw Error('Transaction cancelled');
+          const {confirmAction,describeTransaction}=await import('./nadConfirm');
+          if(!await confirmAction({...describeTransaction({to:tx.to,data:tx.data,value:tx.value},signingContext(network,account.address,{gas,maxFee:gas*gasPrice})),confirmLabel:'Send',cancelLabel:'Cancel'}))throw Error('Transaction cancelled');
+          current();
           return createWalletClient({chain,transport,account}).sendTransaction({to:tx.to,data:tx.data,gas,gasPrice,value:0n});
         }
         // No raw signing, arbitrary transactions, permission grants or RPC forwarding.

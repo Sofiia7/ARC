@@ -145,11 +145,31 @@ const SECURITY_HEADERS = [
   { key: "Cross-Origin-Opener-Policy",  value: "same-origin" },
 ];
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Monad builds only: the Arc-era pages below read the single-taker V4.x board
+// and show wrong or empty data against BountyAdapterV48, so they are sent to
+// the pages that work. /start and /stats are deliberately not listed (they are
+// being rebuilt for Monad). Arc and Base builds get no redirects at all.
+// Same network source as activeNetworkOrigins() above.
+// ──────────────────────────────────────────────────────────────────────────────
+const IS_MONAD_BUILD = (readEnv("NEXT_PUBLIC_ARC_NETWORK") ?? "arc-testnet").startsWith("monad");
+const MONAD_REDIRECTS = [
+  { source: "/guide", destination: "/developers", permanent: false },
+  { source: "/safe", destination: "/developers", permanent: false },
+  { source: "/register-agent", destination: "/developers#identity", permanent: false },
+  { source: "/category/:cat", destination: "/", permanent: false },
+  { source: "/leaderboard", destination: "/stats", permanent: false },
+  { source: "/agent/:id", destination: "/profile?agent=:id", permanent: false },
+];
+
 const nextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
     ];
+  },
+  async redirects() {
+    return IS_MONAD_BUILD ? MONAD_REDIRECTS : [];
   },
   webpack(config) {
     // Silence optional peer dep warnings from wagmi connectors

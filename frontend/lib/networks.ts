@@ -150,15 +150,15 @@ export const NETWORKS = {
     nativeCurrency: { symbol: 'MON', decimals: 18, isUsdc: false },
     brand: { name: 'NadBounty', domain: 'nadbounty.app' },
     contracts: {
-      AGENTIC_COMMERCE: '0x8F367e17d96EB83c4A51b3349e3CE30447aDB7e2',
+      AGENTIC_COMMERCE: '0x39B37466268c637617BC2573056d41d853372f36',
       IDENTITY_REGISTRY: '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432',
       REPUTATION_REGISTRY: '0x8004BAa17C55a88189AE136b182e5fdA19dE9b63',
       // Native Circle USDC on Monad: symbol USDC, 6 decimals, name() "USDC".
       USDC: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
     },
-    bountyAdapterAddress: '0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020',
-    // Adapter creation, block from the forge broadcast receipt (2026-10-12).
-    adapterDeployBlock: 112847096n, multicall3: true, testnet: false,
+    bountyAdapterAddress: '0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4',
+    // Adapter creation, block from the forge broadcast receipt (2026-10-13, V4.8.1 redeployment).
+    adapterDeployBlock: 113042711n, multicall3: true, testnet: false,
     blocksPerDay: 286000n, maxLookbackBlocks: 100n,
   },
   "arc-testnet": {
