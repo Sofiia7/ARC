@@ -1,0 +1,415 @@
+/*
+  Extra styles for the NadBounty post and detail flows. Only the shared design-system variables from globals.css are used
+  (no colours of its own), so the Monad accent follows the theme. Everything else comes from the shared classes
+  (panel, form-card, checkbox-row, seg, status, tag, btn ...).
+*/
+
+/* ---------- small text ---------- */
+.hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-mute);
+}
+.hint a {
+  color: var(--ink-soft);
+}
+.reason {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-mute);
+}
+.error {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--rose);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.mono {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+.linkBtn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--honey);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.linkBtn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* ---------- keyboard focus for the clickable checkbox and radio rows ---------- */
+.choice:focus-visible {
+  outline: 2px solid var(--honey);
+  outline-offset: 2px;
+}
+/* A radio is round; the shared .check is a rounded square. */
+.radio :global(.check) {
+  border-radius: 999px;
+}
+.radio:global([data-on="true"]) :global(.check)::after {
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sky-deep);
+  transform: none;
+}
+.choiceGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- the deposit tag (a second colour next to the contest tag) ---------- */
+:global(.tag).depositTag {
+  background: color-mix(in srgb, var(--yellow) 14%, transparent);
+  color: var(--yellow);
+  border-color: color-mix(in srgb, var(--yellow) 38%, transparent);
+}
+
+/* ---------- action buttons with a reason underneath ---------- */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+.actionItem {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.actionItem > button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ---------- "Acting as" picker ---------- */
+.segWrap {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.segWrap button {
+  padding: 8px 16px;
+}
+.manualRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.manualRow input {
+  max-width: 180px;
+}
+
+/* ---------- cost box and progress on the post form ---------- */
+.costBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--g-bg);
+  border: 1px solid var(--g-border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.costBox p {
+  margin: 0;
+}
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--g-bg);
+  border: 1px solid var(--g-border);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.progress p {
+  margin: 0;
+}
+.stepList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stepDone {
+  color: var(--green);
+}
+.stepNow {
+  color: var(--ink);
+  font-weight: 600;
+}
+.stepWait {
+  color: var(--ink-faint);
+}
+.note {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--g-border-hi);
+  background: var(--g-bg);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.note p {
+  margin: 0;
+}
+
+/* ---------- success banner after posting ---------- */
+.banner {
+  margin-top: 22px;
+  padding: 20px 24px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--green) 40%, transparent);
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.banner h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--green);
+}
+.shareRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.shareRow input {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* ---------- timeline ---------- */
+.timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.phase {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  column-gap: 12px;
+  padding-bottom: 16px;
+}
+.phase:last-child {
+  padding-bottom: 0;
+}
+.phase::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 22px;
+  bottom: 0;
+  width: 2px;
+  background: var(--g-border);
+}
+.phase:last-child::before {
+  display: none;
+}
+.dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid var(--g-border-hi);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--sky-deep);
+}
+.phaseDone .dot {
+  background: var(--green);
+  border-color: var(--green);
+}
+.phaseDone .dot::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--sky-deep);
+  border-bottom: 2px solid var(--sky-deep);
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.phaseCurrent .dot {
+  background: var(--honey);
+  border-color: var(--honey);
+  box-shadow: 0 0 0 4px rgba(var(--a2-rgb), 0.22);
+}
+.phaseCurrent .dot::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sky-deep);
+}
+.phaseBody {
+  min-width: 0;
+}
+.phaseTitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.phaseCurrent .phaseTitle {
+  color: var(--honey);
+}
+.phaseSkipped .dot {
+  border-style: dashed;
+  border-color: var(--g-border);
+}
+.phaseSkipped .phaseTitle {
+  color: var(--ink-mute);
+  font-weight: 500;
+}
+.phaseUpcoming .phaseTitle {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.phaseWhen {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink-mute);
+}
+.phaseNote {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-mute);
+}
+.phaseCurrent {
+  background: rgba(var(--a2-rgb), 0.08);
+  border-radius: 12px;
+  margin: 0 -10px;
+  padding: 10px 10px 16px;
+}
+.phaseCurrent:last-child {
+  padding-bottom: 10px;
+}
+.phaseCurrent::before {
+  left: 20px;
+  top: 32px;
+}
+.rules {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-mute);
+}
+
+/* ---------- outcome ---------- */
+.outcomeHead {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.kv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 18px;
+  align-items: baseline;
+}
+.kv dt {
+  color: var(--ink-soft);
+  font-size: 14px;
+  min-width: 0;
+}
+.kv dd {
+  margin: 0;
+  text-align: right;
+  font-feature-settings: "tnum";
+  font-weight: 600;
+  color: var(--ink);
+}
+.kvSub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-mute);
+  overflow-wrap: anywhere;
+}
+.kvSub a {
+  color: var(--ink-soft);
+}
+.noteList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.entryHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  justify-content: space-between;
+}
+.entryWho {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.entryWho a {
+  color: var(--ink);
+}
+.you {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--honey);
+}
+
+@media (max-width: 560px) {
+  .phaseCurrent {
+    margin: 0 -6px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  .kv {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .kv dd {
+    text-align: left;
+    margin-bottom: 8px;
+  }
+}

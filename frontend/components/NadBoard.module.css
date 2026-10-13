@@ -1,0 +1,210 @@
+/* NadBoard extras. Uses only the shared design-system classes plus these few layout helpers, and only the
+   existing CSS variables (colours follow the per-network accent). */
+
+.sub {
+  max-width: 720px;
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.sub strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.ctas > a {
+  padding: 14px 22px;
+  font-size: 14.5px;
+  font-weight: 600;
+  border-radius: 14px;
+}
+
+.note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-mute);
+}
+.note a,
+.link {
+  color: var(--honey);
+  text-decoration: underline;
+}
+
+.how {
+  margin-top: 36px;
+}
+.steps {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+.step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.stepNum {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--a2-rgb), 0.14);
+  border: 1px solid rgba(var(--a2-rgb), 0.32);
+  color: var(--honey);
+  font-weight: 700;
+  font-size: 14px;
+}
+.stepTitle {
+  margin: 2px 0 4px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.stepText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-mute);
+}
+
+.bannerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.bannerRow strong {
+  color: var(--ink);
+}
+.code {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 32px 0 16px;
+}
+.search {
+  flex: 1 1 200px;
+  max-width: 320px;
+}
+.sortSeg {
+  margin-left: auto;
+}
+.count {
+  margin-left: 6px;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+@media (max-width: 640px) {
+  .sortSeg {
+    margin-left: 0;
+  }
+  div.tabs button,
+  div.sortSeg button {
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+  .ctas > a {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+/* The shared filters-head row does not wrap; the label and the two toggles need more than a phone is wide. */
+.filterRow {
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.rowLink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.stale {
+  opacity: 0.6;
+}
+
+.skeleton {
+  height: 92px;
+  opacity: 0.5;
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.empty {
+  text-align: center;
+  padding: 64px 0;
+  color: var(--ink-soft);
+}
+.emptyIcon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+.emptyTitle {
+  margin: 0 0 8px;
+}
+.emptyHint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--g-border);
+  background: var(--g-bg);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.footnote {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-mute);
+}
+.recent {
+  margin-top: 36px;
+}

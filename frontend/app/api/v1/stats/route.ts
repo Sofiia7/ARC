@@ -1,6 +1,8 @@
 import { formatUnits } from "viem";
 import { computeProtocolStats } from "@/lib/protocolStats";
-import { adapters, apiJson, apiOptions, loadBoard, networkInfo, nowSec, rateLimited, readFailed } from "@/lib/publicApi";
+import {
+  adapters, apiJson, apiOptions, loadBoard, monadGone, networkInfo, nowSec, rateLimited, readFailed,
+} from "@/lib/publicApi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +10,9 @@ export const dynamic = "force-dynamic";
 const usdc = (units: bigint) => formatUnits(units, 6);
 
 export async function GET(req: Request) {
+  const gone = monadGone("/api/nad/stats");
+  if (gone) return gone;
+
   const limited = await rateLimited(req);
   if (limited) return limited;
 

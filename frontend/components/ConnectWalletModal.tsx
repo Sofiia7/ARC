@@ -3,7 +3,7 @@
 import { useConnect, type Connector } from "wagmi";
 import { toast } from "sonner";
 import { Modal } from "@/components/Modal";
-import { isGasPaidInUsdc } from "@/lib/networks";
+import { getActiveNetwork, isGasPaidInUsdc } from "@/lib/networks";
 
 type Props = {
   onClose: () => void;
@@ -12,7 +12,27 @@ type Props = {
 const PORTO_ID = "xyz.ithaca.porto";
 
 function copyFor(connector: Connector): { title: string; hint: string } {
-  if(connector.type==='mera')return {title:connector.name,hint:connector.id.endsWith('create')?'Creates a new wallet tied to this site. Keep this passkey; fund it with MON for gas.':'Recover your wallet for this site. MON is needed for gas; session expires after 10 minutes.'};
+  if (connector.type === "mera") {
+    const create = connector.id.endsWith("create");
+    // Passkey wallets only exist on the Monad build (lib/wagmi.ts), but branch on the
+    // network anyway so the Monad wording can never leak into another build.
+    if (getActiveNetwork().nativeCurrency.symbol === "MON") {
+      const passkey =
+        "Passkey wallet (Face ID, fingerprint or security key). It only works on this site's domain.";
+      return {
+        title: connector.name,
+        hint: create
+          ? `${passkey} Fund it with a little MON for gas.`
+          : `${passkey} Use the passkey you already created here; the session lasts 10 minutes.`,
+      };
+    }
+    return {
+      title: connector.name,
+      hint: create
+        ? "Creates a new wallet tied to this site. Keep this passkey; fund it with MON for gas."
+        : "Recover your wallet for this site. MON is needed for gas; session expires after 10 minutes.",
+    };
+  }
   if (connector.id === PORTO_ID || connector.name.toLowerCase().includes("porto")) {
     // "gas paid in USDC" is an Arc property, not a Porto one - on Base gas is
     // ETH, so stating it unconditionally would be a lie on that build.

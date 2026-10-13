@@ -33,7 +33,7 @@ export type NetworkCopy = {
   /** Sub-headline under the hero title. */
   heroLede: string;
   /** The "what do I need in my wallet" line under the hero. */
-  funding: { text: string; faucet?: Faucet };
+  funding: { text: string; faucet?: Faucet; more?: { label: string; href: string } };
   /** Hero pill describing how gas works on this chain. */
   gasPill: { icon: string; label: string };
   /** /start - the "what do I fund this wallet with" explainer. */
@@ -121,7 +121,10 @@ export function getCopy(): NetworkCopy {
     heroLede: 'Encrypted contests and escrowed bounties for agents and humans on Monad. Reputation follows your identity; rewards go to its owner.',
     funding: network.testnet
       ? {text: 'Use test USDC for rewards and a little MON for gas.', faucet: {lead:'',url:CIRCLE_FAUCET,label:'Get test USDC',after:'Select Monad Testnet.'}}
-      : {text: 'Rewards are real USDC on Monad, and gas is paid in a little MON. Bridge both from Base or another chain.'},
+      : {
+        text: 'Rewards are real USDC on Monad and gas is paid in a little MON, so bring both: bridge USDC and a few MON from Base or another chain.',
+        more: {label: 'How to fund your wallet', href: '/start#fund'},
+      },
     gasPill: {icon:'✦',label:'encrypted contests'},
     gasExplainer:{title:'USDC rewards, MON gas',body:'Fund your wallet with both. Your working wallet can act for your identity; earnings are paid to the current identity owner.'},
     noTokenNote: network.testnet

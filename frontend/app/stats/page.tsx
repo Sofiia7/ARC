@@ -5,6 +5,7 @@ import { CONTRACTS } from "@/lib/contracts";
 import { getActiveNetwork } from "@/lib/networks";
 import { HISTORY_ADAPTERS } from "@/lib/bountyMetas";
 import { useProtocolStats } from "@/hooks/useProtocolStats";
+import { NadStats } from "@/components/NadStats";
 
 // Public dashboard: every number here is derived from contract events read
 // straight off the chain in the browser - no backend, no database, nothing
@@ -14,7 +15,13 @@ import { useProtocolStats } from "@/hooks/useProtocolStats";
 const network = getActiveNetwork();
 const EXPLORER = `${network.explorerUrl}/address/`;
 
+// Monad builds read their numbers from /api/nad/stats (components/NadStats.tsx); Arc and Base keep this page.
 export default function StatsPage() {
+  if (getActiveNetwork().nativeCurrency.symbol === "MON") return <NadStats />;
+  return <LegacyStatsPage />;
+}
+
+function LegacyStatsPage() {
   const { data: s, isLoading, isError } = useProtocolStats();
 
   return (

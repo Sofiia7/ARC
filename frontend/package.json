@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "npx --yes --package tsx@4.21.0 tsx --test test/nad-*.test.ts"
   },
   "dependencies": {
     "@category-labs/mera": "0.2.0",

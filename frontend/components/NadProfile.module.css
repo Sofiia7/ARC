@@ -1,0 +1,82 @@
+/* NadProfile extras. Layout helpers only; colours come from the shared CSS variables. */
+
+.mono {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.line {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-mute);
+}
+.link {
+  color: var(--honey);
+  text-decoration: underline;
+}
+.error {
+  margin: 0;
+  color: #ffc9bc;
+  overflow-wrap: anywhere;
+}
+.examples {
+  margin-top: 4px;
+}
+.exampleAddr {
+  font-family: var(--font-jetbrains-mono), monospace;
+  overflow-wrap: anywhere;
+}
+.results {
+  margin-top: 28px;
+}
+.copied {
+  font-size: 12.5px;
+  color: var(--ink-mute);
+  overflow-wrap: anywhere;
+}
+.gateButtons {
+  flex-wrap: wrap;
+  align-self: flex-start;
+}
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--g-border);
+  background: rgba(0, 0, 0, 0.3);
+}
+.verdictTitle {
+  font-size: 15px;
+  font-weight: 650;
+}
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.lines li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+.ok {
+  color: var(--green);
+  font-weight: 600;
+}
+.bad {
+  color: var(--rose);
+  font-weight: 600;
+}
