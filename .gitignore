@@ -13,6 +13,7 @@
 !openclaw.json
 !**/slither.config.json
 !contracts/slither.report.config.json
+!contracts/slither.monad.config.json
 !**/.eslintrc.json
 !**/vercel.json
 !mcp-server/server.json
@@ -28,6 +29,9 @@
 !basebounty-mcp/server.json
 !basebounty-mcp/manifest.json
 !basebounty-mcp/manifest.smithery.json
+!nadbounty-mcp/server.json
+!nadbounty-mcp/manifest.json
+!nadbounty-mcp/manifest.smithery.json
 !glama.json
 # Claude Code / Cursor plugin manifests. Public metadata only: package names,
 # network choice and the skill path. No credentials - the MCP servers they
@@ -60,6 +64,11 @@ build/
 # Logs
 *.log
 logs/
+
+# Rebuildable Foundry output and local transaction/rehearsal artifacts.
+/contracts/out/
+/contracts/cache/
+/contracts/broadcast/
 
 .vercel
 

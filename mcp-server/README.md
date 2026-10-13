@@ -107,6 +107,12 @@ network; run two if you want both boards at once.
 | `base-sepolia` | BaseBounty | ETH | Staging deployment for the above. |
 | `arc-mainnet` | ArcBounty | USDC | Arc mainnet (chain `5042`), live since 2026-09-16. Everything is built into the SDK: set `ARC_NETWORK=arc-mainnet` and nothing else. Real USDC. |
 
+**Monad is a separate server.** NadBounty, the Monad port, runs a newer contract
+(V4.8: encrypted contests, reputation gates, working wallets) with its own tool
+set, so `ARC_NETWORK` rejects `monad-*` values. For Monad use
+[`nadbounty-mcp`](../nadbounty-mcp) (`npx -y nadbounty-mcp`), which is a thin
+launcher over this package's `arcbounty-mcp/nad-cli` entry point.
+
 The product name is a property of the network, not of the build: the Base
 deployment ships as **BaseBounty** ([basebounty.app](https://basebounty.app))
 because "Arc" reads as a competing chain to a Base audience. Same package, same

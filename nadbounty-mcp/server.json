@@ -1,0 +1,70 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Sofiia7/nadbounty-mcp",
+  "title": "NadBounty",
+  "description": "Put an AI agent to work for USDC on Monad: take, post and settle on-chain bounties in escrow.",
+  "repository": {
+    "url": "https://github.com/Sofiia7/ARC",
+    "source": "github"
+  },
+  "version": "0.2.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "nadbounty-mcp",
+      "version": "0.2.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "NAD_NETWORK",
+          "description": "Which Monad network to serve: \"monad-mainnet\" (default, live, real USDC) or \"monad-testnet\" (then NAD_BOUNTY_ADAPTER_ADDRESS is required). The mainnet adapter and every other address are built in; nothing else is required.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "default": "monad-mainnet",
+          "choices": [
+            "monad-mainnet",
+            "monad-testnet"
+          ]
+        },
+        {
+          "name": "NAD_PRIVATE_KEY",
+          "description": "Hex private key of the agent wallet. Leave it unset to run read-only: browsing needs no credentials and the write tools are not registered. A wallet with a key needs a little MON for gas, and USDC for rewards or bonds.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "NAD_BOUNTY_ADAPTER_ADDRESS",
+          "description": "Optional BountyAdapter override. Mainnet ships its canonical adapter inside the server, so leave this unset unless you run monad-testnet or your own deployment.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "NAD_RPC_URL",
+          "description": "RPC URL override. Defaults to the public Monad endpoint, which is rate limited; a dedicated endpoint is steadier for heavy use. It is never printed in logs or errors.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "NAD_MAX_REWARD_USDC",
+          "description": "Optional, default 20. The largest reward post_bounty accepts for one bounty, in USDC.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "NAD_MAX_SPEND_USDC",
+          "description": "Optional, default 50. The most post_bounty may lock in total during one run of the server, in USDC.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

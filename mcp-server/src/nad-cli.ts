@@ -1,21 +1,56 @@
 #!/usr/bin/env node
-import { createRequire } from 'node:module';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { NadBountyAgent, MONAD_NETWORKS, type MonadNetworkName } from 'arcbounty-agent-sdk';
-import { createPublicClient, http, isAddress, type Address, type Hex } from 'viem';
-import { createNadMcpServer } from './nad-tools.js';
-import { readSpendLimits } from './limits.js';
-const pkg=createRequire(import.meta.url)('../package.json') as {version:string};
-async function main(){
-  const network=process.env.NAD_NETWORK??'monad-testnet';if(!(Object.hasOwn(MONAD_NETWORKS,network)))throw Error('NAD_NETWORK must be monad-testnet or monad-mainnet');
-  const raw=process.env.NAD_BOUNTY_ADAPTER_ADDRESS??(network==='monad-testnet'?'0xf88B980B3AB1CD5A2Befd9c0B88B70196f215020':undefined);
-  if(!raw||!isAddress(raw))throw Error('Configure NAD_BOUNTY_ADAPTER_ADDRESS for the selected Monad network');
-  const config=MONAD_NETWORKS[network as MonadNetworkName],rpcUrl=process.env.NAD_RPC_URL??config.rpcUrl;
-  if(await createPublicClient({transport:http(rpcUrl)}).getChainId()!==config.chainId)throw Error('Monad RPC chain mismatch');
-  const privateKey=process.env.NAD_PRIVATE_KEY as Hex|undefined;
-  const agent=new NadBountyAgent({network:network as MonadNetworkName,bountyAdapterAddress:raw as Address,rpcUrl,privateKey});
-  const limits=readSpendLimits({...process.env,ARCBOUNTY_MAX_REWARD_USDC:process.env.NAD_MAX_REWARD_USDC,ARCBOUNTY_MAX_SPEND_USDC:process.env.NAD_MAX_SPEND_USDC});
-  const server=createNadMcpServer({agent,hasSigner:!!privateKey,version:pkg.version,limits});await server.connect(new StdioServerTransport());
-  console.error(`[nadbounty] ${network}, adapter ${raw}, ${privateKey?`signing as ${agent.address}`:'read-only'}. Gas: MON.`);
+import { createRequire } from "node:module";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createNadMcpServer } from "./nad-tools.js";
+import {
+  NAD_USAGE,
+  createNadAgent,
+  resolveNadConfig,
+  scrub,
+  secretsOf,
+  startupErrorMessage,
+  startupLine,
+  verifyRpc,
+} from "./nad-config.js";
+
+// The version a registry shows for this server comes from here. nadbounty-mcp is a shim over arcbounty-mcp, whose own
+// version differs, so the shim (and the .mcpb manifest) pass theirs in NAD_MCP_VERSION.
+const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
+const version = process.env["NAD_MCP_VERSION"]?.trim() || pkg.version;
+const secrets = secretsOf(process.env);
+
+/** Print to stderr, wait for it to flush and leave. A pending keep-alive socket must not delay the exit code. */
+function fail(message: string): void {
+  process.stderr.write(`[nadbounty] ${message}\n`, () => process.exit(1));
 }
-main().catch(()=>{console.error('[nadbounty] Startup failed. Check NAD_NETWORK, NAD_BOUNTY_ADAPTER_ADDRESS, NAD_RPC_URL and NAD_PRIVATE_KEY.');process.exitCode=1;});
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(NAD_USAGE);
+    return;
+  }
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(version);
+    return;
+  }
+
+  const config = resolveNadConfig(process.env);
+  await verifyRpc(config);
+  const agent = createNadAgent(config);
+  const server = createNadMcpServer({
+    agent,
+    hasSigner: config.privateKey !== undefined,
+    version,
+    limits: config.limits,
+    secrets,
+  });
+  await server.connect(new StdioServerTransport());
+  console.error(startupLine(config));
+}
+
+// A failure after startup must not print a raw stack: viem errors carry the RPC URL.
+process.on("unhandledRejection", (error) => fail(`Unexpected error: ${scrub(String(error), secrets).slice(0, 300)}`));
+process.on("uncaughtException", (error) => fail(`Unexpected error: ${scrub(String(error), secrets).slice(0, 300)}`));
+
+main().catch((error) => fail(`Startup failed: ${startupErrorMessage(error, secrets)}`));

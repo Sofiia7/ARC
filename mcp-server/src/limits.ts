@@ -15,6 +15,12 @@ export type SpendLimits = {
 
 export const DEFAULT_SPEND_LIMITS: SpendLimits = { maxRewardUsdc: 20, maxSpendUsdc: 50 };
 
+/** Names of the environment variables that carry the two caps; they only appear in messages and are read from env. */
+export type CapNames = { reward: string; spend: string };
+
+/** Arc and Base servers (arcbounty-mcp, basebounty-mcp). The Monad server passes its own NAD_* names. */
+export const ARC_CAP_NAMES: CapNames = { reward: 'ARCBOUNTY_MAX_REWARD_USDC', spend: 'ARCBOUNTY_MAX_SPEND_USDC' };
+
 function readCap(env: Record<string, string | undefined>, name: string, fallback: number): number {
   const raw = env[name]?.trim();
   if (!raw) return fallback;
@@ -25,23 +31,31 @@ function readCap(env: Record<string, string | undefined>, name: string, fallback
   return value;
 }
 
-/** ARCBOUNTY_MAX_REWARD_USDC and ARCBOUNTY_MAX_SPEND_USDC; throws on a value that is not a positive number. */
-export function readSpendLimits(env: Record<string, string | undefined>): SpendLimits {
+/** The two caps named by `names` (ARCBOUNTY_MAX_* by default); throws, naming the variable, on a value that is not a positive number. */
+export function readSpendLimits(env: Record<string, string | undefined>, names: CapNames = ARC_CAP_NAMES): SpendLimits {
   return {
-    maxRewardUsdc: readCap(env, "ARCBOUNTY_MAX_REWARD_USDC", DEFAULT_SPEND_LIMITS.maxRewardUsdc),
-    maxSpendUsdc: readCap(env, "ARCBOUNTY_MAX_SPEND_USDC", DEFAULT_SPEND_LIMITS.maxSpendUsdc),
+    maxRewardUsdc: readCap(env, names.reward, DEFAULT_SPEND_LIMITS.maxRewardUsdc),
+    maxSpendUsdc: readCap(env, names.spend, DEFAULT_SPEND_LIMITS.maxSpendUsdc),
   };
 }
 
+/** USDC has 6 decimals; comparing whole micro-units keeps 30.1 + 19.9 from reading as 50.00000000000001. */
+const micro = (usdc: number): number => Math.round(usdc * 1e6);
+
 /** Why posting `rewardUsdc` after `spentUsdc` would break a cap, or null when it fits both. */
-export function spendLimitError(rewardUsdc: number, spentUsdc: number, limits: SpendLimits): string | null {
-  if (rewardUsdc > limits.maxRewardUsdc) {
+export function spendLimitError(
+  rewardUsdc: number,
+  spentUsdc: number,
+  limits: SpendLimits,
+  names: CapNames = ARC_CAP_NAMES,
+): string | null {
+  if (micro(rewardUsdc) > micro(limits.maxRewardUsdc)) {
     return `A ${rewardUsdc} USDC reward is above this server's per-bounty cap of ${limits.maxRewardUsdc} USDC ` +
-      "(ARCBOUNTY_MAX_REWARD_USDC). Only the operator can raise it, in the server's configuration.";
+      `(${names.reward}). Only the operator can raise it, in the server's configuration.`;
   }
-  if (spentUsdc + rewardUsdc > limits.maxSpendUsdc) {
+  if (micro(spentUsdc) + micro(rewardUsdc) > micro(limits.maxSpendUsdc)) {
     return `This server has posted ${spentUsdc} USDC in rewards so far; ${rewardUsdc} more would pass its cap of ` +
-      `${limits.maxSpendUsdc} USDC per run (ARCBOUNTY_MAX_SPEND_USDC). Only the operator can raise it or restart the server.`;
+      `${limits.maxSpendUsdc} USDC per run (${names.spend}). Only the operator can raise it or restart the server.`;
   }
   return null;
 }
