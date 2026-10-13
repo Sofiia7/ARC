@@ -274,3 +274,81 @@ export const IPFS_GATEWAYS = [
   "https://ipfs.io/ipfs/",
   "https://cloudflare-ipfs.com/ipfs/",
 ];
+
+// ─── Monad (NadBounty) ───────────────────────────────────────────────────────
+
+export type MonadNetworkName = "monad-mainnet" | "monad-testnet";
+
+/**
+ * One Monad network for {@link NadBountyAgent}. Gas is MON (18 decimals) and
+ * USDC is an ordinary 6-decimal ERC-20, as on Base.
+ */
+export type MonadNetworkConfig = {
+  chainId: number;
+  rpcUrl: string;
+  explorerUrl: string;
+  /** Canonical ERC-8004 identity registry (deployed by the 8004 team, not by NadBounty). */
+  identity: Address;
+  /** Canonical ERC-8004 reputation registry. */
+  reputation: Address;
+  usdc: Address;
+  /** The site pin route used by `pinTextAuto` / `NadBountyAgent.pin` for this network. */
+  pinUrl: string;
+  /**
+   * Built-in NadBounty V4.8 adapter. Absent means no stable deployment is
+   * published for this network: pass `bountyAdapterAddress` explicitly.
+   */
+  defaultBountyAdapter?: Address;
+  /** ERC-8183 escrow (proxy) behind the canonical adapter. */
+  agenticCommerce?: Address;
+  /** Cross-chain reputation snapshots (Base and Arc paid jobs) read by the adapter's gates. */
+  reputationMirror?: Address;
+  /** Permissionless settlement runner used by the keeper. */
+  keeperReceiver?: Address;
+  /** Safe that owns the adapter, acts as arbitrator and receives the 1% fee. */
+  safe?: Address;
+};
+
+/**
+ * Monad networks known to the SDK. Mainnet carries the canonical deployment, so
+ * `new NadBountyAgent({ network: "monad-mainnet" })` needs no address. Testnet
+ * stays explicit-address only: its deployment is paused and may be replaced.
+ *
+ * Public RPC caveat: `rpc.monad.xyz` caps `eth_getLogs` at 100 blocks, so the
+ * SDK never relies on wide log queries.
+ */
+export const MONAD_NETWORKS: Readonly<Record<MonadNetworkName, Readonly<MonadNetworkConfig>>> = {
+  "monad-mainnet": {
+    chainId: 143,
+    rpcUrl: "https://rpc.monad.xyz",
+    explorerUrl: "https://monadscan.com",
+    identity: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+    reputation: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
+    usdc: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+    pinUrl: "https://nadbounty.app/api/ipfs/pin",
+    defaultBountyAdapter: "0x5C38F98Fb3F3BA3eB8206Cb653eeDC8C159E1bE4",
+    agenticCommerce: "0x39B37466268c637617BC2573056d41d853372f36",
+    reputationMirror: "0x05e17AaCBf7c8e47D4Db4B9108f66f846ceDdAC5",
+    keeperReceiver: "0xF55bE023F13F75C23EFbd04e5f6878F323838552",
+    safe: "0x74678c072Ca546f11466CD44eB7e21730a312a54",
+  },
+  "monad-testnet": {
+    chainId: 10143,
+    rpcUrl: "https://testnet-rpc.monad.xyz",
+    explorerUrl: "https://testnet.monadscan.com",
+    identity: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    reputation: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+    usdc: "0x534b2f3A21130d7a60830c2Df862319e593943A3",
+    pinUrl: "https://nadbounty-testnet.vercel.app/api/ipfs/pin",
+  },
+};
+
+/** Canonical Multicall3, deployed at the same address on both Monad networks (checked on chain). */
+export const MONAD_MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as Address;
+
+/** Smallest reward the adapter accepts: 1 USDC in 6-decimal base units. */
+export const NAD_MIN_REWARD = 1_000_000n;
+
+/** Categories the adapter accepts (anything else reverts "invalid category"). */
+export const NAD_CATEGORIES = ["dev", "design", "content", "data", "other"] as const;
+export type NadCategory = (typeof NAD_CATEGORIES)[number];

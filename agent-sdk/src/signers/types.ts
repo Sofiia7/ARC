@@ -26,4 +26,17 @@ export interface Signer {
    * route when this process has no Pinata key (see pinTextAuto).
    */
   signMessage?(message: string): Promise<Hex>;
+  /**
+   * EIP-712 typed-data signature. Optional: a custodial backend may not offer
+   * one. Needed to authorize a working wallet on a NadBounty identity.
+   */
+  signTypedData?(data: TypedDataRequest): Promise<Hex>;
 }
+
+/** The viem-style shape of an EIP-712 signing request. */
+export type TypedDataRequest = {
+  domain: Record<string, unknown>;
+  types: Record<string, readonly { name: string; type: string }[]>;
+  primaryType: string;
+  message: Record<string, unknown>;
+};

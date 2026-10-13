@@ -1,6 +1,6 @@
 import { createWalletClient, createPublicClient, http, type Address, type Chain, type Hash, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import type { Signer } from "./types.js";
+import type { Signer, TypedDataRequest } from "./types.js";
 
 /** Default signer: a local private key, signed and broadcast via viem. */
 export class ViemSigner implements Signer {
@@ -21,6 +21,11 @@ export class ViemSigner implements Signer {
   /** Local EIP-191 signature: no RPC call, so no chain-id check is needed here. */
   async signMessage(message: string): Promise<Hex> {
     return this.account.signMessage({ message });
+  }
+
+  /** Local EIP-712 signature: no RPC call. */
+  async signTypedData(data: TypedDataRequest): Promise<Hex> {
+    return this.account.signTypedData(data as never);
   }
 
   async writeContract(params: {
