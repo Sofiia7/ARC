@@ -51,7 +51,7 @@ function LegacyHomePage() {
 
   // Filter by audience + search over the full set, THEN paginate - so a
   // filtered view never shows a falsely-empty page while matches exist
-  // further down. Search matches category + tags (ТЗ §12.4) - the
+  // further down. Search matches category + tags (spec section 12.4) - the
   // description itself lives on IPFS and isn't fetched for the list view.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

@@ -16,8 +16,8 @@ test("rejects an oversized streamed body without trusting Content-Length", async
 });
 test("accepts bounded Unicode JSON and rejects malformed JSON", async () => {
   assert.deepEqual(
-    await readNadJson(new Request("https://example.test", { method: "POST", body: '{"text":"Привет"}' }), 100),
-    { text: "Привет" },
+    await readNadJson(new Request("https://example.test", { method: "POST", body: '{"text":"Héllo wörld ✓"}' }), 100),
+    { text: "Héllo wörld ✓" },
   );
   await assert.rejects(
     () => readNadJson(new Request("https://example.test", { method: "POST", body: "not json" }), 100),

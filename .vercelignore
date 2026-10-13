@@ -3,7 +3,7 @@
 # from git via .gitignore, but the repo-root monorepo link (.vercel/repo.json,
 # directory: "frontend") uploads the whole tree regardless of git tracking,
 # so they need an explicit .vercelignore too.
-Видео/
+Video/
 *.mp4
 
 # Build/dependency artifacts - never needed as deploy source, Vercel installs

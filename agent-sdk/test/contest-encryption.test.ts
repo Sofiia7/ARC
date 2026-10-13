@@ -6,7 +6,7 @@ describe("contest sealed boxes", () => {
   it("only the poster can decrypt Unicode results and encrypting twice is randomized", async () => {
     const poster = await generateContestKeypair();
     const other = await generateContestKeypair();
-    const text = "Результат 🟣\nhttps://example.com/work";
+    const text = "Résumé 日本語 🟣\nhttps://example.com/work";
     const first = await encryptContestEntry(text, poster.publicKey);
     const second = await encryptContestEntry(text, poster.publicKey);
     expect(first.ciphertext).not.toBe(second.ciphertext);
