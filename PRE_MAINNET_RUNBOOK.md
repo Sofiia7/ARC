@@ -290,6 +290,89 @@ Confirmed on-chain: `getOwners()` returns all three addresses,
 role. Still open: write the dispute runbook (who signs, under what evidence,
 SLA) - the doc matters as much as the signer count.
 
+### 5a. Dispute evidence for bounties with a criteria block (added 2026-10-22)
+
+Written by Judge Protocol (vijaygopalbalasa) at ArcBounty's request in
+[#4](https://github.com/Sofiia7/ARC/issues/4). It covers one part of item 5's
+dispute runbook, "under what evidence", for one kind of bounty: one whose
+description carries a `judge-criteria` block. There the rules were written
+before anyone took the work, so "did the submission meet them?" can be answered
+from chain data by anyone, with no keys and without trusting Judge Protocol.
+It answers only what the block says. Quality, and anything the block leaves
+out, stay the Safe's call.
+
+**What a ruling binds.** The `rulingHash` is keccak256 of the canonical JSON
+(keys sorted) of: a fixed kind label, the chain id, the adapter, the escrow, the job id, the
+description CID, the submission CID, the escrow's commitment to the submission
+link, the submission block, and the `evidenceHash` (which itself covers the
+job id, the criteria and their hash, the hash of the delivered bytes, each
+check's result, the score, the threshold and the decision). The reviewer decision is not in it, so the
+record stays the same when the bounty is later approved or disputed.
+
+**Recompute it, no keys.** Either call (same answer):
+
+```bash
+curl -s 'https://judge-protocol-api-mainnet.vercel.app/api/arcbounty?jobId=18'
+# or from a checkout, reading Arc's public RPC and IPFS directly:
+git clone https://github.com/vijaygopalbalasa/judge-protocol && cd judge-protocol/judge-service && npm ci
+node src/arcbounty.js 18 --network arc-mainnet
+```
+
+The answer is `ruled` (with `ruling.score`, `ruling.pass`, each check in
+`ruling.results` and `ruling.rulingHash`), `no-submission`, or `abstained` with
+the reason no ruling is possible. Add `&network=arc-testnet` for the testnet
+adapter.
+
+**What it checks, and how to check each step without that code** (job 18 on
+Arc mainnet, the 2026-09-29 Poster leads bounty, as the worked example):
+
+1. The adapter's record: `bounties(18)` on `0x73c617e808ED5c7Ca41413DFC6EE940dDcBb0b8D` gives the
+   description link `ipfs://QmZydksZeiGMVzSFtifF7riVeChSyz6zT1JWwMTqTHCFAs` and
+   the submission link `ipfs://QmNthvVxpzc8pxhyQjNLGqBdYbCVvT6EjADct8eScdYfxv`.
+2. The escrow's commitment: the adapter submits keccak256 of the submission
+   link's characters, and the escrow's `JobSubmitted` event records it. Both
+   of these print `0x75eae45cfe396796b3fdd08ac0180e7441feebacb669d5f6e23819f47337197c`:
+
+   ```bash
+   cast keccak 'ipfs://QmNthvVxpzc8pxhyQjNLGqBdYbCVvT6EjADct8eScdYfxv'
+   cast logs --from-block 23466663 --to-block 23466663 \
+     --address 0x64cA39Fc57315D0D488acCaC07c37C6E841CD058 \
+     "JobSubmitted(uint256 indexed jobId, address indexed provider, bytes32 deliverable)" 18 \
+     --rpc-url https://rpc.mainnet.arc.io
+   ```
+3. The files: read from any IPFS gateway and kept only if their bytes
+   recompute to the CID in the link (CIDv0, one block of up to 262,144 bytes),
+   so a gateway cannot substitute other content.
+4. The rules: the one `judge-criteria` block in the description; every check
+   kind is defined in Judge Protocol's
+   [docs/CRITERIA.md](https://github.com/vijaygopalbalasa/judge-protocol/blob/master/docs/CRITERIA.md).
+   Job 18's criteria hash: `0xd761b8357e12d75984f1502b113ccd4c3b0fa12302b2d0d89fe5d7b21f3a120b`.
+5. The checks, run on the submission bytes: job 18 has one (a JSON list of
+   exactly 10 leads with the required fields, no two sharing a website
+   domain). Score 100 of 100, PASS, evidence hash
+   `0xcf457afbd44363b199091ece1171df054cc391c2b7263efc6c2964f6351e8877`.
+6. The record: `rulingHash`
+   `0x52ff8735f2a004bea938e5dcf8c7040c717b8cae95ecf1e46bd57d48c1a049fc`, the
+   value recorded when the work came in on 2026-09-30
+   ([record](https://github.com/vijaygopalbalasa/judge-protocol/blob/master/judge-service/evidence/arcbounty-arc-mainnet/job-18-52ff8735.json)),
+   and the value both calls above return today.
+
+**In a dispute** (a suggested procedure; the Safe decides):
+
+- Before signing `resolveDispute` on a criteria bounty, a signer runs the
+  recompute and checks that it says `ruled`, and that its `rulingHash` matches
+  any ruling record cited in the dispute.
+- PASS means every written rule was met; REJECT names the check that failed.
+  Either is evidence about the written rules only, not a ruling on quality.
+- `abstained` (no criteria block, invalid criteria, a file that does not match
+  its CID, a web link instead of an IPFS file, or a check that needs a live
+  network probe) means there is no recomputable answer, and the Safe rules on
+  its own reading.
+- To cite it, pin the ruling JSON and pass its CID as the ruling reference in
+  `resolveDispute`, so the ruling on chain points at evidence anyone can
+  recompute. The 2026-09-30 testnet trial did exactly this for job 186820
+  (`ipfs://QmbfDfL4ujx8taVgwEouph1V1asRLN8J7kS7VN3wmsazGr`).
+
 ### 6. Procure the external audit (Grant Milestone 2)
 
 `BountyAdapter.sol` - either a paid audit or an audit contest (Sherlock,
