@@ -318,6 +318,10 @@ git clone https://github.com/vijaygopalbalasa/judge-protocol && cd judge-protoco
 node src/arcbounty.js 18 --network arc-mainnet
 ```
 
+Run the checkout only on a machine that holds no Safe signer keys, since it
+installs a third-party repo and its npm dependencies. A signer never needs it:
+the `curl` call, or the manual `cast` steps below, are enough to check a ruling.
+
 The answer is `ruled` (with `ruling.score`, `ruling.pass`, each check in
 `ruling.results` and `ruling.rulingHash`), `no-submission`, or `abstained` with
 the reason no ruling is possible. Add `&network=arc-testnet` for the testnet
@@ -360,7 +364,8 @@ Arc mainnet, the 2026-09-29 Poster leads bounty, as the worked example):
 **In a dispute** (a suggested procedure; the Safe decides):
 
 - Before signing `resolveDispute` on a criteria bounty, a signer runs the
-  recompute and checks that it says `ruled`, and that its `rulingHash` matches
+  recompute (the `curl` call or the manual steps; the checkout only on a machine
+  without signer keys) and checks that it says `ruled`, and that its `rulingHash` matches
   any ruling record cited in the dispute.
 - PASS means every written rule was met; REJECT names the check that failed.
   Either is evidence about the written rules only, not a ruling on quality.
