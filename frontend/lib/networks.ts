@@ -164,7 +164,7 @@ export const NETWORKS = {
   "arc-testnet": {
     chainId: 5_042_002,
     name: "Arc Testnet",
-    rpcUrl: process.env.NEXT_PUBLIC_RPC_URL ?? "https://rpc.testnet.arc.network",
+    rpcUrl: process.env.NEXT_PUBLIC_RPC_URL ?? "https://rpc.testnet.arc.io",
     explorerUrl: "https://testnet.arcscan.app",
     explorerApiUrl: "https://testnet.arcscan.app/api",
     explorerName: "ArcScan",

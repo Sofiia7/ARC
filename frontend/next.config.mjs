@@ -36,7 +36,7 @@ function activeNetworkOrigins() {
   }
 
   if (network === "arc-testnet") {
-    const rpcUrl = readEnv("NEXT_PUBLIC_RPC_URL") ?? "https://rpc.testnet.arc.network";
+    const rpcUrl = readEnv("NEXT_PUBLIC_RPC_URL") ?? "https://rpc.testnet.arc.io";
     return { rpc: originOf(rpcUrl), explorer: originOf("https://testnet.arcscan.app") };
   }
 

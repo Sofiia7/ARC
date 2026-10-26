@@ -72,7 +72,7 @@ contracts sit where they do.
 | Field | Value |
 |---|---|
 | Address | `0xeDf2c738915b042da97788b2b5499D4655FB1f20` |
-| RPC | `https://rpc.testnet.arc.network` |
+| RPC | `https://rpc.testnet.arc.io` |
 | Source | `src/BountyAdapter.sol` (at V4.7) |
 | Features | V4.6 (pull-payment `_payOrPark` fallback) plus the 2026-09-07 internal audit fixes: `takeBounty` now reverts on a `resolved` job (C-01 - a cancelled bounty could otherwise be taken again, funding AC from whatever other bounty's deposit was currently pooled in the adapter); AC jobs are created with `expiredAt = deadline + AC_EXPIRY_BUFFER` (90 days) instead of the bounty's own deadline, plus a new permissionless `reconcileExpiredEscrow(jobId)` safety net (C-02 - AC's own permissionless `claimRefund` could previously fire while the adapter's dispute/approval windows were still legitimately open, up to ~46 days past the bounty deadline, permanently desyncing the two contracts); `_maybePenalize` now writes reputation penalties as negative values (M-01 - a positive-100 penalty was previously indistinguishable from a perfect score in the unfiltered `getSummary` average); new owner-only `paused`/`setPaused(bool)` circuit breaker blocking only `createBounty`/`takeBounty`, every exit path stays open (M-08 - `maxBountyAmount` alone was never a real pause); `IAgenticCommerce` realigned to match the real `AgenticCommerce` contract exactly (M-07 - the previous interface had a fictional `ASSIGNED` status and `refund()`/`expire()` functions that don't exist on-chain; dead surface before this version, but `reconcileExpiredEscrow` is the first real caller of `getJob`/`claimRefund` and needed it correct). Full detail in the V4.7 changelog comment at the top of `src/BountyAdapter.sol`. |
 | Deploy script | `contracts/script/Deploy.s.sol` - hardened same pass (M-09): `EXPECTED_CHAIN_ID` guard (Arc mainnet's id isn't published yet, so this can't be a hardcoded constant the way Base's script uses one), USDC `code.length`/`symbol()`/`decimals()` check, AC-to-USDC wiring check (`AgenticCommerce.paymentToken() == usdc`), live registry probes (`name() == "AgentIdentity"` on identity, `getSummary` reverting with a reason on reputation), post-deploy `owner()`/`arbitrator()` == deployer assertions. |
@@ -110,7 +110,7 @@ contracts sit where they do.
 | Field | Value |
 |---|---|
 | Address | `0x538CD48789667168bfb36f838Af8476237F9409F` |
-| RPC | `https://rpc.testnet.arc.network` |
+| RPC | `https://rpc.testnet.arc.io` |
 | Source | `src/BountyAdapter.sol` (at V4.4) |
 | Features | Same on-chain behavior as V4.3 (worker bond, `uniquePosterCount`, the V4.1/V4.2 timing guards, real reputation-registry interface) **plus the V4.4 fee fix**: `claimArbitratorTimeout`'s neutral 50/50 fallback no longer deducts the protocol fee - `_completeAndSplit` divides the full escrowed amount (external-review finding: users were being charged the 1% fee precisely when the arbitrator failed to deliver the service the fee funds). |
 | Fee | 100 bps (1%) |
@@ -136,7 +136,7 @@ contracts sit where they do.
 | Field | Value |
 |---|---|
 | Address | `0x2e9504EEa0bD80CBaA2464227054fc941EE46cA7` |
-| RPC | `https://rpc.testnet.arc.network` |
+| RPC | `https://rpc.testnet.arc.io` |
 | Source | `src/BountyAdapter.sol` (at V4.3) |
 | Superseded because | `claimArbitratorTimeout`'s neutral 50/50 fallback deducted the 1% protocol fee before splitting - charging users for arbitration the protocol didn't deliver. Fixed in V4.4 (`_completeAndSplit` splits the full escrowed amount). All other V4.3 behavior carried forward unchanged. All 14 open listings reclaimed 2026-07-10 (~24 USDC) ahead of the V4.4 deployment. |
 | Features | Same on-chain behavior as V4.2 (opt-in worker bond, `uniquePosterCount`, the `disputeBounty`/`MIN_BOND_TAKE_WINDOW` fixes) **plus the V4.3 reputation-registry fix**: `IReputationRegistry` was mirroring an assumed/older ERC-8004 draft (`giveFeedback(agentId, score, feedbackType, context, field1-3, hash)`, `getReputation(agentId)`) that never matched the real deployed registry - every `giveFeedback` call had a wrong selector and silently reverted (swallowed by the adapter's own `try/catch`) since the very first integration, so no agent had ever actually received on-chain feedback despite completed bounties. Confirmed via the verified registry source (`ReputationRegistryUpgradeable` v2.0.0 at `0x16e0fa7f7c56b9a767e34b192b51f921be31da34`, behind the `0x8004B663…` proxy): real interface is `giveFeedback(agentId, int128 value, uint8 valueDecimals, tag1, tag2, endpoint, feedbackURI, hash)` / `getSummary(agentId, clientAddresses[], tag1, tag2)`. Rewired to the real interface - writes pass the 0-100 score as `value` with `valueDecimals=0`; `getAgentReputation` now proxies `getSummary(agentId, [address(this)], "", "")` and reshapes it into the same `averageScore/totalFeedbacks/totalJobs` struct the frontend already expected, so no frontend ABI change was needed. |

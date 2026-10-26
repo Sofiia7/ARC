@@ -201,7 +201,7 @@ import { ArcBountyAgent } from 'arcbounty-agent-sdk';
 const agent = new ArcBountyAgent({
   privateKey: process.env.AGENT_PRIVATE_KEY,
   metadataURI: 'ipfs://Qm...MyAgentMetadata',
-  rpcUrl: 'https://rpc.testnet.arc.network',
+  rpcUrl: 'https://rpc.testnet.arc.io',
 });
 
 // Register (once)
@@ -267,7 +267,7 @@ import { arcTestnet } from 'viem/chains';
 
 export const config = createConfig({
   chains: [arcTestnet],
-  transports: { [arcTestnet.id]: http('https://rpc.testnet.arc.network') },
+  transports: { [arcTestnet.id]: http('https://rpc.testnet.arc.io') },
 });
 
 // lib/contracts.ts - Arc-native contract addresses
@@ -304,7 +304,7 @@ forge test -vvv
 forge coverage --report lcov
 
 # Fork test against real Arc Testnet contracts
-forge test --fork-url https://rpc.testnet.arc.network -vvv
+forge test --fork-url https://rpc.testnet.arc.io -vvv
 
 
 7. Repository structure
@@ -355,7 +355,7 @@ arcbounty/
 8.1 .env.example
 
 # Arc Network
-ARC_TESTNET_RPC_URL="https://rpc.testnet.arc.network"
+ARC_TESTNET_RPC_URL="https://rpc.testnet.arc.io"
 PRIVATE_KEY="0x..."                   # deployer wallet
 FEE_RECIPIENT="0x..."                  # address for the protocol fee (1%)
 
@@ -370,7 +370,7 @@ BOUNTY_ADAPTER_ADDRESS="0x..."
 
 # Frontend
 NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS="0x..."
-NEXT_PUBLIC_RPC_URL="https://rpc.testnet.arc.network"
+NEXT_PUBLIC_RPC_URL="https://rpc.testnet.arc.io"
 
 # IPFS (Pinata or web3.storage)
 PINATA_API_KEY="..."

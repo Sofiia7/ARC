@@ -28,7 +28,7 @@ describe("resolveNetwork - arc-testnet", () => {
     expect(net.chainId).toBe(5_042_002);
     expect(net.name).toBe("Arc Testnet");
     expect(net.caip2).toBe("eip155:5042002");
-    expect(net.rpcUrl).toBe("https://rpc.testnet.arc.network");
+    expect(net.rpcUrl).toBe("https://rpc.testnet.arc.io");
     expect(net.explorerUrl).toBe("https://testnet.arcscan.app");
     expect(net.explorerApiUrl).toBe("https://testnet.arcscan.app/api");
     expect(net.contracts).toEqual({
@@ -48,14 +48,14 @@ describe("resolveNetwork - arc-testnet", () => {
     expect(net.rpcUrl).toBe("http://localhost:8545");
     expect(net.chainId).toBe(5_042_002);
     // The shared static entry must not be mutated by the override.
-    expect(NETWORKS["arc-testnet"].rpcUrl).toBe("https://rpc.testnet.arc.network");
+    expect(NETWORKS["arc-testnet"].rpcUrl).toBe("https://rpc.testnet.arc.io");
   });
 
   it("returns a copy - mutating the result never touches NETWORKS", () => {
     const net = resolveNetwork("arc-testnet", {});
     net.rpcUrl = "http://mutated.invalid";
     net.contracts.USDC = "0x00000000000000000000000000000000000000ff";
-    expect(NETWORKS["arc-testnet"].rpcUrl).toBe("https://rpc.testnet.arc.network");
+    expect(NETWORKS["arc-testnet"].rpcUrl).toBe("https://rpc.testnet.arc.io");
     expect(NETWORKS["arc-testnet"].contracts.USDC).toBe("0x3600000000000000000000000000000000000000");
   });
 });
@@ -239,7 +239,7 @@ describe("resolveNetwork - arc-mainnet", () => {
   });
 
   it("does not leak the testnet ARC_RPC_URL onto mainnet", () => {
-    const net = resolveNetwork("arc-mainnet", { ARC_RPC_URL: "https://rpc.testnet.arc.network" });
+    const net = resolveNetwork("arc-mainnet", { ARC_RPC_URL: "https://rpc.testnet.arc.io" });
     expect(net.rpcUrl).toBe("https://rpc.blockdaemon.mainnet.arc.io");
   });
 
@@ -307,7 +307,7 @@ describe("ArcBountyAgent constructor - network wiring", () => {
 
   it("mainnet ignores a testnet BOUNTY_ADAPTER_ADDRESS and ARC_RPC_URL left in the env", () => {
     vi.stubEnv("BOUNTY_ADAPTER_ADDRESS", ARC_TESTNET_ADAPTER);
-    vi.stubEnv("ARC_RPC_URL", "https://rpc.testnet.arc.network");
+    vi.stubEnv("ARC_RPC_URL", "https://rpc.testnet.arc.io");
     const agent = new ArcBountyAgent({ privateKey: DUMMY_KEY, network: "arc-mainnet" });
     expect((agent as unknown as { bountyAdapter: string }).bountyAdapter).toBe(ARC_MAINNET_ADAPTER);
     expect(clientOf(agent).transport.url).toBe("https://rpc.blockdaemon.mainnet.arc.io");

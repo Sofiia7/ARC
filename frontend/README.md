@@ -94,7 +94,7 @@ Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_ARC_NETWORK=arc-testnet
-NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
+NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.io
 NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0xeDf2c738915b042da97788b2b5499D4655FB1f20
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect cloud project id>
 PINATA_JWT=<pinata jwt with file upload permission>
@@ -103,7 +103,7 @@ PINATA_JWT=<pinata jwt with file upload permission>
 | Var | Purpose |
 |---|---|
 | `NEXT_PUBLIC_ARC_NETWORK` | Which network this build targets: `arc-testnet` (default), `base-mainnet`, `base-sepolia`, `arc-mainnet`, `monad-mainnet` or `monad-testnet`. Also decides the brand. See [Networks](#networks). |
-| `NEXT_PUBLIC_RPC_URL` | Arc Testnet RPC override; falls back to `https://rpc.testnet.arc.network`. No effect on `arc-mainnet` builds (use `NEXT_PUBLIC_ARC_MAINNET_RPC_URL`). |
+| `NEXT_PUBLIC_RPC_URL` | Arc Testnet RPC override; falls back to `https://rpc.testnet.arc.io`. No effect on `arc-mainnet` builds (use `NEXT_PUBLIC_ARC_MAINNET_RPC_URL`). |
 | `NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS` | Deployed `BountyAdapter` address override for the testnets only; on a mainnet the baked-in address always wins (`monad-testnet` reads `NEXT_PUBLIC_NAD_BOUNTY_ADAPTER_ADDRESS` instead). **Must match the contract you deployed.** |
 | `NEXT_PUBLIC_WC_PROJECT_ID` | WalletConnect Cloud project id (free at cloud.walletconnect.com). |
 | `PINATA_JWT` | Server-side only. Used by `/api/ipfs/pin` and `/api/ipfs/pin-file` to pin descriptions and attachments. |
@@ -132,7 +132,7 @@ npm start       # serve production on :3001
 
 Chain config:
 
-- Arc Testnet - chain id **`5042002`**, RPC `https://rpc.testnet.arc.network`, explorer `https://testnet.arcscan.app`. Values in [`lib/networks.ts`](lib/networks.ts), chain object built in [`lib/wagmi.ts`](lib/wagmi.ts).
+- Arc Testnet - chain id **`5042002`**, RPC `https://rpc.testnet.arc.io`, explorer `https://testnet.arcscan.app`. Values in [`lib/networks.ts`](lib/networks.ts), chain object built in [`lib/wagmi.ts`](lib/wagmi.ts).
 
 ## Deploy
 
