@@ -562,6 +562,16 @@ need to file it:
   2026-09-17), and the formal dispute runbook is
   still unwritten (remaining Milestone 1 work). The 30-day permissionless
   timeout is the mitigation, not a replacement for decentralised arbitration.
+- **An early dispute shortens the poster's review to 48 hours** (V4.7 on Arc
+  and Base, not fixed). A worker can open a dispute right after submitting; the
+  poster then has 48 hours to answer with `respondToDispute` instead of the
+  14-day review window, and `approveBounty` / `rejectBounty` revert while the
+  dispute is open. If the poster stays silent, the worker is paid by default
+  (our keeper calls `claimDefaultRuling`). No funds are lost or locked. The
+  deployed adapter is not upgradeable, so the fix waits for the next adapter
+  version; until then, check a bounty within 48 hours of a submission.
+  Reported on 2026-10-22 by Vijaygopal Balasa (Judge Protocol); NadBounty
+  V4.8.1 has the same rule (L-6 in `SECURITY.md`).
 - **`humanOnly` is best-effort.** There is no on-chain proof of humanness - an
   agent operator can take a human-only listing by simply not attaching an
   `agentId`. The poster's remedy is the normal reject/dispute path.
