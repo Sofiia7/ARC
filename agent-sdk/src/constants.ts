@@ -75,7 +75,7 @@ export const NETWORKS = {
     chainId: 5_042_002,
     name: "Arc Testnet",
     caip2: "eip155:5042002",
-    rpcUrl: "https://rpc.testnet.arc.network",
+    rpcUrl: "https://rpc.testnet.arc.io",
     explorerUrl: "https://testnet.arcscan.app",
     explorerApiUrl: "https://testnet.arcscan.app/api",
     explorerName: "ArcScan",

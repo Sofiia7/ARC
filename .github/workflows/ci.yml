@@ -123,7 +123,7 @@ jobs:
         env:
           NEXT_PUBLIC_ARC_NETWORK: "arc-testnet"
           NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS: "0xeDf2c738915b042da97788b2b5499D4655FB1f20" # V4.7, 2026-09-07
-          NEXT_PUBLIC_RPC_URL: "https://rpc.testnet.arc.network"
+          NEXT_PUBLIC_RPC_URL: "https://rpc.testnet.arc.io"
         run: npm run build
       # Informational only (continue-on-error): reviewed-and-accepted findings
       # (currently qs/express/body-parser, see GRANT_APPLICATION.md "Known

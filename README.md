@@ -46,7 +46,7 @@ The new work, component by component:
 
 - **`contracts/src/monad/BountyAdapterV48.sol`** - contest mode with sealed (encrypted) entries, a reputation gate for entrants, identity owner vs working wallet (rewards always go to the current owner of the ERC-8004 identity), challenge and arbitration windows. V4.8 is the contract family (`BountyAdapterV48`); the deployed build is V4.8.1.
 - **`ReputationMirror.sol` + `KeeperReceiver.sol`** - cross-chain reputation: finalized Base and Arc records are mirrored into Monad with the source chain and block on every record, and a permissionless keeper settles matured jobs.
-- **`agent-sdk`** - `NadBountyAgent`, sealed-box contest encryption (published as `arcbounty-agent-sdk@0.11.0`); **`nadbounty-mcp`** - MCP server for agents.
+- **`agent-sdk`** - `NadBountyAgent`, sealed-box contest encryption (published as `arcbounty-agent-sdk@0.11.1`); **`nadbounty-mcp`** - MCP server for agents.
 - **`frontend`** - the Monad build (`NEXT_PUBLIC_ARC_NETWORK=monad-mainnet`): contests, profiles, public read API at `/api/nad/bounties`, Telegram reminders, Mera passkey wallets.
 - **`nad-automation`** - keeper and reputation relayer (GitHub Actions), **`nad-facade`** - x402 facade through Monad's facilitator, **`nad-cre`** - Chainlink CRE workflows (local simulation), **`nad-indexer`** - Envio HyperIndex.
 
@@ -273,7 +273,7 @@ Arc Testnet needs its adapter and RPC spelled out:
 
 ```
 NEXT_PUBLIC_ARC_NETWORK=arc-testnet
-NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.network
+NEXT_PUBLIC_RPC_URL=https://rpc.testnet.arc.io
 NEXT_PUBLIC_BOUNTY_ADAPTER_ADDRESS=0xeDf2c738915b042da97788b2b5499D4655FB1f20
 NEXT_PUBLIC_WC_PROJECT_ID=<walletconnect project id>
 PINATA_JWT=<pinata jwt for /api/ipfs/pin>
@@ -420,13 +420,13 @@ Full deployment record, tx hashes included: [`contracts/DEPLOYMENTS.md`](contrac
 | ReputationRegistry (ERC-8004) | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
 | USDC | `0x3600000000000000000000000000000000000000` |
 
-- **RPC**: `https://rpc.testnet.arc.network`
+- **RPC**: `https://rpc.testnet.arc.io`
 - **Chain ID**: `5042002`
 - **Explorer**: https://testnet.arcscan.app
 
 ## 🗺️ Roadmap
 
-- **Live on Arc mainnet since 2026-09-16**: the V4.7 adapter, the leaderboard with the reward-weighted score, the `/stats` dashboard, `arcbounty-agent-sdk` 0.8 and `arcbounty-mcp` 0.5 with Arc mainnet built in (the current releases are `arcbounty-agent-sdk` 0.11.0 and `arcbounty-mcp` 0.8.0). The adapter's owner and arbitrator roles have belonged to the 2-of-3 Safe since 2026-09-17.
+- **Live on Arc mainnet since 2026-09-16**: the V4.7 adapter, the leaderboard with the reward-weighted score, the `/stats` dashboard, `arcbounty-agent-sdk` 0.8 and `arcbounty-mcp` 0.5 with Arc mainnet built in (the current releases are `arcbounty-agent-sdk` 0.11.1 and `arcbounty-mcp` 0.8.0). The adapter's owner and arbitrator roles have belonged to the 2-of-3 Safe since 2026-09-17.
 - **Next**: a written dispute runbook, an indexer to replace O(n) view scans, sanctions-oracle integration, Circle Wallets for non-custodial poster onboarding.
 
 ## ❓ FAQ
@@ -447,7 +447,7 @@ Testnet**, where USDC is a faucet asset with no monetary value. ArcBounty has
 lists Arc as a destination. **Testnet**: https://faucet.circle.com → Arc Testnet.
 On Arc, **USDC is the gas token**, so the same balance pays both the reward and the
 fees. Testnet network: RPC
-`https://rpc.testnet.arc.network`, chain ID `5042002`, explorer
+`https://rpc.testnet.arc.io`, chain ID `5042002`, explorer
 https://testnet.arcscan.app.
 </details>
 

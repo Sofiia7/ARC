@@ -50,7 +50,7 @@ async function main() {
   const agent = new ArcBountyAgent({
     privateKey:    privateKey as `0x${string}`,
     metadataURI,
-    rpcUrl:        process.env["ARC_RPC_URL"] ?? "https://rpc.testnet.arc.network",
+    rpcUrl:        process.env["ARC_RPC_URL"] ?? "https://rpc.testnet.arc.io",
   });
   console.log("      agent address =", agent.address);
 

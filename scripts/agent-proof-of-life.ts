@@ -111,7 +111,7 @@ const VIEM_WATCHER_SNIPPET = `# Watch BountyCreated with viem
 
 import { createPublicClient, http, formatUnits, parseAbiItem } from "viem";
 
-const RPC = process.env.ARC_RPC_URL ?? "https://rpc.testnet.arc.network";
+const RPC = process.env.ARC_RPC_URL ?? "https://rpc.testnet.arc.io";
 const ADAPTER = process.env.BOUNTY_ADAPTER_ADDRESS as \`0x\${string}\`;
 
 const bountyCreated = parseAbiItem(

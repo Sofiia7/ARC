@@ -92,7 +92,7 @@ The `monad_local` profile checks chain-independent logic only. It does not model
 | `REPUTATION_REGISTRY` | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
 | `USDC_ADDRESS`        | `0x3600000000000000000000000000000000000000` |
 | `FEE_RECIPIENT`       | address that collects the 1 % protocol fee |
-| `ARC_TESTNET_RPC_URL` | `https://rpc.testnet.arc.network` |
+| `ARC_TESTNET_RPC_URL` | `https://rpc.testnet.arc.io` |
 
 Then:
 

@@ -73,7 +73,7 @@ serves.
 | Field | Value |
 |---|---|
 | BountyAdapter | `0xeDf2c738915b042da97788b2b5499D4655FB1f20` |
-| RPC | `https://rpc.testnet.arc.network` (public, rate-limited - pace reads) |
+| RPC | `https://rpc.testnet.arc.io` (public, rate-limited - pace reads) |
 | Explorer | https://testnet.arcscan.app |
 | USDC (= native gas token) | `0x3600000000000000000000000000000000000000` |
 | IdentityRegistry (ERC-8004) | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
