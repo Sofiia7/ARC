@@ -62,6 +62,14 @@ Found during our own review on 2026-10-13. Severity labels are ours, not an audi
 | L-5 | Low | `withdrawIdentity` reads the identity owner from the registry and reverts if the identity NFT no longer exists. A payout parked for a burned identity (`pendingIdentityWithdrawals`) can then never be claimed. | By design a parked identity payout can only be claimed by the identity's current owner. Do not burn an identity that has unclaimed earnings. |
 | N-1 | Info | Stale comments in the first deployment's verified source (contest creation "fails closed"; the pause comments omitted `enterContest` and `replaceContestEntry`). | **Fixed in V4.8.1** (comments corrected, no behaviour change). |
 
+## Reported by others
+
+Reports that came in through private vulnerability reporting. They are not an audit, and the severity labels are ours.
+
+| ID | Severity | What the code does | Mitigation or disclosure |
+|---|---|---|---|
+| L-6 | Low | On a single-taker bounty (contests have their own challenge path) a worker can open a dispute (`disputeBounty`) as soon as the work is submitted: there is no minimum wait, only the 14-day review window as the upper bound. From then on the poster has 48 hours (`DISPUTE_RESPONSE_WINDOW`) to answer with `respondToDispute`, and `approveBounty` and `rejectBounty` revert while the dispute is open. If the poster stays silent, anyone can call `claimDefaultRuling` after 48 hours and the worker is paid; our keeper makes that call on schedule. An early dispute can therefore shorten the poster's 14-day review to 48 hours. No funds are lost or locked. | **Disclosed, not fixed.** The adapter is not upgradeable; the next adapter version will change this. Until then, check a bounty within 48 hours of a submission and answer any dispute with `respondToDispute`, which hands it to the arbitrator. Posters who linked Telegram on nadbounty.app get a reminder when a dispute needs their response. The same rule is in V4.7 on Arc and Base (see the README). Reported on 2026-10-22 by Vijaygopal Balasa (Judge Protocol), with fork tests of the dispute paths on the Arc V4.7 adapter. |
+
 ## Design notes
 
 - **Poster self-participation.** The contract does not forbid a poster from entering or awarding their own contest or job. The reward is the poster's own deposit, the poster pays the 1% protocol fee on any payout, and no other party's funds are moved. Since V4.8.1 such a job earns no reputation (see M-1). Entrants choose which contests to enter and can see the poster's address and history on chain.
