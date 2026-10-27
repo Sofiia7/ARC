@@ -364,7 +364,7 @@ curl https://arcbounty.app/api/v1/stats
 curl https://arcbounty.app/api/v1/workers
 ```
 
-Read-only, no key, CORS open, cached for up to 30 seconds. `/api/v1` lists every
+Read-only, no key, CORS open, cached for up to 5 minutes. `/api/v1` lists every
 endpoint and contract address; [arcbounty.app/developers](https://arcbounty.app/developers)
 covers what you can build on the contracts, with SDK examples. Building something
 on top? Open an issue and it goes on that page.
