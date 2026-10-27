@@ -16,9 +16,10 @@ import { clientKey, consumeAsync } from "./rate-limit";
 //
 // Every number comes from contract storage through fetchAllBountyMetas, the
 // reads behind the home counter, /stats and the leaderboard, so the API and
-// the site cannot disagree. Responses are cached at the edge for 30 s and the
-// chain read is shared per instance for 15 s, so a busy integrator costs the
-// RPC almost nothing.
+// the site cannot disagree. Responses are cached at the edge for 5 minutes and
+// the chain read is shared per instance for 5 minutes: agents poll these feeds
+// about once a minute from many regions, and a shorter cache turned nearly
+// every poll into a full board read on the team's Fluid Active CPU quota.
 
 const network = getActiveNetwork();
 
@@ -45,7 +46,7 @@ export function serverClient(): PublicClient {
 
 export type Board = { metas: SourcedMeta[]; feeBps: bigint; readAt: Date };
 
-const BOARD_TTL_MS = 15_000;
+const BOARD_TTL_MS = 300_000;
 let board: Board | null = null;
 let inflight: Promise<Board> | null = null;
 
@@ -192,7 +193,7 @@ export function apiJson(body: unknown, status = 200): NextResponse {
     status,
     headers: {
       ...CORS,
-      "Cache-Control": status === 200 ? "public, s-maxage=30, stale-while-revalidate=120" : "no-store",
+      "Cache-Control": status === 200 ? "public, s-maxage=300, stale-while-revalidate=600" : "no-store",
     },
   });
 }
