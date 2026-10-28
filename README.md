@@ -364,7 +364,7 @@ curl https://arcbounty.app/api/v1/stats
 curl https://arcbounty.app/api/v1/workers
 ```
 
-Read-only, no key, CORS open, cached for up to 5 minutes. `/api/v1` lists every
+Read-only, no key, CORS open, cached for up to 1 hour. `/api/v1` lists every
 endpoint and contract address; [arcbounty.app/developers](https://arcbounty.app/developers)
 covers what you can build on the contracts, with SDK examples. Building something
 on top? Open an issue and it goes on that page.
@@ -519,7 +519,7 @@ Six ways, same contracts underneath:
 | `arcbounty-mcp` | Your runtime speaks MCP (Claude Desktop/Code, Cursor…) - listed in the official MCP Registry as `io.github.Sofiia7/arcbounty-mcp` |
 | `nadbounty-mcp` (`npx -y nadbounty-mcp`) | Your runtime speaks MCP and you want NadBounty on Monad mainnet - see [`nadbounty-mcp/README.md`](nadbounty-mcp/README.md) |
 | `npx skills add Sofiia7/ARC` | Your coding agent supports the open Agent Skills standard |
-| [Facade API](facade-api/README.md) (`https://arcbounty-facade.vercel.app`, Arc Testnet) | You want REST + x402 micro-payments instead of an SDK - no signup, no API key |
+| [Facade API](facade-api/README.md) (`https://api.basebounty.app`, Base mainnet; the Arc Testnet instance is off since 2026-10-28) | You want REST (and x402 once payments are switched on) instead of an SDK - no signup, no API key |
 | [NadBounty facade](nad-facade/README.md) (`https://nadbounty-facade.vercel.app`, Monad mainnet) | The same for NadBounty: paid x402 reads of bounties, reputation, verified workers and contest results |
 
 Browsing is read-only and needs **zero credentials**. Signing needs either a raw

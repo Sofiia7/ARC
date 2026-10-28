@@ -3,8 +3,8 @@ import { nadApiClient, nadJson } from "@/lib/nadPublicApi";
 import { rateLimited } from "@/lib/publicApi";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// One chain read per page per instance every 5 minutes, whatever the CDN region of the caller.
-const PAGE_TTL_MS = 300_000;
+// One chain read per page per instance every hour, whatever the CDN region of the caller.
+const PAGE_TTL_MS = 3_600_000;
 const pages = new Map<string, { at: number; body: Record<string, unknown> }>();
 export async function GET(req: NextRequest) {
   const limited = await rateLimited(req);

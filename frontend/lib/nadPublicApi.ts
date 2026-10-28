@@ -11,7 +11,7 @@ export const nadJson = (value: unknown, status = 200) =>
       headers: {
         "Content-Type": "application/json",
         // max-age alone never let the CDN keep these: every agent poll ran the function.
-        "Cache-Control": status === 200 ? "public, max-age=15, s-maxage=300, stale-while-revalidate=600" : "no-store",
+        "Cache-Control": status === 200 ? "public, max-age=15, s-maxage=3600, stale-while-revalidate=600" : "no-store",
         "Access-Control-Allow-Origin": "*",
       },
     },

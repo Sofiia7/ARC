@@ -25,7 +25,7 @@ caller signs with its own wallet; escrow and disputes live entirely in the
 
 | Network | URL | Payments |
 |---|---|---|
-| Arc Testnet (ArcBounty) | https://arcbounty-facade.vercel.app | x402, paid |
+| Arc Testnet (ArcBounty) | https://arcbounty-facade.vercel.app | switched off on 2026-10-28 to save the Vercel Hobby CPU quota |
 | Base mainnet (BaseBounty) | https://basebounty-facade.vercel.app | free mode until `SELLER_ADDRESS` is set |
 
 Both are the same code with a different `NETWORK`. `GET /` on either one
@@ -56,7 +56,6 @@ the service before paying for it.
 read-only tools as the npm package - `list_open_bounties`, `get_bounty`,
 `get_reputation` - with the same wording, because they come from the same
 module (`arcbounty-mcp/server`). Point any MCP client at
-`https://arcbounty-facade.vercel.app/mcp` or
 `https://basebounty-facade.vercel.app/mcp` and there is nothing to install.
 
 It is **read-only by construction, not by configuration**. A signer here would
