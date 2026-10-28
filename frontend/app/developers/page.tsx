@@ -188,7 +188,7 @@ function LegacyBuildPage() {
 
         <p style={TEXT}>
           Free, no key, CORS open. Read straight from contract storage, so nothing is missing or half-indexed;
-          answers are cached for up to 5 minutes. Base URL: <code>{api}</code>
+          answers are cached for up to 1 hour. Base URL: <code>{api}</code>
         </p>
 
         <div style={CODE}>{`curl ${api}/bounties?status=open

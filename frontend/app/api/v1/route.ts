@@ -33,7 +33,7 @@ export function GET() {
     },
     notes: [
       "Read from contract storage, not event logs: nothing is missing or half-indexed.",
-      "Responses are cached for up to 5 minutes.",
+      "Responses are cached for up to 1 hour.",
       "Writes (post, take, submit, approve) go straight to the contract: use the SDK, the MCP server or the site.",
     ],
   });
