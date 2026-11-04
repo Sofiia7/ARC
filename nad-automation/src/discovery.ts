@@ -15,3 +15,21 @@ export async function scanHistory(options:{from:bigint;target:bigint;range?:bigi
  }
  return calls;
 }
+
+/**
+ * Reads [from,to] in `window`-block slices strictly one at a time, pausing `gapMs` between them.
+ * Public Monad RPCs refuse JSON-RPC batches (HTTP 403 "Restricted JSON RPC method") and answer
+ * HTTP 429 above ~10 requests/s, so batching and Promise.all over the slices are both off the table.
+ * ~125 ms gap + latency keeps a fast runner under ~8 req/s. Any failing slice rejects the whole
+ * read: the caller retries the batch and no partial result is consumed.
+ */
+export async function readWindows<T>(options:{from:bigint;to:bigint;read:(from:bigint,to:bigint)=>Promise<T[]>;window?:bigint;gapMs?:number;sleep?:(ms:number)=>Promise<void>}):Promise<T[]> {
+ const window=options.window??100n,gapMs=options.gapMs??125,sleep=options.sleep??(ms=>new Promise<void>(resolve=>setTimeout(resolve,ms)));
+ const out:T[]=[];
+ for(let start=options.from;start<=options.to;start+=window){
+  const end=start+window-1n>options.to?options.to:start+window-1n;
+  out.push(...await options.read(start,end));
+  if(end<options.to)await sleep(gapMs);
+ }
+ return out;
+}

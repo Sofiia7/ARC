@@ -6,7 +6,7 @@ import {privateKeyToAccount} from 'viem/accounts';
 import {resolveNetwork} from 'arcbounty-agent-sdk';
 import {readReputationSource,encodeMirrorReport,needsMirrorUpdate} from './reputation.js';
 import {nadRedis} from './redis.js';
-import {scanHistory} from './discovery.js';
+import {scanHistory,readWindows} from './discovery.js';
 const env=process.env;
 const networkName=env.NAD_NETWORK??'monad-testnet';if(networkName!=='monad-testnet'&&networkName!=='monad-mainnet')throw Error('Invalid NAD_NETWORK');
 const mainnet=networkName==='monad-mainnet';
@@ -18,7 +18,9 @@ const rpc=env.NAD_RPC_URL??(mainnet?'https://rpc.monad.xyz':'https://testnet-rpc
 const logRpc=env.NAD_LOG_RPC_URL??(mainnet?'https://rpc.monad.xyz':'https://testnet-rpc.monad.xyz');
 const chain=defineChain({id:chainId,name:mainnet?'Monad':'Monad Testnet',nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[rpc]}}});
 const client=createPublicClient({chain,transport:http(rpc,{timeout:20000,retryCount:2})});
-const logClient=createPublicClient({chain,transport:http(logRpc,{timeout:20000,retryCount:2,batch:{batchSize:10,wait:5}})});
+// No JSON-RPC batching here: public Monad RPCs answer any batch with HTTP 403 "Restricted JSON RPC
+// method" (since 2026-11-03 testnet, 2026-11-04 mainnet). Pacing lives in readWindows (discovery.ts).
+const logClient=createPublicClient({chain,transport:http(logRpc,{timeout:20000,retryCount:2})});
 const account=privateKeyToAccount(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY as Hex);
 const wallet=createWalletClient({chain,account,transport:http(rpc)});
 const abi=parseAbi(['function owner() view returns(address)','function relayer() view returns(address)','function onReport(bytes,bytes)','function records(address,uint256) view returns(uint64,uint128,uint64,uint256)']);
@@ -42,11 +44,10 @@ try {
  if(saved>target.number)throw Error('Recipient cursor is ahead of finalized chain');
  const calls=await scanHistory({from:saved>deployBlock+128n?saved-128n:deployBlock,target:target.number,range:1000n,maxCalls:1000,checkpointEvery:10,
   fetch:async(from,to)=>{
-   const requests=[];
-   // Each RPC method retains the provider's 100-block limit. HTTP batching
-   // cuts round trips without narrowing history or exceeding 10k log calls.
-   for(let start=from;start<=to;start+=100n)requests.push(logClient.getLogs({address:mirror,event,fromBlock:start,toBlock:start+99n>to?to:start+99n,strict:true}));
-   const logs=(await Promise.all(requests)).flat();
+   // The provider keeps a 100-block eth_getLogs limit and refuses batches, so the 1000-block
+   // range is read as ten paced single requests. All ten must succeed before any log is
+   // consumed: a failure retries the whole range and never leaves a partial set behind.
+   const logs=await readWindows({from,to,read:(a,b)=>logClient.getLogs({address:mirror,event,fromBlock:a,toBlock:b,strict:true})});
    for(const log of logs){const set=recipients.get(Number(log.args.sourceChain));if(!set)throw Error('Unexpected mirror source');set.add(log.args.identityOwner);}
   },
   checkpoint:async through=>{
