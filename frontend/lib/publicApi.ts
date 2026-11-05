@@ -5,6 +5,7 @@ import { CONTRACTS, BOUNTY_ADAPTER_ABI } from "./contracts";
 import { getActiveNetwork, getSiteUrl } from "./networks";
 import { fetchAllBountyMetas, HISTORY_ADAPTERS, isPaidToWorker, workerOf, type SourcedMeta } from "./bountyMetas";
 import { clientKey, consumeAsync } from "./rate-limit";
+import { rpcTransportOptions } from "./rpcTransport";
 
 // ─── Public read API (/api/v1) ───────────────────────────────────────────────
 //
@@ -35,7 +36,7 @@ let client: PublicClient | null = null;
 export function serverClient(): PublicClient {
   if (client) return client;
   const urls = [network.rpcUrl, ...(network.fallbackRpcUrls ?? [])];
-  const options = { batch: { wait: 16 }, retryCount: 2, retryDelay: 300 };
+  const options = rpcTransportOptions(network.chainId, 2, 300);
   client = createPublicClient({
     chain: activeChain,
     transport: urls.length > 1 ? fallback(urls.map(u => http(u, options))) : http(urls[0], options),
