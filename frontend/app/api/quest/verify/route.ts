@@ -6,6 +6,7 @@ import { getActiveNetwork } from "@/lib/networks";
 import { clientKey, consumeAsync } from "@/lib/rate-limit";
 import { getLogsChunked } from "@/lib/chainLogs";
 import { monadGone } from "@/lib/publicApi";
+import { rpcTransportOptions } from "@/lib/rpcTransport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ const network = getActiveNetwork();
 
 const client = createPublicClient({
   chain: activeChain,
-  transport: http(network.rpcUrl, { batch: { wait: 16 }, retryCount: 2, retryDelay: 300 }),
+  transport: http(network.rpcUrl, rpcTransportOptions(network.chainId, 2, 300)),
 });
 
 const TASKS = [

@@ -5,6 +5,7 @@ import { meraConnector } from './mera';
 import { porto } from "porto/wagmi";
 import { getActiveNetwork, MULTICALL3_ADDRESS } from "./networks";
 import { isPasskeySupported } from "./passkey";
+import { rpcTransportOptions } from "./rpcTransport";
 
 const network = getActiveNetwork();
 
@@ -50,7 +51,9 @@ export const activeChain = defineChain({
 // The public Arc RPC rate-limits aggressively per IP, so a single visitor can
 // exhaust it on one page load. `batch` coalesces concurrent eth_calls into one
 // JSON-RPC request; the retries ride out the 429s that still slip through.
-const transportOptions = { batch: { wait: 16 }, retryCount: 3, retryDelay: 400 };
+// Monad rejects JSON-RPC batches, so send individual requests there while
+// preserving Multicall3 aggregation and the same retries.
+const transportOptions = rpcTransportOptions(network.chainId);
 // A network with fallbackRpcUrls moves to the next endpoint when one refuses
 // (rate limit, outage) instead of leaving the counters on "-".
 const arcTransport = network.fallbackRpcUrls?.length
