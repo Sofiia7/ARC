@@ -55,8 +55,14 @@ const NETWORKS = {
     // 2026-10-05, and every Base run failed until this came down with it.
     // A chunk of 500 asks for toBlock - fromBlock = 499.
     chunk: 500n,
-    firstRunLookback: 900n, // ~30 minutes at 2 s blocks
-    maxCatchUp: 43_200n, // ~1 day, 87 requests on the public RPC
+    // Base moved from 2 s to 0.2 s blocks on 2026-11-05 (~17:58 UTC; measured
+    // from block timestamps: 5 blocks a second). The old 900 / 43,200 windows
+    // were 30 minutes / 1 day and became 3 minutes / 2.4 hours, so every run
+    // GitHub delayed past 2.4 h (they come every 3-6 h) skipped events and sent
+    // "notifications were not running". Counted in blocks on purpose: this is
+    // what getLogs takes. If Base changes its block time again, redo these two.
+    firstRunLookback: 9_000n, // ~30 minutes at 0.2 s blocks
+    maxCatchUp: 144_000n, // ~8 hours, 288 requests on the public RPC
     payCommand: jobId => `cd /d C:\\Server\\ARC\\scripts && set "ARC_NETWORK=base-mainnet" && set "ALLOW_MAINNET=yes" && npx tsx --env-file=..\\.env approve-bounty.ts ${jobId} 95`,
   },
 };
