@@ -124,6 +124,6 @@ describe("network read fallbacks", () => {
     expect(NETWORKS["base-mainnet"].fallbackRpcUrls).toEqual(["https://base-rpc.publicnode.com"]);
     expect(resolveNetwork("base-mainnet", { BASE_MAINNET_RPC_URL: "https://example.invalid/rpc" }).fallbackRpcUrls)
       .toEqual(["https://base-rpc.publicnode.com"]);
-    expect(NETWORKS["arc-mainnet"].fallbackRpcUrls).toBeUndefined();
+    expect(resolveNetwork("arc-mainnet").fallbackRpcUrls).toBeUndefined();
   });
 });
