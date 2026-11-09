@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import "./fonts/fonts.css";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
@@ -10,23 +10,11 @@ import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
 import { getActiveNetwork, getActiveNetworkName, getBrand } from "@/lib/networks";
 
-// Self-hosted via next/font: fetched once at build time and served from our
-// own origin under /_next/static - no runtime request to fonts.googleapis.com
-// / fonts.gstatic.com, both of which our own CSP (style-src/font-src 'self')
-// already blocks, so the old <link> tags to Google Fonts were silently
-// failing and every visitor fell back to system fonts.
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-inter",
-  display: "swap",
-});
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
+// Fonts are self-hosted from app/fonts (see fonts.css there): served from our
+// own origin under /_next/static, like next/font did, but the build no longer
+// downloads them from Google. That download failed CI builds on 2026-11-09.
+// fonts.css defines --font-inter and --font-jetbrains-mono, which globals.css
+// and inline styles use.
 
 // Brand and network name both come from the build's network (lib/networks.ts):
 // the Base build ships as BaseBounty on its own domain.
@@ -65,7 +53,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme={THEME} className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" data-theme={THEME} className="dark">
       <body>
         <Providers>
           <BackgroundShader />
