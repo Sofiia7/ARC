@@ -145,7 +145,7 @@ export class ArcBountyAgent {
     // Identity may be pinned up front (config `agentId`, or the AGENT_ID env
     // var). This is the only reliable path on Base: the canonical ERC-8004
     // registry exposes no reverse address → agentId lookup, and every free Base
-    // RPC caps eth_getLogs at 10k blocks (~5.5h of a 2s chain), so the
+    // RPC caps eth_getLogs at 10k blocks (~33 minutes of 0.2 s blocks), so the
     // Transfer-log scan below can only ever see a sliver of history. A pinned id
     // lets a freshly started process know its own identity with zero RPC calls;
     // resolveAgentId() still verifies it against ownerOf before it is used.
@@ -1101,9 +1101,12 @@ export class ArcBountyAgent {
    * `register()` mints a duplicate and orphans the first identity's reputation.
    *
    * The ceiling is expressed in DAYS and converted via the network's
-   * `blocksPerDay`. A flat 500k-block window meant ~5.8 days on Arc but only
-   * ~11.6 days on Base, and would shrink further on any faster chain; the call
-   * budget keeps a miss cheap where that window runs to thousands of requests.
+   * `blocksPerDay`. A flat 500k-block window would be ~2.9 days on Arc and
+   * ~28 hours on Base (0.2 s blocks since 2026-11-05), and shrinks further on
+   * any faster chain; the call budget keeps a miss cheap where that window runs
+   * to thousands of requests. The budget is what binds on every network today:
+   * 24 x 10k = 240k blocks, ~1.4 days on Arc and ~13 hours on Base. It stays in
+   * blocks on purpose, since it counts serial RPC calls inside register().
    * This is why production should pin `agentId` / AGENT_ID rather than rely on
    * discovery at all.
    */

@@ -77,7 +77,7 @@ describe("resolveNetwork - base-sepolia", () => {
     expect(net.defaultBountyAdapter).toBe("0x32EC90A4dad0bbdFF0eF44461c353aC5C02757F4");
     expect(net.adapterDeployBlock).toBe(45_438_882);
     expect(net.testnet).toBe(true);
-    expect(net.blocksPerDay).toBe(43_200);
+    expect(net.blocksPerDay).toBe(432_000);
   });
 
   it("brands as BaseBounty, separately from Arc's ArcBounty", () => {
@@ -137,7 +137,7 @@ describe("resolveNetwork - base-mainnet", () => {
     });
     expect(net.defaultBountyAdapter).toBe("0x32c215908a46Eb5D34e4E5146c99891eD3014Fee");
     expect(net.adapterDeployBlock).toBe(51_898_559);
-    expect(net.blocksPerDay).toBe(43_200);
+    expect(net.blocksPerDay).toBe(432_000);
   });
 
   it("is flagged non-testnet, as is Arc mainnet and nothing else", () => {
