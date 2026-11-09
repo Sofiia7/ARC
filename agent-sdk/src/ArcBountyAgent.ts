@@ -1,6 +1,7 @@
 import {
   createPublicClient,
   decodeEventLog,
+  fallback,
   http,
   defineChain,
   isAddress,
@@ -140,15 +141,19 @@ export class ArcBountyAgent {
     }
     this.bountyAdapter = rawAdapter as Address;
 
-    this.publicClient = createPublicClient({ chain: this.chain, transport: http(rpcUrl) }) as PublicClient;
+    // Reads only: the network's public fallbacks follow rpcUrl, so a range cap
+    // or a 429 on one endpoint does not fail the call. Transactions keep going
+    // through the signer's own rpcUrl transport.
+    const readUrls = [...new Set([rpcUrl, ...(network.fallbackRpcUrls ?? [])])];
+    const readTransport = readUrls.length > 1 ? fallback(readUrls.map(url => http(url))) : http(rpcUrl);
+    this.publicClient = createPublicClient({ chain: this.chain, transport: readTransport }) as PublicClient;
 
     // Identity may be pinned up front (config `agentId`, or the AGENT_ID env
-    // var). This is the only reliable path on Base: the canonical ERC-8004
-    // registry exposes no reverse address → agentId lookup, and every free Base
-    // RPC caps eth_getLogs at 10k blocks (~33 minutes of 0.2 s blocks), so the
-    // Transfer-log scan below can only ever see a sliver of history. A pinned id
-    // lets a freshly started process know its own identity with zero RPC calls;
-    // resolveAgentId() still verifies it against ownerOf before it is used.
+    // var), which costs zero RPC calls; resolveAgentId() still verifies it
+    // against ownerOf before it is used. Without a pin, discovery starts from
+    // the registry's balanceOf (see _findExistingAgentId): a wallet with no
+    // identity is known in one call, and only a wallet that holds one needs a
+    // bounded log scan to learn its id.
     const rawAgentId = config.agentId ?? process.env["AGENT_ID"]?.trim();
     if (rawAgentId !== undefined && rawAgentId !== "") {
       let parsed: bigint;
@@ -182,11 +187,22 @@ export class ArcBountyAgent {
     // second identity for a wallet that already has one.
     if (this._agentId !== null) return (await this.resolveAgentId())!;
 
-    const { agentId: existing, scanned } = await this._findExistingAgentId();
+    const { agentId: existing, scanned, owned } = await this._findExistingAgentId();
     if (existing !== null) {
       this._agentId = existing;
       this._agentIdVerified = true;
       return existing;
+    }
+    if (!scanned && owned !== null && owned > 0n) {
+      // balanceOf says the wallet already holds an identity, but its id is older
+      // than the bounded scan reaches. Minting now would fork its reputation.
+      throw new Error(
+        `ArcBountyAgent.register(): this wallet already owns ${owned.toString()} ERC-8004 ` +
+        `${owned === 1n ? "identity" : "identities"} on ${this.network.name} (registry balanceOf), but its id is ` +
+        "older than the recent history this SDK scans. Registering again would mint a second identity and " +
+        "orphan the reputation on the first. Pass the id via the `agentId` config option / AGENT_ID env var " +
+        `(it is listed under the wallet's NFT transfers: ${this.network.explorerUrl}/address/${this.address}).`,
+      );
     }
     if (!scanned) {
       // The scan errored (RPC failure or rate limit) rather than completing and
@@ -251,11 +267,13 @@ export class ArcBountyAgent {
    *   1. a pinned id (constructor `agentId` / AGENT_ID), checked against
    *      `ownerOf` - the same check `BountyAdapter.takeBounty` performs, so a
    *      wrong pin fails here with a clear message instead of as a revert;
-   *   2. a bounded Transfer(0x0 → self) log scan.
+   *   2. the registry's balanceOf: zero means no identity, in one call;
+   *   3. otherwise a bounded Transfer(→ self) log scan, each hit checked with
+   *      ownerOf.
    *
-   * Step 2 is best-effort by nature: the registry has no reverse address →
-   * agentId lookup and public RPCs cap eth_getLogs at 10k blocks, so on Base it
-   * only sees a few hours of history. Pin the id in production.
+   * Step 3 is best-effort by nature: the registry has no reverse address →
+   * agentId lookup, so an identity older than the scanned window is not found
+   * (about 2.8 days on Base mainnet, 1.4 days on Arc). Pin the id in production.
    */
   async resolveAgentId(): Promise<bigint | null> {
     if (this._agentId !== null) {
@@ -1089,57 +1107,78 @@ export class ArcBountyAgent {
   }
 
   /**
-   * Best-effort discovery: scan a bounded recent window for a
-   * Transfer(0x0 → self) on the registry. Every public RPC we target caps
-   * eth_getLogs at a 10,000-block range per call (Arc's, Base's own
-   * mainnet.base.org, and drpc all reject a wider request outright), so we page
-   * backward in 10k chunks up to a lookback ceiling instead of issuing one
-   * oversized request.
+   * Finds this wallet's ERC-8004 identity without a pinned id.
    *
-   * `scanned` distinguishes "completed and found nothing" from "gave up": the
-   * caller must not treat an RPC failure as proof that no identity exists, or
-   * `register()` mints a duplicate and orphans the first identity's reputation.
+   * 1. `balanceOf(self)` on the registry. ERC-721 balances are exact, so 0 is
+   *    proof that the wallet holds no identity and `register()` may mint. This
+   *    single call is what makes discovery work on Base: before 2026-11-09 it
+   *    relied on a log scan alone, mainnet.base.org refused every 10k-block
+   *    request (500-block cap, 429 on bursts), the scan always "failed" and
+   *    `register()` refused to mint for every new agent.
+   * 2. Only when the wallet holds an identity: page backward over
+   *    Transfer(any → self) logs in `maxLogRange` chunks within a call budget,
+   *    newest first, and return the first token `ownerOf` still assigns to this
+   *    wallet. Received identities count; ones sent away are skipped.
    *
-   * The ceiling is expressed in DAYS and converted via the network's
-   * `blocksPerDay`. A flat 500k-block window would be ~2.9 days on Arc and
-   * ~28 hours on Base (0.2 s blocks since 2026-11-05), and shrinks further on
-   * any faster chain; the call budget keeps a miss cheap where that window runs
-   * to thousands of requests. The budget is what binds on every network today:
-   * 24 x 10k = 240k blocks, ~1.4 days on Arc and ~13 hours on Base. It stays in
-   * blocks on purpose, since it counts serial RPC calls inside register().
-   * This is why production should pin `agentId` / AGENT_ID rather than rely on
-   * discovery at all.
+   * `scanned` distinguishes "completed" from "gave up": the caller must not
+   * treat an RPC failure as proof that no identity exists, or `register()`
+   * mints a duplicate and orphans the first identity's reputation. `owned` is
+   * the balance when it could be read, so the caller can tell "holds one we
+   * could not locate" from "could not check at all".
    */
-  private async _findExistingAgentId(): Promise<{ agentId: bigint | null; scanned: boolean }> {
-    const CHUNK = 10_000n; // The eth_getLogs range cap public RPCs enforce.
-    const MAX_CALLS = 24n; // Bounded RPC budget - see doc comment.
+  private async _findExistingAgentId(): Promise<{ agentId: bigint | null; scanned: boolean; owned: bigint | null }> {
+    const registry = this.network.contracts.IDENTITY_REGISTRY;
+    let owned: bigint;
+    try {
+      owned = await this.publicClient.readContract({
+        address: registry,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: "balanceOf",
+        args: [this.address],
+      });
+    } catch {
+      return { agentId: null, scanned: false, owned: null };
+    }
+    if (owned === 0n) return { agentId: null, scanned: true, owned };
+
+    const CHUNK = BigInt(this.network.maxLogRange ?? 10_000);
+    const MAX_CALLS = 24n; // Bounded RPC budget: these calls run inside register().
     const LOOKBACK_DAYS = 30n;
     const wanted = BigInt(Math.max(1, Math.round(this.network.blocksPerDay))) * LOOKBACK_DAYS;
     const lookback = wanted > CHUNK * MAX_CALLS ? CHUNK * MAX_CALLS : wanted;
 
     try {
       const head = await this.publicClient.getBlockNumber();
-      const floor = head > lookback ? head - lookback : 0n;
-
-      for (let to = head; to > floor; to -= CHUNK) {
+      const floor = head >= lookback ? head - lookback + 1n : 0n;
+      const checked = new Set<bigint>();
+      for (let to = head; to >= floor; ) {
         const from = to - CHUNK + 1n > floor ? to - CHUNK + 1n : floor;
         const logs = await this.publicClient.getLogs({
-          address: this.network.contracts.IDENTITY_REGISTRY,
+          address: registry,
           event: IDENTITY_TRANSFER_EVENT,
-          args: { from: ZERO_ADDRESS, to: this.address },
+          args: { to: this.address },
           fromBlock: from,
           toBlock: to,
         });
-        if (logs.length > 0) {
-          const last = logs[logs.length - 1]!;
-          return { agentId: (last.args as { tokenId: bigint }).tokenId, scanned: true };
+        for (const log of [...logs].reverse()) {
+          const tokenId = (log.args as { tokenId?: bigint }).tokenId;
+          if (tokenId === undefined || checked.has(tokenId)) continue;
+          checked.add(tokenId);
+          const holder = await this.publicClient.readContract({
+            address: registry,
+            abi: IDENTITY_REGISTRY_ABI,
+            functionName: "ownerOf",
+            args: [tokenId],
+          });
+          if (holder.toLowerCase() === this.address.toLowerCase()) return { agentId: tokenId, scanned: true, owned };
         }
         if (from === floor) break;
+        to = from - 1n;
       }
-      return { agentId: null, scanned: true };
     } catch {
-      return { agentId: null, scanned: false };
+      // fall through: the wallet holds an identity we could not locate
     }
+    return { agentId: null, scanned: false, owned };
   }
 
   private async _ensureUsdcAllowance(amount: bigint): Promise<void> {

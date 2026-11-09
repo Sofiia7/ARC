@@ -590,6 +590,15 @@ export const IDENTITY_REGISTRY_ABI = [
     outputs: [{ name: "agentId", type: "uint256" }],
   },
   {
+    // ERC-721: how many identities this wallet holds. O(1) and authoritative,
+    // so "has no identity" never depends on a log scan.
+    name: "balanceOf",
+    type: "function" as const,
+    stateMutability: "view" as const,
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     name: "ownerOf",
     type: "function" as const,
     stateMutability: "view" as const,

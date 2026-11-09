@@ -66,6 +66,18 @@ export type NetworkConfig = {
    * for 2 s shrank tenfold in time overnight.
    */
   blocksPerDay: number;
+  /**
+   * Public read endpoints tried after `rpcUrl` when it refuses a request (range
+   * cap, rate limit, outage). Reads only: transactions always go to `rpcUrl`.
+   */
+  fallbackRpcUrls?: string[];
+  /**
+   * Widest `eth_getLogs` range (toBlock - fromBlock + 1) to request per call.
+   * Defaults to 10,000. On Base it is set for the endpoint that actually serves
+   * the scan: base-rpc.publicnode.com takes 50,000 (mainnet.base.org refuses
+   * and the fallback transport moves on), sepolia.base.org takes 200.
+   */
+  maxLogRange?: number;
 };
 
 /**
@@ -164,6 +176,7 @@ export const NETWORKS = {
     adapterDeployBlock: 45_438_882,
     testnet: true,
     blocksPerDay: 432_000, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
+    maxLogRange: 200, // sepolia.base.org: "eth_getLogs is limited to a 200 range" (2026-11-09)
   },
   "base-mainnet": {
     chainId: 8_453,
@@ -194,6 +207,12 @@ export const NETWORKS = {
     adapterDeployBlock: 51_898_559,
     testnet: false,
     blocksPerDay: 432_000, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
+    // mainnet.base.org caps eth_getLogs at 500 blocks and rate-limits bursts
+    // (429 "request limit reached"); publicnode serves 50,000 per call and
+    // about 4M blocks of log history without a token (checked 2026-11-09).
+    // Mirrors frontend/lib/networks.ts.
+    fallbackRpcUrls: ["https://base-rpc.publicnode.com"],
+    maxLogRange: 50_000,
   },
 } as const satisfies Record<string, NetworkConfig>;
 

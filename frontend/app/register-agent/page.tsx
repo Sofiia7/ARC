@@ -7,14 +7,12 @@ import { decodeEventLog, type Hash } from "viem";
 import { toast } from "sonner";
 import { CONTRACTS, IDENTITY_REGISTRY_ABI } from "@/lib/contracts";
 import { appendAgentIdToCache } from "@/hooks/useMyAgentId";
+import { findOwnedAgentIds } from "@/lib/agentIds";
+
+const ZERO = "0x0000000000000000000000000000000000000000";
 import { SITE_CHAIN_ID, useEnsureChain } from "@/hooks/useEnsureChain";
 import { pinText } from "@/lib/ipfs";
 import { getActiveNetwork } from "@/lib/networks";
-
-// Bounded historical scan - a `fromBlock: 0n` getLogs is rejected by public RPCs.
-const LOOKBACK_BLOCKS = 500_000n;
-
-const ZERO = "0x0000000000000000000000000000000000000000";
 
 type Step = "idle" | "pinning" | "registering" | "done";
 
@@ -34,6 +32,9 @@ export default function RegisterAgentPage() {
 
   // Detect existing registration
   const [existing, setExisting] = useState<bigint | null>(null);
+  // The registry says this wallet holds identities, but none could be located
+  // in the history we can scan: still warn before a second one is minted.
+  const [ownedUnlocated, setOwnedUnlocated] = useState<bigint>(0n);
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
@@ -42,22 +43,10 @@ export default function RegisterAgentPage() {
     (async () => {
       setScanning(true);
       try {
-        const head = await publicClient.getBlockNumber();
-        const fromBlock = head > LOOKBACK_BLOCKS ? head - LOOKBACK_BLOCKS : 0n;
-        const logs = await publicClient.getLogs({
-          address: CONTRACTS.IDENTITY_REGISTRY,
-          event: IDENTITY_REGISTRY_ABI.find(x => x.type === "event")!,
-          args: { from: ZERO, to: address },
-          fromBlock,
-        });
+        const { owned, ids } = await findOwnedAgentIds(publicClient, address);
         if (cancelled) return;
-        if (logs.length > 0) {
-          const last = logs[logs.length - 1]!;
-          const tokenId = (last.args as { tokenId: bigint }).tokenId;
-          setExisting(tokenId);
-        } else {
-          setExisting(null);
-        }
+        setExisting(ids.length > 0 ? ids[ids.length - 1]! : null);
+        setOwnedUnlocated(ids.length === 0 && owned !== null ? owned : 0n);
       } catch {
         // ignore
       } finally {
@@ -189,6 +178,24 @@ export default function RegisterAgentPage() {
             <Link href={`/agent/${existing}`} className="btn">View agent →</Link>
             <Link href="/" className="btn">Back to Browse</Link>
           </div>
+        </div>
+      )}
+
+      {existing === null && ownedUnlocated > 0n && step !== "done" && (
+        <div className="panel warning" style={{ marginBottom: 18, marginTop: 0 }}>
+          <div className="panel-head">
+            <span className="title">Already registered</span>
+          </div>
+          <p style={{ color: "var(--ink-soft)", margin: 0, lineHeight: 1.55 }}>
+            Wallet <code>{address?.slice(0, 6)}…{address?.slice(-4)}</code> already owns{" "}
+            {ownedUnlocated === 1n ? "an agent identity" : `${ownedUnlocated.toString()} agent identities`}, but its
+            number is older than the history this page can search. You can still register another one, but
+            most users only need one: check the wallet&apos;s NFTs on{" "}
+            <a href={`${getActiveNetwork().explorerUrl}/address/${address}`} target="_blank" rel="noreferrer">
+              {getActiveNetwork().explorerName}
+            </a>{" "}
+            first.
+          </p>
         </div>
       )}
 
