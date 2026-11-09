@@ -123,6 +123,14 @@ export type NetworkConfig = {
    * base-rpc.publicnode.com serves without a token (checked 2026-11-09).
    */
   maxLookbackBlocks: bigint;
+  /**
+   * Widest eth_getLogs range per call for scans that go through the wallet
+   * transport (lib/agentIds.ts). Defaults to 10,000. Base mainnet: 50,000,
+   * what publicnode serves once mainnet.base.org (500-block cap) refuses and
+   * the fallback transport moves on. Base Sepolia: sepolia.base.org caps at
+   * 200. Both checked 2026-11-09.
+   */
+  maxLogRange?: bigint;
 };
 
 /** Canonical cross-chain Multicall3 address (see NetworkConfig.multicall3). */
@@ -268,6 +276,7 @@ export const NETWORKS = {
     testnet: true,
     blocksPerDay: 432_000n, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
     maxLookbackBlocks: 500_000n,
+    maxLogRange: 200n,
   },
   "base-mainnet": {
     chainId: 8_453,
@@ -312,6 +321,7 @@ export const NETWORKS = {
     testnet: false,
     blocksPerDay: 432_000n, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
     maxLookbackBlocks: 500_000n,
+    maxLogRange: 50_000n,
   },
 } as const satisfies Record<NetworkName, NetworkConfig>;
 
