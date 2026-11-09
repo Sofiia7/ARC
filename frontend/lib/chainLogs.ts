@@ -30,7 +30,9 @@ import { getActiveNetwork } from "./networks";
 const network = getActiveNetwork();
 
 const BLOCKSCOUT_API = network.explorerApiUrl;
-const CHUNK = 10_000n;
+// Blocks per getLogs call: 10,000 is the Arc RPC cap above; a network whose
+// RPCs take more (Base: 25,000) says so in lib/networks.ts.
+const CHUNK = network.logChunkBlocks ?? 10_000n;
 const CONCURRENCY = 10;
 const MAX_LOOKBACK = network.maxLookbackBlocks; // fallback only
 const PAGE_SIZE = 1_000; // matches the API's own per-call cap (see comment above)
