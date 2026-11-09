@@ -32,7 +32,8 @@ type ArcBountyAgentConfigBase = {
    * Strongly recommended in production. The canonical registry has no reverse
    * address → agentId lookup, so an unpinned id can only be discovered by
    * scanning Transfer logs - and public RPCs cap `eth_getLogs` at 10k blocks
-   * (~5.5h on Base), which makes discovery unreliable exactly where it matters.
+   * (~33 minutes of Base's 0.2 s blocks), which makes discovery unreliable
+   * exactly where it matters.
    * A pinned id is verified against `ownerOf` on first use, so a wrong value
    * fails loudly instead of reverting on-chain later.
    */

@@ -164,8 +164,9 @@ Explorer      ${network.explorerUrl}`}</div>
         </Step>
 
         {/* Arc-specific: Arc Testnet's clock has been observed running ahead of
-            real time. Base Sepolia keeps ordinary ~2s blocks, so showing this
-            warning there would be simply false. */}
+            real time. Base Sepolia's block timestamps follow the wall clock (0.2 s
+            blocks since 2026-11-05, checked against it), so showing this warning
+            there would be simply false. */}
         {network.testnet && network.nativeCurrency.isUsdc && (
           <div
             style={{

@@ -107,9 +107,21 @@ export type NetworkConfig = {
    */
   multicall3: boolean;
   testnet: boolean;
-  /** Rough estimate for "last N days" style block math (≈1s/block on Arc, ≈2s on Base). */
+  /**
+   * Rough estimate for "last N days" style block math. Take it from block
+   * timestamps, never from docs or old comments: Base went from 2 s to 0.2 s
+   * blocks on 2026-11-05 (~17:58 UTC), so every Base window counted in blocks
+   * for 2 s shrank tenfold in time overnight.
+   */
   blocksPerDay: bigint;
-  /** Fallback RPC log-scan bound - see lib/chainLogs.ts. */
+  /**
+   * Fallback RPC log-scan bound - see lib/chainLogs.ts. Counted in blocks on
+   * purpose: it caps the request count of the degraded path (one getLogs per
+   * 10,000 blocks), not a time span. On Base 500,000 blocks is ~28 hours since
+   * the 0.2 s blocks; widening it to the old ~11.6 days would cost 500 requests
+   * per event per page load and reach past the ~4M blocks of logs
+   * base-rpc.publicnode.com serves without a token (checked 2026-11-09).
+   */
   maxLookbackBlocks: bigint;
 };
 
@@ -254,7 +266,7 @@ export const NETWORKS = {
     // address returns bytecode on both Base Sepolia and Base mainnet.
     multicall3: true,
     testnet: true,
-    blocksPerDay: 43_200n, // ≈2s blocks
+    blocksPerDay: 432_000n, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
     maxLookbackBlocks: 500_000n,
   },
   "base-mainnet": {
@@ -298,7 +310,7 @@ export const NETWORKS = {
     // address returns bytecode on both Base Sepolia and Base mainnet.
     multicall3: true,
     testnet: false,
-    blocksPerDay: 43_200n, // ≈2s blocks
+    blocksPerDay: 432_000n, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
     maxLookbackBlocks: 500_000n,
   },
 } as const satisfies Record<NetworkName, NetworkConfig>;

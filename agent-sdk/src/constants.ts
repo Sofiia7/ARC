@@ -59,7 +59,12 @@ export type NetworkConfig = {
   /** Block the canonical adapter was deployed at - lower bound for log scans. */
   adapterDeployBlock?: number;
   testnet: boolean;
-  /** Rough estimate for "last N days" style block math (≈1s/block on Arc, ≈2s on Base). */
+  /**
+   * Rough estimate for "last N days" style block math. Take it from block
+   * timestamps, never from docs or old comments: Base went from 2 s to 0.2 s
+   * blocks on 2026-11-05 (~17:58 UTC), so every Base window counted in blocks
+   * for 2 s shrank tenfold in time overnight.
+   */
   blocksPerDay: number;
 };
 
@@ -158,7 +163,7 @@ export const NETWORKS = {
     // V4.6 staging deploy, 2026-08-13 (from the forge broadcast receipt).
     adapterDeployBlock: 45_438_882,
     testnet: true,
-    blocksPerDay: 43_200, // ≈2s blocks
+    blocksPerDay: 432_000, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
   },
   "base-mainnet": {
     chainId: 8_453,
@@ -188,7 +193,7 @@ export const NETWORKS = {
     // forge broadcast receipt.
     adapterDeployBlock: 51_898_559,
     testnet: false,
-    blocksPerDay: 43_200, // ≈2s blocks
+    blocksPerDay: 432_000, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
   },
 } as const satisfies Record<string, NetworkConfig>;
 
