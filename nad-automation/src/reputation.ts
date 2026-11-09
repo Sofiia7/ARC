@@ -1,6 +1,7 @@
 import {createPublicClient,http,parseAbi,type Address} from 'viem';
 import {BOUNTY_ADAPTER_ABI} from 'arcbounty-agent-sdk';
 import {aggregateReputation,type Feedback} from './model.js';
+import {isNodeFailure} from './rpc-errors.js';
 export * from './model.js';
 const registryAbi = parseAbi([
   'function ownerOf(uint256) view returns(address)',
@@ -9,9 +10,26 @@ const registryAbi = parseAbi([
 ]);
 const wiringAbi=parseAbi(['function identityRegistry() view returns(address)','function reputationRegistry() view returns(address)']);
 
-export type ReputationSource = {chainId: 8453|5042; rpcUrl: string; adapters: Address[]; identity: Address; reputation: Address};
-export async function readReputationSource(source: ReputationSource, previousOwners: Address[] = []) {
-  const client=createPublicClient({transport:http(source.rpcUrl,{timeout:20000,retryCount:2})});
+/** Public Base mainnet RPCs tried, in this order, after the configured one. Both served the full snapshot on 2026-11-09. */
+export const BASE_PUBLIC_RPC_URLS=['https://mainnet.base.org','https://base-rpc.publicnode.com'] as const;
+
+export type ReputationSource = {chainId: 8453|5042; rpcUrls: readonly string[]; adapters: Address[]; identity: Address; reputation: Address};
+/**
+ * Reads one complete snapshot from the first RPC that can serve it. Failover is per snapshot,
+ * never per request: every attempt starts from scratch on a single node (chain id, its own
+ * finalized block, all reads, final hash check), and nothing from a failed attempt is reused.
+ * Only node failures (HTTP, timeout, JSON-RPC error) move to the next RPC; every integrity
+ * check and every revert still fails closed on the node that produced it.
+ */
+export async function readReputationSource(source: ReputationSource, previousOwners: Address[] = [], onFailover?: (failed: number, error: unknown) => void) {
+  if(!source.rpcUrls.length) throw Error('No reputation source RPC');
+  for(let i=0;;i++) {
+    try { return await readSourceSnapshot(source.rpcUrls[i],source,previousOwners); }
+    catch(error) { if(i+1>=source.rpcUrls.length || !isNodeFailure(error)) throw error; onFailover?.(i,error); }
+  }
+}
+async function readSourceSnapshot(rpcUrl: string, source: ReputationSource, previousOwners: Address[]) {
+  const client=createPublicClient({transport:http(rpcUrl,{timeout:20000,retryCount:2})});
   if(await client.getChainId()!==source.chainId) throw Error('Wrong reputation source chain');
   // Fail if finalized is unsupported; never silently substitute a moving latest snapshot.
   const block=await client.getBlock({blockTag:'finalized'});
