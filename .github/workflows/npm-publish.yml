@@ -1,4 +1,5 @@
 name: npm publish
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('npm publish {0} ({1})', inputs.package, github.ref_name) || github.event.pull_request.title }}
 
 # Publishes one npm package from this repo through npm trusted publishing
 # (GitHub Actions OIDC). There is no npm token anywhere: npm checks that the
@@ -190,7 +191,9 @@ jobs:
           retention-days: 7
 
   publish:
-    name: publish ${{ inputs.package }}@${{ needs.verify.outputs.version }}
+    # A static name: on pull requests this job is skipped, and GitHub then
+    # shows a templated name unexpanded in the checks list.
+    name: publish to npm
     needs: verify
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.verify.outputs.published == 'false'
     runs-on: ubuntu-latest
