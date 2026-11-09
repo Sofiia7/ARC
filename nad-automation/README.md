@@ -6,6 +6,8 @@ Isolated Linux runners use the published SDK 0.10.0 and explicit Monad deploymen
 
 Reputation comes from finalized raw ERC-8004 feedback, explicit Base/Arc writers and current same-block identity ownership. All previous recipients are reconstructed from mirror events plus a Redis write-ahead journal and durable cursor. Revocations/transfers produce changed or zero records. Identical existing values skip the transaction: the on-chain source block remains the last delivered snapshot; each run separately records its newly verified source blocks. This is a trusted relayer, not a DON attestation. Discovery fails above 2000 board jobs and needs the indexer at scale.
 
+The Base source is read from the configured RPC first and then from the public `https://mainnet.base.org` and `https://base-rpc.publicnode.com`. Failover is per snapshot: each attempt reads the chain id, its own finalized block, every contract value and the closing hash check from one node, and a failed attempt is discarded whole. Only node failures (HTTP error, timeout, JSON-RPC error) move to the next RPC; integrity mismatches and reverts stop the run as before. Error logs carry the HTTP status, JSON-RPC code and method, the contract function and a scrubbed, truncated part of the response; never a URL, key or viem's `message`.
+
 Separate Redis leases serialize both runners across hosts. If a receipt is uncertain, the runner reports its hash and fails; a later scan checks chain state before retrying. A concurrent keeper may safely lose an already settled candidate. No new contests are opened, and adapter pause is preserved. Testnet job 7 was settled by the keeper after its real deadline on 2026-10-10 (tx `0x112b4a4036ece28231d3a28827ecefedd2bd94edd2cdefacfab719b2d8c4107a`).
 
 ## Workflows

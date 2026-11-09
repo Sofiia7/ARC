@@ -4,7 +4,8 @@ import {randomUUID} from 'node:crypto';
 import {createPublicClient,createWalletClient,defineChain,http,parseAbi,parseAbiItem,type Address,type Hex} from 'viem';
 import {privateKeyToAccount} from 'viem/accounts';
 import {resolveNetwork} from 'arcbounty-agent-sdk';
-import {readReputationSource,encodeMirrorReport,needsMirrorUpdate} from './reputation.js';
+import {readReputationSource,encodeMirrorReport,needsMirrorUpdate,BASE_PUBLIC_RPC_URLS} from './reputation.js';
+import {safeErrorFields} from './rpc-errors.js';
 import {nadRedis} from './redis.js';
 import {scanHistory,readWindows} from './discovery.js';
 const env=process.env;
@@ -21,6 +22,9 @@ const client=createPublicClient({chain,transport:http(rpc,{timeout:20000,retryCo
 // No JSON-RPC batching here: public Monad RPCs answer any batch with HTTP 403 "Restricted JSON RPC
 // method" (since 2026-11-03 testnet, 2026-11-04 mainnet). Pacing lives in readWindows (discovery.ts).
 const logClient=createPublicClient({chain,transport:http(logRpc,{timeout:20000,retryCount:2})});
+// Scrubbed out of any logged error detail, together with any URL and any long token.
+const secrets=[rpc,logRpc,env.BASE_MAINNET_RPC_URL,env.ARC_MAINNET_RPC_URL,env.NAD_UPSTASH_REDIS_REST_URL,env.NAD_UPSTASH_REDIS_REST_TOKEN,env.NAD_REPUTATION_RELAYER_PRIVATE_KEY];
+const errorType=(error:unknown)=>error instanceof Error?error.name:'Unknown';
 const account=privateKeyToAccount(env.NAD_REPUTATION_RELAYER_PRIVATE_KEY as Hex);
 const wallet=createWalletClient({chain,account,transport:http(rpc)});
 const abi=parseAbi(['function owner() view returns(address)','function relayer() view returns(address)','function onReport(bytes,bytes)','function records(address,uint256) view returns(uint64,uint128,uint64,uint256)']);
@@ -68,7 +72,12 @@ try {
    const n=resolveNetwork(name,env),adapters=[n.defaultBountyAdapter!];
    if(name==='base-mainnet')adapters.push('0x9b0B27c20DF10BFc667F4316d7175166Ff8c4c2c');
    const old=[...recipients.get(n.chainId)!];if(old.length>10000)throw Error('Recipient set exceeds cap');
-   snapshots.push(await readReputationSource({chainId:n.chainId as 8453|5042,rpcUrl:n.rpcUrl,adapters,identity:n.contracts.IDENTITY_REGISTRY,reputation:n.contracts.REPUTATION_REGISTRY},old));
+   // Configured (secret) RPC first; for Base the public RPCs follow. Index 0 is only ever
+   // logged as "configured", the public ones by their host.
+   const rpcUrls=[...new Set([n.rpcUrl,...(name==='base-mainnet'?BASE_PUBLIC_RPC_URLS:[])])];
+   const rpcLabel=(i:number)=>i===0?'configured':new URL(rpcUrls[i]).host;
+   snapshots.push(await readReputationSource({chainId:n.chainId as 8453|5042,rpcUrls,adapters,identity:n.contracts.IDENTITY_REGISTRY,reputation:n.contracts.REPUTATION_REGISTRY},old,
+    (i,error)=>console.error(JSON.stringify({phase,rpcFailover:{failed:rpcLabel(i),next:rpcLabel(i+1)},errorType:errorType(error),...safeErrorFields(error,secrets)}))));
  }
  const broadcast=process.argv.includes('--broadcast');
  phase='target-writer';
@@ -104,5 +113,5 @@ try {
  const result={chainId,mirror,relayer:account.address,authorized,broadcast,targetBlock:target.number,targetHash:target.hash,recipientDiscoveryCalls:calls,snapshots,unchangedRecords,transactions};
  const output=JSON.stringify(result,(_,v)=>typeof v==='bigint'?String(v):v,2);
  writeFileSync(env.NAD_SYNC_OUTPUT??'reputation-sync.json',output);console.log(output);
-}catch(error){console.error(JSON.stringify({phase,errorType:error instanceof Error?error.name:'Unknown',message:'Reputation sync stopped; private transport and keys suppressed'}));process.exitCode=1;}
+}catch(error){console.error(JSON.stringify({phase,errorType:errorType(error),...safeErrorFields(error,secrets),message:'Reputation sync stopped; private transport and keys suppressed'}));process.exitCode=1;}
 finally{if(acquired)await nadRedis('EVAL',"if redis.call('GET',KEYS[1]) == ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end",1,lease,leaseToken);}
