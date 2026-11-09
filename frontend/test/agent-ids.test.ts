@@ -77,6 +77,26 @@ test("ids come from the explorer filtered by recipient, and ownerOf drops the on
   assert.ok(ex.urls[0]!.includes(`&topic2=${pad(OWNER.toLowerCase() as Address, { size: 32 })}&topic0_2_opr=and`));
 });
 
+test("an empty explorer answer is not trusted: Blockscout's index has gaps, so the RPC scan tops it up", async () => {
+  // Live 2026-11-09: Blockscout returned [] for a wallet that had received #1174529 an hour
+  // earlier; the blocks were simply missing from its index.
+  const { client, getLogsCalls } = fakeClient({ balance: 1n, head: 5_000_000n, transfers: [[4_990_000n, 1174529n]] });
+  const ex = explorer([]);
+  const r = await findOwnedAgentIds(client, OWNER, opts({ explorerApiUrl: "https://x.test/api", fetchImpl: ex.fetchImpl }));
+  assert.deepEqual(r, { owned: 1n, ids: [1174529n] });
+  assert.equal(ex.urls.length, 1);
+  assert.ok(getLogsCalls.length > 0);
+});
+
+test("explorer and RPC results are merged, each id once, oldest first", async () => {
+  const { client } = fakeClient({ balance: 2n, head: 5_000_000n, transfers: [[4_990_000n, 9n]] });
+  const ex = explorer([[100n, 3n], [4_990_000n, 9n]]);
+  const owners = new Map<bigint, Address>([[3n, OTHER]]);
+  const c = fakeClient({ balance: 2n, head: 5_000_000n, owners, transfers: [[4_990_000n, 9n], [4_995_000n, 11n]] });
+  assert.deepEqual((await findOwnedAgentIds(client, OWNER, opts({ explorerApiUrl: "https://x.test/api", fetchImpl: ex.fetchImpl }))).ids, [3n, 9n]);
+  assert.deepEqual((await findOwnedAgentIds(c.client, OWNER, opts({ explorerApiUrl: "https://x.test/api", fetchImpl: ex.fetchImpl }))).ids, [9n, 11n]);
+});
+
 test("an explorer URL that already has a query string gets & not a second ?", async () => {
   const { client } = fakeClient({ balance: 1n });
   const ex = explorer([[10n, 5n]]);

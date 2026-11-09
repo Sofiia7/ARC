@@ -111,41 +111,51 @@ export async function findOwnedAgentIds(
   }
   if (owned === 0n) return { owned, ids: [] };
 
-  let candidates: Candidate[] | null = null;
+  // Each token once, newest first, kept only while the wallet still holds it.
+  const seen = new Set<bigint>();
+  const found: Candidate[] = [];
+  const enough = () => owned !== null && BigInt(found.length) >= owned;
+  const verify = async (candidates: Candidate[]) => {
+    const newestFirst = [...candidates].sort((a, b) => (a.block === b.block ? 0 : a.block > b.block ? -1 : 1));
+    for (const c of newestFirst) {
+      if (enough()) return;
+      if (seen.has(c.tokenId)) continue;
+      seen.add(c.tokenId);
+      try {
+        const holder = await client.readContract({
+          address: options.registry,
+          abi: IDENTITY_REGISTRY_ABI,
+          functionName: "ownerOf",
+          args: [c.tokenId],
+        });
+        if (holder.toLowerCase() === owner.toLowerCase()) found.push(c);
+      } catch {
+        // burned or unreadable: not a current identity
+      }
+    }
+  };
+
+  // 1. The explorer: full history in one call. A short or empty answer proves
+  //    nothing on its own: Blockscout's Base index has gaps (2026-11-09: blocks
+  //    from an hour earlier were unknown to it, indexed_blocks_ratio 0.97), so
+  //    it is topped up from the RPC scan whenever it accounts for fewer
+  //    identities than balanceOf says the wallet holds.
   if (options.explorerApiUrl) {
     try {
-      candidates = await explorerCandidates(owner, options);
+      await verify(await explorerCandidates(owner, options));
     } catch {
-      candidates = null; // explorer down or keyed: bounded RPC scan below
+      // explorer down, keyed or rate-limited: the RPC scan below covers it
     }
   }
-  if (candidates === null) {
+  // 2. Bounded RPC scan of recent history.
+  if (!enough()) {
     try {
-      candidates = await rpcCandidates(client, owner, options);
+      await verify(await rpcCandidates(client, owner, options));
     } catch {
-      candidates = [];
+      // nothing more we can reach
     }
   }
 
-  // Newest first, each token once, kept only if the wallet still holds it.
-  const ordered = [...candidates].sort((a, b) => (a.block === b.block ? 0 : a.block > b.block ? -1 : 1));
-  const seen = new Set<bigint>();
-  const ids: bigint[] = [];
-  for (const { tokenId } of ordered) {
-    if (seen.has(tokenId)) continue;
-    seen.add(tokenId);
-    try {
-      const holder = await client.readContract({
-        address: options.registry,
-        abi: IDENTITY_REGISTRY_ABI,
-        functionName: "ownerOf",
-        args: [tokenId],
-      });
-      if (holder.toLowerCase() === owner.toLowerCase()) ids.push(tokenId);
-    } catch {
-      // burned or unreadable: not a current identity
-    }
-    if (owned !== null && BigInt(ids.length) >= owned) break;
-  }
-  return { owned, ids: ids.reverse() };
+  found.sort((a, b) => (a.block === b.block ? 0 : a.block < b.block ? -1 : 1));
+  return { owned, ids: found.map(c => c.tokenId) };
 }
