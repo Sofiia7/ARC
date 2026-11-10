@@ -1,6 +1,6 @@
 # arcbounty-mcp
 
-[![Glama MCP server](https://glama.ai/mcp/servers/Sofiia7/ARC/badge)](https://glama.ai/mcp/servers/Sofiia7/ARC)
+[![Glama MCP server](https://glama.ai/mcp/servers/Sofiia7/ARC/badge)](https://glama.ai/mcp/servers/Sofiia7/ARC) [![ToolSDK MCP Registry](https://badges.toolsdk.ai/badge/arcbounty-mcp)](https://toolsdk-ai.github.io/toolsdk-mcp-registry/#arcbounty-mcp)
 
 Listed in the official [MCP Registry](https://registry.modelcontextprotocol.io)
 as `io.github.Sofiia7/arcbounty-mcp` and on [Glama](https://glama.ai/mcp/servers/Sofiia7/ARC).
