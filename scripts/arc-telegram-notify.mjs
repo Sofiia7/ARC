@@ -12,6 +12,10 @@
  * State is one number, the last block already reported, kept in STATE_FILE
  * between runs (the workflow carries it in the Actions cache). With no state the
  * run starts ~25 minutes back, so history is never replayed into the chat.
+ * GitHub starts the "every 10 minutes" runs hours apart; a run reads at most
+ * maxBlocksPerRun blocks, oldest first, and a later run picks up the rest, so a
+ * late run delays alerts and does not drop them. Only a backlog older than
+ * maxBacklog (what the RPC still serves, ~2 days) is skipped, with a note.
  *
  * Env: TG_BOT_TOKEN and TG_BOT_CHAT (without them it reports nothing and keeps
  * its state), NETWORK (default arc-mainnet), STATE_FILE (default
@@ -36,7 +40,10 @@ const NETWORKS = {
     tx: "https://arcexplorer.org/tx/",
     chunk: 90_000n, // Blockdaemon serves eth_getLogs up to 100k blocks
     firstRunLookback: 3_000n, // ~25 minutes at ~2 blocks a second
-    maxCatchUp: 360_000n, // ~2 days
+    maxBlocksPerRun: 360_000n, // ~2 days, 4 requests
+    // Blockdaemon prunes logs: 360,000 blocks back served, 400,000 answered
+    // "pruned history unavailable" (checked 2026-11-12).
+    maxBacklog: 360_000n,
     payCommand: () => "cd /d C:\\Server\\ARC\\scripts && npx tsx review-mainnet-submissions.ts",
   },
   "base-mainnet": {
@@ -56,13 +63,15 @@ const NETWORKS = {
     // A chunk of 500 asks for toBlock - fromBlock = 499.
     chunk: 500n,
     // Base moved from 2 s to 0.2 s blocks on 2026-11-05 (~17:58 UTC; measured
-    // from block timestamps: 5 blocks a second). The old 900 / 43,200 windows
-    // were 30 minutes / 1 day and became 3 minutes / 2.4 hours, so every run
-    // GitHub delayed past 2.4 h (they come every 3-6 h) skipped events and sent
-    // "notifications were not running". Counted in blocks on purpose: this is
-    // what getLogs takes. If Base changes its block time again, redo these two.
+    // from block timestamps: 5 blocks a second). Counted in blocks on purpose:
+    // this is what getLogs takes. If Base changes its block time again, redo
+    // these three. A run that is further behind than maxBlocksPerRun no longer
+    // skips anything (GitHub started runs 10.5 and 8.5 hours apart on
+    // 2026-11-09 and 2026-11-12): it reads this much and the next run goes on.
     firstRunLookback: 9_000n, // ~30 minutes at 0.2 s blocks
-    maxCatchUp: 144_000n, // ~8 hours, 288 requests on the public RPC
+    maxBlocksPerRun: 144_000n, // ~8 hours, 288 requests on the public RPC, 2-3 min
+    // ~2 days, as on Arc; mainnet.base.org served 3-day-old logs on 2026-11-12.
+    maxBacklog: 864_000n,
     payCommand: jobId => `cd /d C:\\Server\\ARC\\scripts && set "ARC_NETWORK=base-mainnet" && set "ALLOW_MAINNET=yes" && npx tsx --env-file=..\\.env approve-bounty.ts ${jobId} 95`,
   },
 };
@@ -209,24 +218,32 @@ async function main() {
   const saved = existsSync(STATE_FILE) ? BigInt(JSON.parse(readFileSync(STATE_FILE, "utf8")).lastBlock) : null;
   let from = fromArg ?? (saved !== null ? saved + 1n : head - net.firstRunLookback);
   const notes = [];
-  if (head - from > net.maxCatchUp) {
+  // Skipped only past what the RPC still serves (~2 days back): GitHub then
+  // has not run this for days, and that is worth the note.
+  if (head - from + 1n > net.maxBacklog) {
     notes.push(`ℹ️ ${net.brand}: notifications were not running since block ${from}, older events were skipped, see ${net.site}`);
-    from = head - net.maxCatchUp;
+    from = head - net.maxBacklog + 1n;
   }
   if (from > head) {
     console.log(`nothing new: head ${head}, last reported ${saved}`);
     return;
   }
+  // Oldest blocks first: a run that starts further behind than one budget
+  // reads the budget and saves its end, the next run continues from there.
+  const to = from + net.maxBlocksPerRun - 1n < head ? from + net.maxBlocksPerRun - 1n : head;
 
   const logs = [];
-  for (let start = from; start <= head; start += net.chunk) {
-    const end = start + net.chunk - 1n > head ? head : start + net.chunk - 1n;
+  for (let start = from; start <= to; start += net.chunk) {
+    const end = start + net.chunk - 1n > to ? to : start + net.chunk - 1n;
     logs.push(...(await pub.getLogs({ address: net.adapter, events: EVENTS, fromBlock: start, toBlock: end })));
-    // A day of catch-up on Base is 44 calls; back to back they trip its rate limit.
-    if (start + net.chunk <= head) await pause(300);
+    // A full run on Base is 288 calls; back to back they trip its rate limit.
+    if (start + net.chunk <= to) await pause(300);
   }
   logs.sort((x, y) => (x.blockNumber === y.blockNumber ? x.logIndex - y.logIndex : Number(x.blockNumber - y.blockNumber)));
-  console.log(`${NETWORK} blocks ${from}..${head}: ${logs.length} event(s)`);
+  console.log(`${NETWORK} blocks ${from}..${to}: ${logs.length} event(s)`);
+  if (to < head) {
+    console.log(`::notice::${NETWORK} is ${head - to} blocks behind the head ${head}, the next run continues from ${to + 1n}`);
+  }
 
   for (const note of notes) await send(note);
   for (const log of logs) {
@@ -235,7 +252,7 @@ async function main() {
   }
   if (!DRY_RUN) {
     mkdirSync(dirname(STATE_FILE), { recursive: true });
-    writeFileSync(STATE_FILE, JSON.stringify({ lastBlock: head.toString(), at: new Date().toISOString() }));
+    writeFileSync(STATE_FILE, JSON.stringify({ lastBlock: to.toString(), at: new Date().toISOString() }));
   }
 }
 
