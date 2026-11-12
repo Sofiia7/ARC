@@ -116,11 +116,10 @@ export type NetworkConfig = {
   blocksPerDay: bigint;
   /**
    * Fallback RPC log-scan bound - see lib/chainLogs.ts. Counted in blocks on
-   * purpose: it caps the request count of the degraded path (one getLogs per
-   * 10,000 blocks), not a time span. On Base 500,000 blocks is ~28 hours since
-   * the 0.2 s blocks; widening it to the old ~11.6 days would cost 500 requests
-   * per event per page load and reach past the ~4M blocks of logs
-   * base-rpc.publicnode.com serves without a token (checked 2026-11-09).
+   * purpose: together with logChunkBlocks it caps the request count of the
+   * degraded path (maxLookbackBlocks / logChunkBlocks calls per event, 50 on
+   * Arc and Base), not a time span. Keep it inside the history the RPCs
+   * serve: a range they refuse fails the whole scan, not just its oldest part.
    */
   maxLookbackBlocks: bigint;
   /**
@@ -129,8 +128,22 @@ export type NetworkConfig = {
    * what publicnode serves once mainnet.base.org (500-block cap) refuses and
    * the fallback transport moves on. Base Sepolia: sepolia.base.org caps at
    * 200. Both checked 2026-11-09.
+   *
+   * Not the same knob as logChunkBlocks below, on purpose: lib/agentIds.ts
+   * sends its calls one at a time, so each can take the full range the RPC
+   * accepts, while lib/chainLogs.ts sends ten at once in one JSON-RPC batch,
+   * where 10 x 50,000 blocks timed out. Do not fold the two into one value.
    */
   maxLogRange?: bigint;
+  /**
+   * Blocks per eth_getLogs call in the batched fallback scan of
+   * lib/chainLogs.ts. Default 10,000, the cap of Arc's public RPCs. Set it per
+   * network only after a live run: the scan batches 10 calls into one HTTP
+   * request, so the RPC must answer ten chunks inside viem's 10 s timeout, not
+   * just accept the range. On Base it is 25,000 while maxLogRange is 50,000:
+   * see maxLogRange above for why they differ.
+   */
+  logChunkBlocks?: bigint;
 };
 
 /** Canonical cross-chain Multicall3 address (see NetworkConfig.multicall3). */
@@ -320,7 +333,18 @@ export const NETWORKS = {
     multicall3: true,
     testnet: false,
     blocksPerDay: 432_000n, // 0.2 s blocks since 2026-11-05 (2 s before), from block timestamps
-    maxLookbackBlocks: 500_000n,
+    // Fallback log scan (lib/chainLogs.ts): 50 calls of 25,000 blocks. 1.25M
+    // blocks is ~2.9 days at 0.2 s blocks, where 500,000 in 10,000-block calls
+    // bought ~28 hours for the same 50 calls. mainnet.base.org takes 500 blocks
+    // a call and hands every chunk to publicnode, which takes 50,000, but the
+    // scan sends 10 calls in one JSON-RPC batch: 10 x 50,000 ran past viem's
+    // 10 s timeout and failed the scan, 10 x 25,000 answered in 2-4 s
+    // (checked 2026-11-09 on the busy 8004 registry). publicnode serves logs
+    // ~3.9M blocks back without a token and refuses 4.5M: stay below that.
+    maxLookbackBlocks: 1_250_000n,
+    logChunkBlocks: 25_000n,
+    // lib/agentIds.ts reads one call at a time, so it takes publicnode's full
+    // 50,000 (see NetworkConfig.maxLogRange: not to be unified with the above).
     maxLogRange: 50_000n,
   },
 } as const satisfies Record<NetworkName, NetworkConfig>;
