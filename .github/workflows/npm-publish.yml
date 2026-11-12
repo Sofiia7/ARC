@@ -1,0 +1,240 @@
+name: npm publish
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('npm publish {0} ({1})', inputs.package, github.ref_name) || github.event.pull_request.title }}
+
+# Publishes one npm package from this repo through npm trusted publishing
+# (GitHub Actions OIDC). There is no npm token anywhere: npm checks that the
+# request comes from this repository and from this workflow file, issues a
+# one-time credential, and attaches a provenance attestation automatically.
+#
+# The file name `npm-publish.yml` is part of the npm-side configuration of
+# every package (npmjs.com -> package -> Settings -> Trusted publishing).
+# Renaming or moving this file stops publishing until each package's trusted
+# publisher config is updated to the new name.
+#
+# Release:
+#   1. bump "version" in the package's package.json, merge to main;
+#   2. Actions -> "npm publish" -> Run workflow on main, pick the package
+#      (or: gh workflow run npm-publish.yml -f package=arcbounty-mcp).
+# A version that is already on npm is skipped, so a rerun is harmless.
+# Running it on any branch other than main is a dry run: everything below
+# runs except the publish job.
+#
+# On pull requests that touch a package, the verify job runs for all four
+# packages (install, typecheck, tests, build, smoke test, npm pack) with no
+# publish permission, so a broken release is caught before it is merged.
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish (version is read from its package.json on main)
+        type: choice
+        required: true
+        options:
+          - arcbounty-agent-sdk
+          - arcbounty-mcp
+          - basebounty-mcp
+          - nadbounty-mcp
+  pull_request:
+    paths:
+      - .github/workflows/npm-publish.yml
+      - scripts/mcp-smoke.mjs
+      - agent-sdk/**
+      - mcp-server/**
+      - basebounty-mcp/**
+      - nadbounty-mcp/**
+
+permissions: {}
+
+concurrency:
+  group: npm-publish-${{ github.event_name == 'workflow_dispatch' && inputs.package || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Everything that runs package code (installs, tests, builds) happens here,
+  # without an OIDC token: this job cannot publish even if a dependency or a
+  # test turned hostile. The publish job below only uploads the tarball built
+  # here, so what was tested is byte for byte what goes to npm.
+  verify:
+    name: verify ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.package) || '["arcbounty-agent-sdk","arcbounty-mcp","basebounty-mcp","nadbounty-mcp"]') }}
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tarball: ${{ steps.pack.outputs.tarball }}
+      published: ${{ steps.registry.outputs.published }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (resolved 2026-09-07, M-11)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
+        with: { node-version: "24" }
+
+      - name: package metadata
+        id: meta
+        env:
+          PKG: ${{ matrix.package }}
+          REPO: ${{ github.repository }}
+        run: |
+          case "$PKG" in
+            arcbounty-agent-sdk) dir=agent-sdk ;;
+            arcbounty-mcp)       dir=mcp-server ;;
+            basebounty-mcp)      dir=basebounty-mcp ;;
+            nadbounty-mcp)       dir=nadbounty-mcp ;;
+            *) echo "::error::unknown package $PKG"; exit 1 ;;
+          esac
+          name=$(node -p "require('./$dir/package.json').name")
+          version=$(node -p "require('./$dir/package.json').version")
+          repo_url=$(node -p "(require('./$dir/package.json').repository || {}).url || ''")
+          if [ "$name" != "$PKG" ]; then
+            echo "::error::$dir/package.json has name '$name', expected '$PKG'"; exit 1
+          fi
+          # npm rejects a trusted publish whose provenance does not match
+          # package.json: repository.url must name this exact repository,
+          # letter case included.
+          want="git+https://github.com/$REPO.git"
+          if [ "$repo_url" != "$want" ]; then
+            echo "::error::$dir/package.json repository.url is '$repo_url', expected '$want'"; exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "$PKG@$version from $dir/"
+
+      - name: install
+        working-directory: ${{ steps.meta.outputs.dir }}
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund --no-package-lock
+          fi
+
+      - name: typecheck
+        working-directory: ${{ steps.meta.outputs.dir }}
+        run: npm run --if-present typecheck
+      - name: test
+        working-directory: ${{ steps.meta.outputs.dir }}
+        run: npm run --if-present test
+      - name: build
+        working-directory: ${{ steps.meta.outputs.dir }}
+        run: npm run --if-present build
+
+      # The SDK ships both CJS and ESM entry points; a static named import
+      # from a CJS-only dependency once broke every ESM consumer (0.6.3).
+      - name: SDK entry points load (CJS and ESM)
+        if: matrix.package == 'arcbounty-agent-sdk'
+        working-directory: agent-sdk
+        run: |
+          node -e "const m = require('./dist/index.js'); if (!Object.keys(m).length) { console.error('empty CJS exports'); process.exit(1) }"
+          node --input-type=module -e "const m = await import('./dist/index.mjs'); if (!Object.keys(m).length) { console.error('empty ESM exports'); process.exit(1) }"
+
+      # basebounty-mcp reports the version of the arcbounty-mcp it runs on,
+      # so only the other two are held to their own package.json version.
+      - name: MCP smoke test (initialize + tools/list, no credentials)
+        if: matrix.package != 'arcbounty-agent-sdk'
+        env:
+          PKG: ${{ matrix.package }}
+          DIR: ${{ steps.meta.outputs.dir }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          bin=$(node -p "Object.values(require('./$DIR/package.json').bin)[0]")
+          if [ "$PKG" = basebounty-mcp ]; then
+            node scripts/mcp-smoke.mjs "$DIR/$bin"
+          else
+            node scripts/mcp-smoke.mjs "$DIR/$bin" --expect-version "$VERSION"
+          fi
+
+      - name: npm pack
+        id: pack
+        working-directory: ${{ steps.meta.outputs.dir }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack"
+          npm pack --pack-destination "$RUNNER_TEMP/pack" --json > "$RUNNER_TEMP/pack.json"
+          file=$(node -p "require(process.env.RUNNER_TEMP + '/pack.json')[0].filename")
+          echo "tarball=$file" >> "$GITHUB_OUTPUT"
+          echo "$file:"
+          tar -tzf "$RUNNER_TEMP/pack/$file"
+
+      - name: already on npm?
+        id: registry
+        env:
+          PKG: ${{ matrix.package }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          IS_DISPATCH: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          if out=$(npm view "$PKG@$VERSION" version --json 2>/dev/null); then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            msg="$PKG@$VERSION is already on npm, nothing to publish (bump version in package.json to release)"
+          elif printf '%s' "$out" | grep -q '"E404"'; then
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            msg="$PKG@$VERSION is not on npm yet"
+            if [ "$IS_DISPATCH" = true ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+              msg="$msg; this run is on $GITHUB_REF, not main, so it is a dry run and publishes nothing"
+              echo "::warning::$msg"
+            fi
+          else
+            echo "::error::npm view $PKG@$VERSION failed: $out"; exit 1
+          fi
+          echo "::notice::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: keep the tarball for the publish job
+        if: github.event_name == 'workflow_dispatch' && steps.registry.outputs.published == 'false'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (resolved 2026-11-09)
+        with:
+          name: npm-tarball
+          path: ${{ runner.temp }}/pack/${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    # A static name: on pull requests this job is skipped, and GitHub then
+    # shows a templated name unexpanded in the checks list.
+    name: publish to npm
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.verify.outputs.published == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      # The OIDC token npm trusted publishing exchanges for a one-time publish
+      # credential. This is the only permission the job has.
+      id-token: write
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-09-07, M-11)
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm CLI 11.5.1+ (and Node 22.14+). Node 24
+      # bundles a newer npm today; this only matters if that ever changes.
+      - name: npm CLI 11.5.1 or newer
+        run: |
+          have=$(npm --version)
+          if [ "$(printf '%s\n' 11.5.1 "$have" | sort -V | head -n1)" != 11.5.1 ]; then
+            npm install -g npm@11
+          fi
+          npm --version
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (resolved 2026-11-09)
+        with:
+          name: npm-tarball
+          path: ${{ runner.temp }}/pack
+
+      - name: npm publish (trusted publishing, provenance)
+        env:
+          PKG: ${{ inputs.package }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          TARBALL: ${{ runner.temp }}/pack/${{ needs.verify.outputs.tarball }}
+        run: |
+          if npm view "$PKG@$VERSION" version >/dev/null 2>&1; then
+            echo "::notice::$PKG@$VERSION reached npm in the meantime, nothing to do"
+            exit 0
+          fi
+          tag=latest
+          case "$VERSION" in *-*) tag=next ;; esac
+          npm publish "$TARBALL" --access public --tag "$tag"
+          msg="published $PKG@$VERSION to npm (dist-tag $tag) via trusted publishing: https://www.npmjs.com/package/$PKG/v/$VERSION"
+          echo "::notice::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"

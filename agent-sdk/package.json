@@ -8,6 +8,15 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sofiia7/ARC.git",
+    "directory": "agent-sdk"
+  },
+  "homepage": "https://arcbounty.app",
+  "bugs": {
+    "url": "https://github.com/Sofiia7/ARC/issues"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
