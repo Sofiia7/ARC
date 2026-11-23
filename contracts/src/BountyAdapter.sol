@@ -7,7 +7,10 @@ import "./interfaces/IAgenticCommerce.sol";
 import "./interfaces/IIdentityRegistry.sol";
 import "./interfaces/IReputationRegistry.sol";
 
-/// @title BountyAdapter (V4.6 — pull-payment fallback so no unpayable address can wedge a settlement)
+/// @title BountyAdapter (V4.7: live on Arc mainnet since 2026-09-16 and on Base mainnet)
+/// @dev 2026-11-23 pre-audit review (OLYMPIX_SUBMISSION.md): source fixes F-09,
+///      F-10, F-12 and F-16 below are not deployed; the live adapters run the
+///      V4.7 source without them, and the adapter is not upgradeable.
 /// @dev V3.1 fixes two live-registry incompatibilities found by an on-chain
 ///      agent run: (1) takeBounty no longer calls the reverting isRegistered();
 ///      ownerOf alone gates agents. (2) every reputationRegistry.giveFeedback
@@ -27,14 +30,14 @@ import "./interfaces/IReputationRegistry.sol";
 ///  - Length caps on every IPFS / category / reason field to bound storage cost.
 ///
 /// V3.3 changes vs V3.2:
-///  - claimArbitratorTimeout(jobId): closes the one remaining liveness gap —
+///  - claimArbitratorTimeout(jobId): closes the one remaining liveness gap -
 ///    a dispute where the respondent replied (so claimDefaultRuling no longer
 ///    applies) but the arbitrator never rules used to freeze funds forever,
 ///    since resolveDispute is arbitrator-only. After ARBITRATOR_TIMEOUT (30d)
 ///    from disputeRaisedAt, anyone may trigger a neutral 50/50 split with no
 ///    reputation penalty (fault was never established).
 ///  - feeRecipient is no longer immutable: two-step transferFeeRecipient /
-///    acceptFeeRecipient (self-service — the current fee recipient nominates
+///    acceptFeeRecipient (self-service - the current fee recipient nominates
 ///    its own successor, independent of the arbitrator role).
 ///
 /// V4 changes vs V3.3 (see V4_DESIGN_ANTI_SYBIL.md for the full rationale):
@@ -46,7 +49,7 @@ import "./interfaces/IReputationRegistry.sol";
 ///  - uniquePosterCount(agentId): increments the first time a distinct
 ///    poster completes a bounty with that agent as worker (approveBounty /
 ///    autoApprove). Cheap on-chain signal against reputation farmed via
-///    self-dealing with one alt account — faking N unique posters now costs
+///    self-dealing with one alt account - faking N unique posters now costs
 ///    N real funded wallets, not one.
 ///
 /// V4.1 changes vs V4 (internal audit findings; live since 2026-07-07):
@@ -62,7 +65,7 @@ import "./interfaces/IReputationRegistry.sol";
 ///    24h between creation and deadline. Without this, a poster could list a
 ///    bond bounty with a near-immediate deadline as a honeypot: an auto-taking
 ///    agent posts the bond, cannot plausibly finish, and expireBounty forfeits
-///    the bond to the poster — repeatable at gas cost. A 24h floor makes the
+///    the bond to the poster - repeatable at gas cost. A 24h floor makes the
 ///    take genuinely completable, so forfeiture again means "worker vanished",
 ///    not "worker was trapped". Bond-free bounties keep any deadline.
 ///
@@ -70,7 +73,7 @@ import "./interfaces/IReputationRegistry.sol";
 ///  - disputeBounty is now bounded by APPROVAL_TIMEOUT, exactly like
 ///    rejectBounty since V4.1. Without this, the V4.1 fix was only half a
 ///    fix: a poster blocked from rejecting right before autoApprove could
-///    open a *dispute* instead — same free delay, and if the arbitrator
+///    open a *dispute* instead - same free delay, and if the arbitrator
 ///    never rules the honest worker ends at a 50/50 split via
 ///    claimArbitratorTimeout instead of full payment. Past the approval
 ///    window, autoApprove is the only path forward for disputes exactly as
@@ -88,7 +91,7 @@ import "./interfaces/IReputationRegistry.sol";
 ///    ERC-8004 registry (ReputationRegistryUpgradeable v2.0.0). The previous
 ///    interface mirrored an assumed draft, so every giveFeedback call carried
 ///    a wrong selector and silently reverted (swallowed by the adapter's own
-///    try/catch — payouts were never at risk) since the first integration.
+///    try/catch - payouts were never at risk) since the first integration.
 ///    Writes pass the 0-100 score as int128 value with valueDecimals=0;
 ///    getAgentReputation proxies getSummary(agentId, [address(this)], "", "").
 ///
@@ -99,12 +102,11 @@ import "./interfaces/IReputationRegistry.sol";
 ///    failed to deliver the service that fee funds. The 50/50 split now
 ///    divides the full escrowed amount with no deduction.
 ///
-/// V4.5 changes vs V4.4 (Base deployment prerequisite — never deployed to Arc,
-/// where V4.4 remains the live, audited-scope contract):
+/// V4.5 changes vs V4.4 (written as a Base prerequisite; the Arc mainnet
+/// deployment of 2026-09-16 is V4.7 and includes it):
 ///  - maxBountyAmount: an owner-settable cap on createBounty's reward, 0 means
-///    uncapped. A mainnet deployment without an external audit (Base) ships
-///    with this set to bound worst-case loss; Arc's own deployment stays on
-///    V4.4 and is never redeployed to pick this up.
+///    uncapped. A mainnet deployment without an external audit ships with
+///    this set to bound worst-case loss (500 USDC on Arc and Base mainnet).
 ///  - owner: a new role, separate from arbitrator on purpose (the arbitrator
 ///    is intentionally decoupled from the dev team via the 2-of-3 Safe; this
 ///    cap is a team-controlled safety knob, not a dispute-resolution power).
@@ -115,13 +117,13 @@ import "./interfaces/IReputationRegistry.sol";
 ///  - takeBounty now reverts once a job is `resolved` (C-01). Previously only
 ///    `isTaken` and the deadline were checked, so a poster who cancelled their
 ///    own bounty (refunded, `resolved=true`, `isTaken` left false) could take
-///    it again — `fund()` then pulls `meta.reward` from the adapter's pooled
+///    it again - `fund()` then pulls `meta.reward` from the adapter's pooled
 ///    USDC balance, which by that point belongs to whichever other bounty is
 ///    still open. Fixed by latching `takeBounty` on `resolved` too.
 ///  - AC jobs are now created with `expiredAt = deadline + AC_EXPIRY_BUFFER`,
 ///    not the bounty's own `deadline` (C-02). AC's own `claimRefund` is
 ///    permissionless and fires once `block.timestamp >= expiredAt`, refunding
-///    straight back to the adapter and marking the AC job Expired — including
+///    straight back to the adapter and marking the AC job Expired - including
 ///    for a job whose work was already submitted. Since the adapter's own
 ///    dispute/approval windows legitimately run up to ~46 days past the
 ///    bounty deadline, an external `claimRefund` could previously fire while
@@ -132,36 +134,36 @@ import "./interfaces/IReputationRegistry.sol";
 ///    normal lifecycle.
 ///  - reconcileExpiredEscrow(jobId): a permissionless safety net for the
 ///    residual case where an AC job still hits Expired anyway (something left
-///    unresolved for 90+ days — e.g. a dead arbitrator role). Attributes the
+///    unresolved for 90+ days - e.g. a dead arbitrator role). Attributes the
 ///    already-returned funds via `pendingWithdrawals`, mirroring the payout
 ///    default of whichever adapter path would otherwise have applied
 ///    (autoApprove/expireBounty/claimArbitratorTimeout), with no protocol fee
-///    — the same rationale as V4.4's arbitrator-timeout fee waiver: don't tax
+///    - the same rationale as V4.4's arbitrator-timeout fee waiver: don't tax
 ///    users for the protocol's own liveness failure.
 ///  - _maybePenalize now writes reputation penalties as a negative value.
 ///    Previously a dispute-loss penalty (`bounty_failed` tag) was written as
-///    `int128(uint128(penalty))` — always positive — and getAgentReputation's
+///    `int128(uint128(penalty))` - always positive - and getAgentReputation's
 ///    getSummary call averages every feedback value with no tag filter, so
 ///    the maximum penalty (100) was recorded as the maximum possible score.
 ///  - paused / setPaused(bool): an owner-controlled circuit breaker that
 ///    blocks only createBounty and takeBounty (the two entry points that
-///    create new obligations). Every exit path — submitWork, approveBounty,
-///    autoApprove, cancelBounty, expireBounty, disputes, withdraw — keeps
+///    create new obligations). Every exit path - submitWork, approveBounty,
+///    autoApprove, cancelBounty, expireBounty, disputes, withdraw - keeps
 ///    working while paused, so no one already in a bounty is trapped.
 ///    `maxBountyAmount` alone was never a real pause: 0 means uncapped, and
 ///    nothing it gates blocks takeBounty on an already-open bounty.
 ///  - IAgenticCommerce realigned to match the real AgenticCommerce contract
-///    exactly (enum order, Job struct shape, function set) — the previous
+///    exactly (enum order, Job struct shape, function set) - the previous
 ///    interface had a fictional ASSIGNED status and refund()/expire()
 ///    functions that don't exist on-chain. Dead surface before this version
 ///    (nothing called getJob/refund/expire through it), but
 ///    reconcileExpiredEscrow is the first caller and needs it correct.
 ///
-/// V4.6 changes vs V4.5 (external report, 2026-08-09 — credit: `researchzero`
+/// V4.6 changes vs V4.5 (external report, 2026-08-09 - credit: `researchzero`
 /// on Reddit, who spotted that the "no hooks, no fee-on-transfer" framing does
 /// not cover USDC's blacklist):
 ///  - Every settlement path pushed funds with `safeTransfer`, which reverts the
-///    entire transaction on failure — including the `resolved = true` effect
+///    entire transaction on failure - including the `resolved = true` effect
 ///    written just before it. USDC reverts unconditionally on transfers to a
 ///    blacklisted address, and `blacklister()` returns a live address on BOTH
 ///    Arc and Base, so this was never Base-specific. One compliance action
@@ -175,7 +177,7 @@ import "./interfaces/IReputationRegistry.sol";
 ///    `pendingWithdrawals[payee]` and emits `PayoutParked` instead of
 ///    reverting, so terminal state is always reached and a blacklist event
 ///    degrades to "funds parked" rather than "job permanently stuck". The
-///    payee pulls with `withdraw()` — the only place a settlement amount can
+///    payee pulls with `withdraw()` - the only place a settlement amount can
 ///    still revert, and only ever affecting that caller's own funds.
 ///  - Amounts, fee maths and ordering are deliberately untouched: this ships
 ///    to a mainnet with no external audit, so the diff is kept to the transfer
@@ -204,7 +206,7 @@ contract BountyAdapter is ReentrancyGuard {
     uint256 public maxBountyAmount;
 
     /// @notice V4.7: real circuit breaker. Blocks only createBounty/takeBounty
-    ///         (new obligations) — every exit path stays open. See the V4.7
+    ///         (new obligations) - every exit path stays open. See the V4.7
     ///         changelog note above for why `maxBountyAmount` alone wasn't one.
     bool public paused;
 
@@ -218,27 +220,24 @@ contract BountyAdapter is ReentrancyGuard {
     ///         but the arbitrator never called resolveDispute, anyone may call
     ///         claimArbitratorTimeout for a neutral 50/50 split. Prevents an
     ///         unresponsive or compromised arbitrator from freezing funds
-    ///         forever — the one liveness gap in V3.2.
+    ///         forever - the one liveness gap in V3.2.
     uint256 public constant ARBITRATOR_TIMEOUT = 30 days;
 
     /// @notice V4.7: buffer added to a bounty's own deadline when creating the
     ///         underlying AC job's `expiredAt`. Must exceed the adapter's own
-    ///         worst-case post-deadline lifecycle — APPROVAL_TIMEOUT (14d) +
+    ///         worst-case post-deadline lifecycle - APPROVAL_TIMEOUT (14d) +
     ///         REJECTION_CHALLENGE_WINDOW (2d) + ARBITRATOR_TIMEOUT (30d) =
-    ///         46d — so AC's permissionless claimRefund can never fire while
+    ///         46d - so AC's permissionless claimRefund can never fire while
     ///         the adapter still considers the job live. See the V4.7
     ///         changelog note above.
     /// @dev This assumes `block.timestamp` tracks real wall-clock time closely
     ///      enough that "46d worst case, 90d buffer" stays a real 2x margin.
-    ///      A chain whose clock runs measurably faster than real time (Arc
-    ///      Testnet has been observed doing this) shrinks that margin in wall
-    ///      time even though the on-chain math is unaffected — acceptable on
-    ///      a testnet with no real funds, but re-verify this assumption
-    ///      against the actual chain before relying on it for a mainnet
-    ///      deployment with a similarly fast clock.
+    ///      Arc Testnet's clock has been observed running fast; Arc mainnet's
+    ///      matched wall-clock time to the second when read on 2026-11-23
+    ///      (block 32760440). The on-chain math does not depend on it.
     uint256 public constant AC_EXPIRY_BUFFER = 90 days;
 
-    // String length bounds — keep storage cheap and SSTORE refunds predictable.
+    // String length bounds - keep storage cheap and SSTORE refunds predictable.
     uint256 public constant MAX_CID_LEN = 96; // CIDv1 + ipfs:// prefix
     uint256 public constant MAX_CATEGORY = 16;
     uint256 public constant MAX_TAG_LEN = 32;
@@ -265,8 +264,22 @@ contract BountyAdapter is ReentrancyGuard {
     ///         first 12h. Does not apply to bond-free bounties.
     uint256 public constant MIN_BOND_TAKE_WINDOW = 12 hours;
 
+    /// @notice F-09: gas that must remain before any reputation write. Each
+    ///         write is wrapped in try/catch so a reverting registry can never
+    ///         block a payout, but that also means a write that runs out of
+    ///         gas is swallowed while the settlement goes through. The live
+    ///         ERC-8004 registry on Arc mainnet costs 163,616 gas for an
+    ///         agent's first feedback (fork measurement, 2026-11-23). At that
+    ///         cost no gas limit settles a call with the write starved, because
+    ///         the 1/64 kept back cannot pay for the rest of the transaction;
+    ///         at a write cost of about 270,000 it can (tests F09 in
+    ///         test/OlympixPreAudit20261123.t.sol). The registry is upgradeable
+    ///         by its owners, so the floor keeps a 3x margin over today's cost
+    ///         instead of relying on it.
+    uint256 public constant FEEDBACK_GAS_FLOOR = 500_000;
+
     struct CreateParams {
-        address provider; // 0x0 = open. If non-zero, only this address (or owner of agentId) can take.
+        address provider; // 0x0 = open. If non-zero, only this exact address can take (F-12: owning an agentId is not enough).
         uint256 reward;
         uint256 deadline;
         string ipfsDescHash;
@@ -274,13 +287,13 @@ contract BountyAdapter is ReentrancyGuard {
         string[] tags;
         bool agentOnly;
         bool humanOnly;
-        bool requireWorkerBond; // V4: opt-in — worker must post a bond to take this bounty
+        bool requireWorkerBond; // V4: opt-in - worker must post a bond to take this bounty
     }
 
     struct BountyMeta {
         uint256 jobId;
         address poster;
-        uint256 reward; // GROSS — fee is split at payout
+        uint256 reward; // GROSS - fee is split at payout
         uint256 deadline;
         string ipfsDescHash;
         string category;
@@ -309,7 +322,7 @@ contract BountyAdapter is ReentrancyGuard {
         uint256 workerBond; // 0 once refunded (submitWork) or forfeited (expireBounty)
     }
 
-    /// @dev Our own view-convenience shape for getAgentReputation — NOT a type from
+    /// @dev Our own view-convenience shape for getAgentReputation - NOT a type from
     ///      the registry itself (see IReputationRegistry: it only exposes
     ///      count/summaryValue/summaryValueDecimals via getSummary). Kept identical
     ///      to the pre-V4.3 shape so the frontend ABI didn't need to change.
@@ -327,7 +340,7 @@ contract BountyAdapter is ReentrancyGuard {
     mapping(address => uint256[]) private _assignedTo;
     mapping(uint256 => uint256[]) private _byAgent;
 
-    // V4: anti-Sybil signal — count of distinct posters who have actually paid
+    // V4: anti-Sybil signal - count of distinct posters who have actually paid
     // out a completed bounty to a given agent. Cheap, on-chain, tamper-proof:
     // faking N "unique" posters costs N real funded wallets, not one alt
     // account. See V4_DESIGN_ANTI_SYBIL.md.
@@ -336,12 +349,12 @@ contract BountyAdapter is ReentrancyGuard {
 
     /// @notice USDC owed to an address whose direct payout could not be pushed.
     /// @dev V4.6. Every settlement path used to push with `safeTransfer`, which
-    ///      reverts the WHOLE transaction on failure — including the
+    ///      reverts the WHOLE transaction on failure - including the
     ///      `meta.resolved = true` effect that precedes it. USDC (on both Arc
     ///      and Base: `blacklister()` returns a live address on each) reverts
     ///      unconditionally on a transfer to a blacklisted address, so a single
     ///      compliance action against a poster or worker would have stranded
-    ///      that bounty permanently — every retry reverting the same way, funds
+    ///      that bounty permanently - every retry reverting the same way, funds
     ///      left in AC escrow with no recovery path (there is no rescue
     ///      function, by design). Worse, the fee leg pays `feeRecipient` FIRST
     ///      on the main approval path, so blacklisting that one address would
@@ -391,6 +404,10 @@ contract BountyAdapter is ReentrancyGuard {
     /// @notice A direct payout failed and was credited to `pendingWithdrawals` instead.
     event PayoutParked(uint256 indexed jobId, address indexed payee, uint256 amount);
     event WithdrawalClaimed(address indexed payee, uint256 amount);
+    /// @notice F-10: a reputation write reverted and was skipped. The payout
+    ///         it followed has already settled. `value` is the score or the
+    ///         (negative) penalty that the registry did not record.
+    event ReputationWriteFailed(uint256 indexed jobId, uint256 indexed agentId, int128 value);
 
     constructor(
         address _agenticCommerce,
@@ -427,7 +444,7 @@ contract BountyAdapter is ReentrancyGuard {
         require(maxBountyAmount == 0 || p.reward <= maxBountyAmount, "reward exceeds maxBountyAmount");
         require(p.deadline > block.timestamp, "deadline in past");
         if (p.requireWorkerBond) {
-            // Bond honeypot guard — see MIN_BOND_BOUNTY_DURATION natspec.
+            // Bond honeypot guard - see MIN_BOND_BOUNTY_DURATION natspec.
             require(p.deadline >= block.timestamp + MIN_BOND_BOUNTY_DURATION, "bond bounty: deadline too soon");
         }
         _requireCid(p.ipfsDescHash, "ipfsDesc");
@@ -441,9 +458,9 @@ contract BountyAdapter is ReentrancyGuard {
         require(usdc.allowance(msg.sender, address(this)) >= p.reward, "insufficient USDC allowance");
         usdc.safeTransferFrom(msg.sender, address(this), p.reward);
 
-        // Fee is NOT charged here — only on successful payout.
+        // Fee is NOT charged here - only on successful payout.
         // V4.7: AC's expiredAt is the deadline plus a large buffer, not the
-        // bounty deadline itself — see AC_EXPIRY_BUFFER natspec / the V4.7
+        // bounty deadline itself - see AC_EXPIRY_BUFFER natspec / the V4.7
         // changelog note (closes C-02).
         jobId = agenticCommerce.createJob(
             address(this), address(this), p.deadline + AC_EXPIRY_BUFFER, p.ipfsDescHash, address(0)
@@ -481,7 +498,7 @@ contract BountyAdapter is ReentrancyGuard {
         require(!meta.resolved, "resolved");
         require(block.timestamp <= meta.deadline, "bounty expired");
         if (meta.requireWorkerBond) {
-            // V4.2 residual-honeypot guard — see MIN_BOND_TAKE_WINDOW natspec.
+            // V4.2 residual-honeypot guard - see MIN_BOND_TAKE_WINDOW natspec.
             require(block.timestamp + MIN_BOND_TAKE_WINDOW <= meta.deadline, "bond bounty: too close to deadline");
         }
 
@@ -499,7 +516,7 @@ contract BountyAdapter is ReentrancyGuard {
             // ownerOf is the authoritative check: ERC-721 ownerOf reverts for a
             // non-existent tokenId, so "caller owns this agentId" already proves
             // the agent is registered. We deliberately do NOT call isRegistered()
-            // — the live Arc ERC-8004 registry reverts on it, and ownerOf alone
+            // - the live Arc ERC-8004 registry reverts on it, and ownerOf alone
             // gives the same guarantee.
             require(identityRegistry.ownerOf(agentId) == msg.sender, "agent only: caller is not agent owner");
             meta.agentId = agentId;
@@ -511,7 +528,7 @@ contract BountyAdapter is ReentrancyGuard {
         _assignedTo[msg.sender].push(jobId);
 
         // All state written above and here (CEI: effects before the external
-        // calls below) — including workerBond, so no write is left dangling
+        // calls below) - including workerBond, so no write is left dangling
         // after fund()/safeTransferFrom() the way a naive ordering would.
         uint256 bond = 0;
         if (meta.requireWorkerBond) {
@@ -534,14 +551,17 @@ contract BountyAdapter is ReentrancyGuard {
     function submitWork(uint256 jobId, string calldata ipfsResultHash) external nonReentrant {
         BountyMeta storage meta = _bounties[jobId];
         require(meta.assignedProvider == msg.sender, "not assigned provider");
+        // F-16: defensive. Unreachable today (every resolved, taken and
+        // unsubmitted state is past the deadline), kept so it stays true.
+        require(!meta.resolved, "resolved");
         _requireCid(ipfsResultHash, "ipfsResult");
         require(block.timestamp <= meta.deadline, "bounty expired");
         require(bytes(meta.submittedResultHash).length == 0, "already submitted");
 
         meta.submittedResultHash = ipfsResultHash;
         meta.submittedAt = block.timestamp;
-        // Effect (zeroing workerBond) before any interaction below — CEI.
-        // Bond only deters taking-and-vanishing — once real work is submitted,
+        // Effect (zeroing workerBond) before any interaction below - CEI.
+        // Bond only deters taking-and-vanishing - once real work is submitted,
         // refund it immediately rather than holding it through approval/dispute.
         uint256 bond = meta.workerBond;
         meta.workerBond = 0;
@@ -573,18 +593,14 @@ contract BountyAdapter is ReentrancyGuard {
         if (meta.agentId > 0) {
             // Reputation write must never block the payout: the worker has
             // already been paid above. The live ERC-8004 registry may revert
-            // (e.g. unauthorized feedback), so swallow any failure.
-            try reputationRegistry.giveFeedback(
+            // (e.g. unauthorized feedback); _writeFeedback logs and skips it.
+            _writeFeedback(
+                jobId,
                 meta.agentId,
                 int128(uint128(reputationScore)),
-                0,
                 "bounty_completed",
-                "",
-                "",
-                "",
                 keccak256(abi.encodePacked("bounty_completed", jobId))
-            ) {}
-                catch {}
+            );
         }
 
         emit BountyCompleted(jobId, meta.agentId, reputationScore);
@@ -606,17 +622,9 @@ contract BountyAdapter is ReentrancyGuard {
         _recordUniquePoster(meta);
 
         if (meta.agentId > 0) {
-            try reputationRegistry.giveFeedback(
-                meta.agentId,
-                80,
-                0,
-                "bounty_auto_approved",
-                "",
-                "",
-                "",
-                keccak256(abi.encodePacked("auto_approved", jobId))
-            ) {}
-                catch {}
+            _writeFeedback(
+                jobId, meta.agentId, 80, "bounty_auto_approved", keccak256(abi.encodePacked("auto_approved", jobId))
+            );
         }
 
         emit BountyAutoApproved(jobId, meta.assignedProvider);
@@ -634,7 +642,7 @@ contract BountyAdapter is ReentrancyGuard {
         // up to APPROVAL_TIMEOUT and then reject right before autoApprove
         // would otherwise fire, buying another REJECTION_CHALLENGE_WINDOW (or
         // a full dispute) of delay for free. Once the approval window has
-        // elapsed, autoApprove is the only path forward — matches the
+        // elapsed, autoApprove is the only path forward - matches the
         // permissionless-liveness guarantee the rest of the contract makes.
         require(block.timestamp <= meta.submittedAt + APPROVAL_TIMEOUT, "approval window elapsed, use autoApprove");
         _requireCid(ipfsReasonHash, "reason");
@@ -647,7 +655,7 @@ contract BountyAdapter is ReentrancyGuard {
     /// @notice Lets a poster who rejected a submission and changed their mind
     ///         withdraw the pending rejection before the worker challenges it
     ///         (or before it's finalized). Without this, a poster stuck in
-    ///         `rejectedAt != 0` had no way back to `approveBounty` — only
+    ///         `rejectedAt != 0` had no way back to `approveBounty` - only
     ///         forward to a challenge/dispute or a 48h wait for finalize.
     function withdrawRejection(uint256 jobId) external nonReentrant {
         BountyMeta storage meta = _bounties[jobId];
@@ -699,7 +707,7 @@ contract BountyAdapter is ReentrancyGuard {
         require(!meta.resolved, "resolved");
 
         meta.resolved = true;
-        // Funds never left adapter (AC not funded until takeBounty). Full refund — no fee.
+        // Funds never left adapter (AC not funded until takeBounty). Full refund - no fee.
         _payOrPark(jobId, meta.poster, meta.reward);
         emit BountyCancelled(jobId, "cancelled by poster");
     }
@@ -712,14 +720,14 @@ contract BountyAdapter is ReentrancyGuard {
         require(bytes(meta.submittedResultHash).length == 0, "has submission");
 
         meta.resolved = true;
-        // Effect (zeroing workerBond) before any interaction below — CEI.
+        // Effect (zeroing workerBond) before any interaction below - CEI.
         uint256 bond = meta.workerBond;
         meta.workerBond = 0;
 
         if (meta.isTaken) {
             _rejectAndRefund(jobId, "expired");
             // Worker took the bounty, posted a bond, then vanished without
-            // submitting — forfeit the bond to the poster whose listing was
+            // submitting - forfeit the bond to the poster whose listing was
             // blocked for the bounty's whole duration.
             _forfeitBondToPoster(jobId, meta.poster, bond);
         } else {
@@ -729,7 +737,7 @@ contract BountyAdapter is ReentrancyGuard {
     }
 
     /// @dev Forfeits a posted worker bond to the poster (take-and-vanish
-    ///      case) — shared by expireBounty and reconcileExpiredEscrow so the
+    ///      case) - shared by expireBounty and reconcileExpiredEscrow so the
     ///      "forfeited bond -> poster, no fee, same event" rule can't drift
     ///      between the two callers. No-op (and no event) when there's no
     ///      bond to forfeit.
@@ -740,7 +748,7 @@ contract BountyAdapter is ReentrancyGuard {
     }
 
     /// @notice V4.7 (C-02 safety net). Permissionless recovery for the case
-    ///         where AC's own `claimRefund` fired despite AC_EXPIRY_BUFFER —
+    ///         where AC's own `claimRefund` fired despite AC_EXPIRY_BUFFER -
     ///         meaning this job sat unresolved for 90+ days (e.g. a dead
     ///         arbitrator role). The refunded USDC already sits in this
     ///         contract's balance (AC's `claimRefund` pays it to `job.client`,
@@ -748,12 +756,12 @@ contract BountyAdapter is ReentrancyGuard {
     ///         resolution path would have applied had someone called it in
     ///         time, crediting via `pendingWithdrawals` instead of a fresh AC
     ///         settlement (AC already closed the job, so `complete`/`reject`
-    ///         can no longer be called on it) — with no protocol fee, same
+    ///         can no longer be called on it) - with no protocol fee, same
     ///         rationale as claimArbitratorTimeout's V4.4 fee waiver: don't
     ///         charge users for the protocol's own liveness failure.
     /// @dev Branch order matters: `rejectedAt` is NOT cleared by
     ///      `challengeRejection`, so a rejected-then-challenged job has both
-    ///      `rejectedAt > 0` and `inDispute == true` — checking `inDispute`
+    ///      `rejectedAt > 0` and `inDispute == true` - checking `inDispute`
     ///      first correctly routes that case through dispute-default logic
     ///      (claimDefaultRuling/claimArbitratorTimeout), not a plain
     ///      finalizeRejection refund.
@@ -789,25 +797,27 @@ contract BountyAdapter is ReentrancyGuard {
         } else if (wasDisputed) {
             if (responded) {
                 // Mirrors claimArbitratorTimeout: both sides engaged, the
-                // arbitrator never ruled — neutral split, no reputation write.
+                // arbitrator never ruled - neutral split, no reputation write.
                 (posterAmt, workerAmt) = _splitEvenly(reward);
             } else if (initiator == worker) {
                 // Mirrors claimDefaultRuling: worker-initiated, poster
-                // (respondent) never replied — worker wins by default.
+                // (respondent) never replied - worker wins by default.
                 workerAmt = reward;
             } else {
-                // Mirrors claimDefaultRuling: poster-initiated (including a
-                // rejected-then-challenged job, where the worker is the
-                // respondent), worker never replied — poster wins by default.
+                // Mirrors claimDefaultRuling: poster-initiated, worker never
+                // replied - poster wins by default. (F-12: a
+                // rejected-then-challenged job is worker-initiated, since
+                // challengeRejection sets disputeInitiator to the worker, so
+                // it takes the branch above when the poster stays silent.)
                 posterAmt = reward;
             }
         } else if (wasRejected) {
             // Mirrors finalizeRejection: poster rejected, worker never
             // challenged before the (long since closed, 90 days on)
-            // challenge window — refund poster.
+            // challenge window - refund poster.
             posterAmt = reward;
         } else {
-            // Submitted, never rejected, never disputed — poster simply went
+            // Submitted, never rejected, never disputed - poster simply went
             // silent past the approval window. Mirrors autoApprove fully,
             // including its reputation write and unique-poster accounting.
             workerAmt = reward;
@@ -821,17 +831,9 @@ contract BountyAdapter is ReentrancyGuard {
         if (workerAutoApproved) {
             _recordUniquePoster(meta);
             if (meta.agentId > 0) {
-                try reputationRegistry.giveFeedback(
-                    meta.agentId,
-                    80,
-                    0,
-                    "bounty_auto_approved",
-                    "",
-                    "",
-                    "",
-                    keccak256(abi.encodePacked("auto_approved", jobId))
-                ) {}
-                    catch {}
+                _writeFeedback(
+                    jobId, meta.agentId, 80, "bounty_auto_approved", keccak256(abi.encodePacked("auto_approved", jobId))
+                );
             }
         }
 
@@ -850,7 +852,7 @@ contract BountyAdapter is ReentrancyGuard {
         require(meta.rejectedAt == 0, "use challengeRejection");
         // V4.2: same bound as rejectBounty (V4.1). Without it, a poster
         // blocked from rejecting past the approval window could open a
-        // dispute instead — the same free delay the V4.1 fix was meant to
+        // dispute instead - the same free delay the V4.1 fix was meant to
         // close, with a worse worst case (arbitrator silence ends at a 50/50
         // split instead of the worker's full autoApprove payout). Harmless
         // for workers: past the window a worker wants autoApprove, never a
@@ -924,7 +926,7 @@ contract BountyAdapter is ReentrancyGuard {
     ///         claimDefaultRuling's silence-based path is unavailable). Splits
     ///         the payout 50/50 between poster and worker; no reputation
     ///         penalty is applied since fault was never adjudicated. This is
-    ///         the last-resort liveness path — resolveDispute by the real
+    ///         the last-resort liveness path - resolveDispute by the real
     ///         arbitrator remains strictly preferable and should always be
     ///         faster in practice.
     function claimArbitratorTimeout(uint256 jobId) external nonReentrant {
@@ -954,34 +956,45 @@ contract BountyAdapter is ReentrancyGuard {
 
     function _maybePenalize(BountyMeta storage meta, bool payProvider, uint8 penalty) internal {
         if (payProvider || meta.agentId == 0 || penalty == 0) return;
-        // V4.7 (M-01): written negative — getAgentReputation's getSummary call
+        // V4.7 (M-01): written negative - getAgentReputation's getSummary call
         // averages every feedback value with no tag filter, so a positive
         // penalty value previously pulled the average score UP, and the
         // maximum penalty (100) was indistinguishable from a perfect score.
         // Non-blocking: a dispute resolution must settle funds even if the
-        // live registry rejects the feedback write.
-        try reputationRegistry.giveFeedback(
+        // live registry rejects the feedback write (F-02: an agent owner can
+        // make it do so; the failure is now logged by _writeFeedback).
+        _writeFeedback(
+            meta.jobId,
             meta.agentId,
             -int128(uint128(penalty)),
-            0,
             "bounty_failed",
-            "",
-            "",
-            "",
             keccak256(abi.encodePacked("dispute_rejected", meta.jobId))
-        ) {}
-            catch {}
+        );
+    }
+
+    /// @dev Every reputation write goes through here. A registry that reverts
+    ///      still never blocks the payout that preceded the write, but the
+    ///      failure is logged (F-10), and the write can no longer be starved
+    ///      of gas while the settlement goes through (F-09).
+    function _writeFeedback(uint256 jobId, uint256 agentId, int128 value, string memory tag, bytes32 feedbackHash)
+        internal
+    {
+        require(gasleft() >= FEEDBACK_GAS_FLOOR, "gas below feedback floor");
+        try reputationRegistry.giveFeedback(agentId, value, 0, tag, "", "", "", feedbackHash) {}
+        catch {
+            emit ReputationWriteFailed(jobId, agentId, value);
+        }
     }
 
     // ─── Payouts: push, or park for later pull (V4.6) ──────────────────────────
 
     /// @notice Claim USDC that a failed direct payout parked for you.
-    /// @dev The only place a settlement amount may still revert — and it can
+    /// @dev The only place a settlement amount may still revert - and it can
     ///      only ever affect the caller's own funds, never another job.
     function withdraw() external nonReentrant returns (uint256 amount) {
         amount = pendingWithdrawals[msg.sender];
         require(amount > 0, "nothing to withdraw");
-        pendingWithdrawals[msg.sender] = 0; // effect before interaction — CEI
+        pendingWithdrawals[msg.sender] = 0; // effect before interaction - CEI
         usdc.safeTransfer(msg.sender, amount);
         emit WithdrawalClaimed(msg.sender, amount);
     }
@@ -994,14 +1007,18 @@ contract BountyAdapter is ReentrancyGuard {
     ///      `try usdc.transfer(...)`: SafeERC20 reverts on failure, which is
     ///      the exact behavior being defended against, and a typed try/catch
     ///      still reverts when a token returns no data or malformed data.
-    ///      Every failure mode — revert, `false`, unexpected return data — is
+    ///      Every failure mode - revert, `false`, unexpected return data - is
     ///      treated identically here: park it.
     function _payOrPark(uint256 jobId, address payee, uint256 amount) internal {
         if (amount == 0) return;
         // Deliberate: safeTransfer reverts on failure, which is the exact
         // behavior being defended against here. See SLITHER.md.
         (bool ok, bytes memory ret) = address(usdc).call(abi.encodeCall(IERC20.transfer, (payee, amount)));
-        if (ok && (ret.length == 0 || (ret.length == 32 && abi.decode(ret, (bool))))) {
+        // F-12: decode the return word as uint256, not bool. abi.decode(..,
+        // (bool)) reverts on a word other than 0 or 1, which would have
+        // reverted the settlement instead of parking it, contrary to the
+        // comment above. Only a return of exactly 1 (true) counts as paid.
+        if (ok && (ret.length == 0 || (ret.length == 32 && abi.decode(ret, (uint256)) == 1))) {
             return;
         }
         // Written after the call above. Unreachable as reentrancy: usdc is
@@ -1033,7 +1050,7 @@ contract BountyAdapter is ReentrancyGuard {
 
     /// @dev Pulls received USDC from AC via complete() and splits the full
     ///      proceeds 50/50 between the two payees. Used only by
-    ///      claimArbitratorTimeout — NO protocol fee here (V4.4): this path
+    ///      claimArbitratorTimeout - NO protocol fee here (V4.4): this path
     ///      only fires when the arbitrator failed to provide the service the
     ///      fee is charged for, so charging it on a neutral fault-neither-side
     ///      fallback would tax users for the protocol's own liveness failure.
@@ -1059,7 +1076,7 @@ contract BountyAdapter is ReentrancyGuard {
         b = total - a;
     }
 
-    /// @dev Pulls received USDC from AC and refunds poster — NO fee charged.
+    /// @dev Pulls received USDC from AC and refunds poster - NO fee charged.
     function _rejectAndRefund(uint256 jobId, string memory reason) internal {
         BountyMeta storage meta = _bounties[jobId];
         uint256 before = usdc.balanceOf(address(this));
@@ -1090,7 +1107,7 @@ contract BountyAdapter is ReentrancyGuard {
     // ─── Fee recipient transfer (2-step, self-service) ─────────────────────────
 
     /// @notice The current fee recipient nominates its own successor. Kept
-    ///         independent of the arbitrator role by design — a compromised
+    ///         independent of the arbitrator role by design - a compromised
     ///         fee wallet or planned rotation shouldn't require arbitrator
     ///         involvement, and the arbitrator should never be able to
     ///         unilaterally redirect protocol fees.
@@ -1111,7 +1128,7 @@ contract BountyAdapter is ReentrancyGuard {
 
     // ─── Owner transfer (2-step) + safety cap ───────────────────────────────────
 
-    /// @notice V4.5. Kept independent of the arbitrator role by design — see
+    /// @notice V4.5. Kept independent of the arbitrator role by design - see
     ///         the V4.5 changelog note at the top of this contract.
     function transferOwner(address next) external {
         require(msg.sender == owner, "only owner");
@@ -1129,14 +1146,14 @@ contract BountyAdapter is ReentrancyGuard {
     }
 
     /// @notice V4.5. 0 = uncapped. Existing bounties above a newly-lowered cap
-    ///         are unaffected — this only gates future createBounty calls.
+    ///         are unaffected - this only gates future createBounty calls.
     function setMaxBountyAmount(uint256 next) external {
         require(msg.sender == owner, "only owner");
         emit MaxBountyAmountUpdated(maxBountyAmount, next);
         maxBountyAmount = next;
     }
 
-    /// @notice V4.7. Blocks only createBounty/takeBounty — every exit path
+    /// @notice V4.7. Blocks only createBounty/takeBounty - every exit path
     ///         (submit/approve/autoApprove/cancel/expire/disputes/withdraw)
     ///         keeps working while paused, so no one already in a bounty is
     ///         trapped by an emergency stop.
@@ -1213,13 +1230,13 @@ contract BountyAdapter is ReentrancyGuard {
         clients[0] = address(this);
         (uint64 count, int128 summaryValue, uint8 summaryValueDecimals) =
             reputationRegistry.getSummary(agentId, clients, "", "");
-        // casting to 'uint256' is safe because every value we write via
-        // giveFeedback is a uint8 score/penalty (0-255); the `< 0` guard above
-        // handles the only other sign this int128 could carry.
+        // casting to 'uint256' is safe: scores are 0-100 and penalties are
+        // written negative (-1 to -100), so an average below zero is clamped
+        // to 0 by the `< 0` check on this line before the cast.
         // forge-lint: disable-next-line(unsafe-typecast)
         uint256 avg = summaryValue < 0 ? 0 : uint256(int256(summaryValue));
         // We always write valueDecimals=0 (a plain 0-100 scale), so this is a
-        // no-op in practice — kept so the read stays correct even if a future
+        // no-op in practice - kept so the read stays correct even if a future
         // write path (or a differently-configured caller) starts using decimals.
         if (summaryValueDecimals > 0) avg = avg / (10 ** summaryValueDecimals);
         return ReputationScore({averageScore: avg, totalFeedbacks: count, totalJobs: count});
